@@ -36,6 +36,15 @@
                 </time>
             </div>
         {{ end }}
+        
+        {{- if ne .Lastmod .Date -}}
+            <div class="article-lastmod">
+                {{ partial "helper/icon" "clock" }}
+                <time>
+                    {{ .Lastmod.Format ( or .Site.Params.dateFormat.lastUpdated "Jan 02, 2006 15:04 MST" ) }}
+                </time>
+            </div>
+        {{- end -}}
 
         {{ if $showReadingTime }}
             <div>
@@ -45,6 +54,15 @@
                 </time>
             </div>
         {{ end }}
+
+        <div id="viewCount">
+            {{ partial "helper/icon" "eye" }}
+            <time class="article-time--reading">
+                <!-- vercount统计当前页面浏览数的标签；若用不蒜子，更换成不蒜子对应的标签就好 -->
+                <span id="vercount_value_page_pv">loading... </span>次
+            </time>
+        </div>
+
     </footer>
     {{ end }}
 
