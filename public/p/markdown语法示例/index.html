@@ -1119,8 +1119,6 @@ $$<p>其中：</p>
 <div id="aplayer"></div>
 <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
 
-<script defer src="https://cn.vercount.one/js"></script>
-
 <script>
   const staticDir = "https://lingjia007.github.io/";
   const ap = new APlayer({
@@ -1568,6 +1566,36 @@ $$<p>其中：</p>
 
 <div class="js-Pjax">
   
+  <script>
+    (function() {
+      
+      const verScript = document.createElement('script');
+      verScript.defer = true;
+      verScript.src = 'https://cn.vercount.one/js';
+      document.body.appendChild(verScript);
+
+      
+      function showHideView() {
+        const viewCounts = document.querySelectorAll("#viewCount");
+        if (viewCounts) {
+          const isArticle = !!document.querySelector(".article-page");
+          viewCounts.forEach(ele => {
+            ele.style.display = isArticle ? '' : 'none';
+          });
+        }
+      }
+      
+      showHideView();
+      
+      document.addEventListener('pjax:complete', function() {
+        showHideView();
+      });
+    })();
+  </script>
+</div>
+
+<div class="js-Pjax">
+  
   
   <script>
     (function () {
@@ -1597,6 +1625,7 @@ $$<p>其中：</p>
   </script>
   
 </div>
+
 
 
     </body>
