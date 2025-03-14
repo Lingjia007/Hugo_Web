@@ -1435,35 +1435,7 @@
   initScrollTop();
 </script>
 
-<div class="js-Pjax2">
-  
-  <script>
-    (function() {
-      
-      const verScript = document.createElement('script');
-      verScript.defer = true;
-      verScript.src = 'https://cn.vercount.one/js';
-      document.body.appendChild(verScript);
 
-      
-      function showHideView() {
-        const viewCounts = document.querySelectorAll("#viewCount");
-        if (viewCounts) {
-          const isArticle = !!document.querySelector(".article-page");
-          viewCounts.forEach(ele => {
-            ele.style.display = isArticle ? '' : 'none';
-          });
-        }
-      }
-      
-      showHideView();
-      
-      document.addEventListener('pjax:complete', function() {
-        showHideView();
-      });
-    })();
-  </script>
-</div>
 
 <div class="js-Pjax">
   
