@@ -16,7 +16,9 @@
     <link rel="shortcut icon" href="/icons/favicon.ico" />
 
     </head>
-    <body class=" article-page ">
+    <body class="
+    article-page
+    ">
     <script>
         (function() {
             const colorSchemeKey = 'StackColorScheme';
@@ -267,8 +269,11 @@
         </li>
     </ol>
 </aside>
-  
-            <main class="main full-width"> <article class="main-article">
+
+    
+
+            <main class="main full-width">
+    <article class="main-article">
     <header class="article-header">
 
     <div class="article-details">
@@ -445,7 +450,10 @@
 <div class="math-katex"></div>
 
     
-</article>  <div class="article-list--compact links">
+</article>
+
+    
+        <div class="article-list--compact links">
     
         <article>
             <a href="https://github.com" target="_blank" rel="noopener">
@@ -491,9 +499,15 @@
             </a>
         </article>
     
-</div> 
+</div>
+    
 
-  <footer class="site-footer">
+    
+
+     
+    
+
+    <footer class="site-footer">
     <section class="copyright">
         &copy; 
         
@@ -505,7 +519,9 @@
         主题 <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.30.0">Stack</a></b> 由 <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a> 设计
     </section>
 </footer>
- 
+
+
+    
 <div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
 
     
@@ -581,7 +597,8 @@
             ><link 
                 rel="stylesheet" 
                 href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css"crossorigin="anonymous"
-            > 
+            >
+
             </main>
         </div>
         <script 
@@ -689,7 +706,7 @@
 <script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
 <script>
   var pjax = new Pjax({
-    selectors: [".main-container", ".js-Pjax"],
+    selectors: [".main-container", ".js-Pjax1", ".js-Pjax2"],
   });
 </script>
 
@@ -1092,9 +1109,37 @@
   initScrollTop();
 </script>
 
+<div class="js-Pjax2">
+  
+  <script>
+    (function() {
+      
+      const verScript = document.createElement('script');
+      verScript.defer = true;
+      verScript.src = 'https://cn.vercount.one/js';
+      document.body.appendChild(verScript);
 
+      
+      function showHideView() {
+        const viewCounts = document.querySelectorAll("#viewCount");
+        if (viewCounts) {
+          const isArticle = !!document.querySelector(".article-page");
+          viewCounts.forEach(ele => {
+            ele.style.display = isArticle ? '' : 'none';
+          });
+        }
+      }
+      
+      showHideView();
+      
+      document.addEventListener('pjax:complete', function() {
+        showHideView();
+      });
+    })();
+  </script>
+</div>
 
-<div class="js-Pjax">
+<div class="js-Pjax1">
   
 </div>
 

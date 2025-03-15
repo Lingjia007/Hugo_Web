@@ -417,7 +417,7 @@
 <script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
 <script>
   var pjax = new Pjax({
-    selectors: [".main-container", ".js-Pjax"],
+    selectors: [".main-container", ".js-Pjax1", ".js-Pjax2"],
   });
 </script>
 
@@ -820,9 +820,37 @@
   initScrollTop();
 </script>
 
+<div class="js-Pjax2">
+  
+  <script>
+    (function() {
+      
+      const verScript = document.createElement('script');
+      verScript.defer = true;
+      verScript.src = 'https://cn.vercount.one/js';
+      document.body.appendChild(verScript);
 
+      
+      function showHideView() {
+        const viewCounts = document.querySelectorAll("#viewCount");
+        if (viewCounts) {
+          const isArticle = !!document.querySelector(".article-page");
+          viewCounts.forEach(ele => {
+            ele.style.display = isArticle ? '' : 'none';
+          });
+        }
+      }
+      
+      showHideView();
+      
+      document.addEventListener('pjax:complete', function() {
+        showHideView();
+      });
+    })();
+  </script>
+</div>
 
-<div class="js-Pjax">
+<div class="js-Pjax1">
   
 </div>
 
