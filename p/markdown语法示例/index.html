@@ -1653,46 +1653,58 @@ $$<p>其中：</p>
   </script>
 </div>
 
-<div class="js-Pjax1">
+<script>
+(function() {
   
+  const CONFIG = {
+    repo: "Lingjia007/Lingjia007.github.io",
+    repoId: "R_kgDOOH5NOA",
+    category: "Announcements",
+    categoryId: "DIC_kwDOOH5NOM4Cn-zx",
+    mapping: "pathname", 
+    term: cleanUrl(window.location.pathname), 
+    strict: "0",
+    reactionsEnabled: "1",
+    theme: "light",
+    lang: "zh-CN"
+  };
+
   
-  <script>
-    (function () {
-      const script = document.createElement("script");
-      script.src = "https://giscus.app/client.js";
-      script.setAttribute("data-repo", "Lingjia007/Lingjia007.github.io");
-      script.setAttribute("data-repo-id", "R_kgDOOH5NOA");
-      script.setAttribute("data-category", "Announcements");
-      script.setAttribute("data-category-id", "DIC_kwDOOH5NOM4Cn-zx");
-      script.setAttribute("data-mapping", "pathname");
-      script.setAttribute("data-reactions-enabled", "1");
-      script.setAttribute("data-emit-metadata", "0");
-      script.setAttribute("data-input-position", "top");
-      script.setAttribute("data-theme", "light");
-      script.setAttribute("data-lang", "zh-CN");
-      script.setAttribute("data-loading", "lazy");
-      script.setAttribute("crossorigin", "anonymous");
-      script.async = true;
+  function cleanUrl(url) {
+    return url
+      .replace(/(\/\?.*|)$/, '') 
+      .replace(/\/$/, '');       
+  }
 
-      
-    const container = document.querySelector("main.full-width") || document.querySelector("main");
-
-    if (container) {
-      
-      const children = Array.from(container.children);
-
-      
-      if (children.length >= 1) {
-        container.insertBefore(script, children[1]);
-      } else {
-        
-        container.appendChild(script);
+  
+  function loadGiscus() {
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    
+    
+    Object.entries(CONFIG).forEach(([key, value]) => {
+      if (typeof value !== 'string') {
+        console.error(`配置项 ${key} 类型错误: ${typeof value}`);
+        return;
       }
-    }
-    })();
-  </script>
+      script.dataset[key] = value;
+    });
+
+    
+    const container = document.querySelector('main') || document.body;
+    container.appendChild(script);
+  }
+
   
-</div>
+  if (document.readyState === 'complete') {
+    loadGiscus();
+  } else {
+    window.addEventListener('load', loadGiscus);
+  }
+})();
+</script>
 
 
 

@@ -1008,9 +1008,58 @@
   </script>
 </div>
 
-<div class="js-Pjax1">
+<script>
+(function() {
   
-</div>
+  const CONFIG = {
+    repo: "Lingjia007/Lingjia007.github.io",
+    repoId: "R_kgDOOH5NOA",
+    category: "Announcements",
+    categoryId: "DIC_kwDOOH5NOM4Cn-zx",
+    mapping: "pathname", 
+    term: cleanUrl(window.location.pathname), 
+    strict: "0",
+    reactionsEnabled: "1",
+    theme: "light",
+    lang: "zh-CN"
+  };
+
+  
+  function cleanUrl(url) {
+    return url
+      .replace(/(\/\?.*|)$/, '') 
+      .replace(/\/$/, '');       
+  }
+
+  
+  function loadGiscus() {
+    const script = document.createElement('script');
+    script.src = 'https://giscus.app/client.js';
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    
+    
+    Object.entries(CONFIG).forEach(([key, value]) => {
+      if (typeof value !== 'string') {
+        console.error(`配置项 ${key} 类型错误: ${typeof value}`);
+        return;
+      }
+      script.dataset[key] = value;
+    });
+
+    
+    const container = document.querySelector('main') || document.body;
+    container.appendChild(script);
+  }
+
+  
+  if (document.readyState === 'complete') {
+    loadGiscus();
+  } else {
+    window.addEventListener('load', loadGiscus);
+  }
+})();
+</script>
 
 
 
