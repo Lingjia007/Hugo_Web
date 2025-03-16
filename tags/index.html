@@ -6,11 +6,11 @@
 
 <link rel='canonical' href='https://lingjia007.github.io/Hugo_Web/tags/'>
 
-<link rel="stylesheet" href="/Hugo_Web/scss/style.min.cb16f5b968437171393b27bdb9ab3246cda2603abb807fbc28fe4da8cdb41822.css"><meta property='og:title' content="Tags">
+<link rel="stylesheet" href="/Hugo_Web/scss/style.min.a036541ba12647857f01dfe6a83f97094d8a8a8058f9c70a3798154d65bad033.css"><meta property='og:title' content="Tags">
 <meta property='og:description' content="欢迎来到我的网站">
 <meta property='og:url' content='https://lingjia007.github.io/Hugo_Web/tags/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='website'><meta property='og:updated_time' content=' 2025-03-15T19:40:28&#43;08:00 '/>
+<meta property='og:type' content='website'><meta property='og:updated_time' content=' 2025-03-16T20:10:33&#43;08:00 '/>
 <meta name="twitter:title" content="Tags">
 <meta name="twitter:description" content="欢迎来到我的网站"><link rel="alternate" type="application/rss&#43;xml" href="https://lingjia007.github.io/Hugo_Web/tags/index.xml">
     <link rel="shortcut icon" href="/icons/favicon.ico" />
@@ -317,6 +317,14 @@
                         
                     </a> 
                 </div>
+            <div class="archives-year">
+                    <a href="/Hugo_Web/archives/#2019">
+                        
+                            <span class="year">2019</span>
+                            <span class="count">1</span>
+                        
+                    </a> 
+                </div>
             
         </div>
     </section>
@@ -339,6 +347,10 @@
   </h2>
 
   <div class="tagCloud-tags">
+    
+    <a href="/Hugo_Web/categories/test/" class="font_size_1">
+      Test
+    </a>
     
     <a href="/Hugo_Web/categories/%E4%B8%BB%E9%A2%98/" class="font_size_1">
       主题
@@ -373,6 +385,10 @@
                 Css
             </a>
         
+            <a href="/Hugo_Web/tags/emoji/" class="font_size_1">
+                Emoji
+            </a>
+        
             <a href="/Hugo_Web/tags/html/" class="font_size_1">
                 Html
             </a>
@@ -402,7 +418,7 @@
 
         <div class="section-card">
             <div class="section-details">
-                <h3 class="section-count">4 个页面</h3>
+                <h3 class="section-count">5 个页面</h3>
                 <h1 class="section-term">Tags</h1>
                 
             </div>
@@ -415,6 +431,7 @@
     <a href="/Hugo_Web/tags/css/">
         <div class="article-details">
             <h2 class="article-title">Css</h2>
+            
             <footer class="article-time">
                 <time datetime='2025-03-11T00:00:00Z'>Mar 11, 2025</time>
             </footer>
@@ -426,6 +443,7 @@
     <a href="/Hugo_Web/tags/html/">
         <div class="article-details">
             <h2 class="article-title">Html</h2>
+            
             <footer class="article-time">
                 <time datetime='2025-03-11T00:00:00Z'>Mar 11, 2025</time>
             </footer>
@@ -437,6 +455,7 @@
     <a href="/Hugo_Web/tags/markdown/">
         <div class="article-details">
             <h2 class="article-title">Markdown</h2>
+            
             <footer class="article-time">
                 <time datetime='2025-03-11T00:00:00Z'>Mar 11, 2025</time>
             </footer>
@@ -467,6 +486,9 @@
         2025 lingsir007
     </section>
     
+    <section class="running-time">
+        本网站已稳定运行&nbsp;<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;总计<span id="articleCount">&lt;2></span>篇文章
+    </section>
     <section class="powerby">
         使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 构建 <br />
         主题 <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.30.0">Stack</a></b> 由 <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a> 设计
@@ -578,6 +600,26 @@
   });
 </script>
 
+<script>
+  
+  function calculateRunningDays(startDateStr, elementId) {
+      let s1 = new Date(startDateStr.replace(/-/g, "/"));
+      let s2 = new Date();
+      let timeDifference = s2.getTime() - s1.getTime();
+
+      let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+      let hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      let minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+
+      let result ="<" + days + "天" + hours + "小时" + minutes + "分钟" + ">";
+      document.getElementById(elementId).innerHTML = result;
+  }
+  document.addEventListener("pjax:complete", () => {
+    calculateRunningDays('2025-3-14', 'runningdays');
+  });
+  calculateRunningDays('2025-3-14', 'runningdays');
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
 <script>
   var pjax = new Pjax({
@@ -608,6 +650,7 @@
   document.addEventListener("pjax:complete", () => {
     
     window.Stack.init();
+    
   });
 </script>
 
@@ -1017,7 +1060,6 @@
 <div class="js-Pjax1">
   
 </div>
-
 
 
     </body>
