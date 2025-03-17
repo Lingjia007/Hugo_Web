@@ -333,6 +333,15 @@
   rel="stylesheet"
   href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css"
 />
+
+
+<script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
+<script>
+  var pjax = new Pjax({
+    selectors: [".main-container", ".js-Pjax1", ".js-Pjax2"],
+  });
+</script>
+
 <div id="aplayer"></div>
 <script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
 
@@ -435,13 +444,6 @@
     calculateRunningDays('2025-3-14', 'runningdays');
   });
   calculateRunningDays('2025-3-14', 'runningdays');
-</script>
-
-<script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
-<script>
-  var pjax = new Pjax({
-    selectors: [".main-container", ".js-Pjax1", ".js-Pjax2"],
-  });
 </script>
 
 <script>
