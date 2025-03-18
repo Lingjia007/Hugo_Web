@@ -342,7 +342,7 @@
     </section>
     
     <section class="running-time">
-        This website has been running stably&nbsp;<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt;1></span> articles
+        This website has been running stably&nbsp;<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 1 ></span> articles
     </section>
     <section class="powerby">
         Built with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> <br />
@@ -473,21 +473,27 @@
 <script>
   
   function calculateRunningDays(startDateStr, elementId) {
-      let s1 = new Date(startDateStr.replace(/-/g, "/"));
-      let s2 = new Date();
-      let timeDifference = s2.getTime() - s1.getTime();
+    let s1 = new Date(startDateStr.replace(/-/g, "/"));
+    let s2 = new Date();
+    let timeDifference = s2.getTime() - s1.getTime();
 
-      let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
-      let hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      let minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+    let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+    let hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    let minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
 
-      let result ="<" + days + "d " + hours + "h " + minutes + "m " + ">";
-      document.getElementById(elementId).innerHTML = result;
-  }
-  document.addEventListener("pjax:complete", () => {
+    
+    let dayText = "d "; 
+    let hourText = "h ";
+    let minuteText = "m ";
+
+    let result = `<span><${days} ${dayText} ${hours} ${hourText} ${minutes} ${minuteText}></span>`;
+    document.getElementById(elementId).innerHTML = result;
+    }
+
+    document.addEventListener("pjax:complete", () => {
+        calculateRunningDays('2025-3-14', 'runningdays');
+    });
     calculateRunningDays('2025-3-14', 'runningdays');
-  });
-  calculateRunningDays('2025-3-14', 'runningdays');
 </script>
 
 <script>

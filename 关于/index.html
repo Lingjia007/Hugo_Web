@@ -456,7 +456,7 @@
     </section>
     
     <section class="running-time">
-        本网站已稳定运行&nbsp;<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;总计<span id="articleCount">&lt;2></span>篇文章
+        本网站已稳定运行&nbsp;<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;总计<span id="articleCount">&lt; 2 ></span>篇文章
     </section>
     <section class="powerby">
         使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 构建 <br />
@@ -666,21 +666,27 @@
 <script>
   
   function calculateRunningDays(startDateStr, elementId) {
-      let s1 = new Date(startDateStr.replace(/-/g, "/"));
-      let s2 = new Date();
-      let timeDifference = s2.getTime() - s1.getTime();
+    let s1 = new Date(startDateStr.replace(/-/g, "/"));
+    let s2 = new Date();
+    let timeDifference = s2.getTime() - s1.getTime();
 
-      let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
-      let hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      let minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+    let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+    let hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    let minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
 
-      let result ="<" + days + "天" + hours + "小时" + minutes + "分钟" + ">";
-      document.getElementById(elementId).innerHTML = result;
-  }
-  document.addEventListener("pjax:complete", () => {
+    
+    let dayText = "天"; 
+    let hourText = "小时";
+    let minuteText = "分钟";
+
+    let result = `<span><${days} ${dayText} ${hours} ${hourText} ${minutes} ${minuteText}></span>`;
+    document.getElementById(elementId).innerHTML = result;
+    }
+
+    document.addEventListener("pjax:complete", () => {
+        calculateRunningDays('2025-3-14', 'runningdays');
+    });
     calculateRunningDays('2025-3-14', 'runningdays');
-  });
-  calculateRunningDays('2025-3-14', 'runningdays');
 </script>
 
 <script>
