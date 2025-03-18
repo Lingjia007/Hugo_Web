@@ -1085,9 +1085,22 @@
         if (!comment) return;
 
         
+        const placeholder = document.createElement('div');
+        placeholder.className = 'giscus-placeholder';
+        placeholder.style.minHeight = '160px';
+        placeholder.style.backgroundColor = 'transparent';
+        
+        
+        const siteFooter = document.querySelector('.site-footer');
+        if (siteFooter) {
+          siteFooter.parentNode.insertBefore(placeholder, siteFooter);
+        }
+
         function reloadComments() {
-          const giscusContainer = document.querySelector('.giscus');
-          if (giscusContainer) giscusContainer.remove();
+          
+          placeholder.innerHTML = '';
+          
+          
           const newScript = document.createElement('script');
           newScript.src = 'https://giscus.app/client.js';
           for (let key in window.giscusConfig) {
@@ -1095,22 +1108,14 @@
           }
           newScript.setAttribute('crossorigin', 'anonymous');
           newScript.async = true;
-          document.querySelector('.site-footer').before(newScript);
+          
+          placeholder.appendChild(newScript);
         }
 
+        reloadComments();
         
-        let script = document.createElement('script');
-        script.src = 'https://giscus.app/client.js';
-        for (let key in window.giscusConfig) {
-          script.setAttribute(`data-${key}`, window.giscusConfig[key]);
-        }
-        script.setAttribute('crossorigin', 'anonymous');
-        script.async = true;
-        document.querySelector('.site-footer').before(script);
-
-        
-        setTimeout(reloadComments, 600);
-      })(document);
+        setTimeout(reloadComments, 700);
+      })();
     </script>
   </div>
 
