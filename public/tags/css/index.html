@@ -10,7 +10,7 @@
 <meta property='og:description' content="欢迎来到我的网站">
 <meta property='og:url' content='https://lingjia007.github.io/Hugo_Web/tags/css/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='website'><meta property='og:updated_time' content=' 2025-03-16T20:10:33&#43;08:00 '/>
+<meta property='og:type' content='website'><meta property='og:updated_time' content=' 2025-03-18T17:43:37&#43;08:00 '/>
 <meta name="twitter:title" content="Tag: Css - lingsir007">
 <meta name="twitter:description" content="欢迎来到我的网站"><link rel="alternate" type="application/rss&#43;xml" href="https://lingjia007.github.io/Hugo_Web/tags/css/index.xml">
     <link rel="shortcut icon" href="/icons/favicon.ico" />
@@ -491,7 +491,12 @@
   href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css"
 />
 
-
+<script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
+<script>
+  var pjax = new Pjax({
+    selectors: [".main-container", ".js-Pjax1", ".js-Pjax2"],
+  });
+</script>
 
 
 <div id="aplayer"></div>
@@ -1026,12 +1031,36 @@
       });
     })();
   </script>
-</div>
-
-<div class="js-Pjax1">
-  
-</div>
-
+</div><div class="js-Pjax1">
+<script>
+    (function () {
+        
+        let comment = document.querySelector(".comment");
+        if (!comment) {
+            return
+        }
+        let script = document.createElement('script');
+        
+        script.src = 'https://giscus.app/client.js';
+        script.setAttribute('data-repo', 'Lingjia007\/Hugo_Web');
+        script.setAttribute('data-repo-id', 'R_kgDOOH5NOA');
+        script.setAttribute('data-category', 'Announcements');
+        script.setAttribute('data-category-id', 'DIC_kwDOOH5NOM4Cn-zx');
+        script.setAttribute('data-mapping', 'pathname');
+        script.setAttribute('data-strict', '0');
+        script.setAttribute('data-reactions-enabled', '1');
+        script.setAttribute('data-emit-metadata', '0');
+        script.setAttribute('data-input-position', 'top');
+        script.setAttribute('data-theme', '"light"');
+        script.setAttribute('data-lang', 'zh-CN');
+        script.setAttribute('data-loading', 'lazy');
+        script.setAttribute('crossorigin', 'anonymous');
+        script.async = true;
+        
+        document.querySelector('.site-footer').before(script)
+    })(document);
+</script>
+<div>
 
     </body>
 </html>

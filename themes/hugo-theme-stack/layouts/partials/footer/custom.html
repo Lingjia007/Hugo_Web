@@ -3,7 +3,12 @@
   href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css"
 />
 
-
+<script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
+<script>
+  var pjax = new Pjax({
+    selectors: [".main-container", ".js-Pjax1", ".js-Pjax2"],
+  });
+</script>
 
 
 <div id="aplayer"></div>
@@ -616,40 +621,35 @@
   </script>
 </div>
 
+{{- with .Site.Params.comments.giscus -}}
 <div class="js-Pjax1">
-  {{ if and .Site.Params.comments.enabled (eq .Type "post") }}
-  <script>
+<script>
     (function () {
-      const script = document.createElement("script");
-      script.src = "https://giscus.app/client.js";
-      script.setAttribute("data-repo", "Lingjia007/Hugo_Web");
-      script.setAttribute("data-repo-id", "R_kgDOOH5NOA");
-      script.setAttribute("data-category", "Announcements");
-      script.setAttribute("data-category-id", "DIC_kwDOOH5NOM4Cn-zx");
-      script.setAttribute("data-mapping", "specific");
-      script.setAttribute("data-term", "{{ .Title }}");
-      script.setAttribute("data-strict", "1");
-      script.setAttribute("data-reactions-enabled", "1");
-      script.setAttribute("data-emit-metadata", "0");
-      script.setAttribute("data-input-position", "top");
-      script.setAttribute("data-theme", "light");
-      script.setAttribute("data-lang", "zh-CN");
-      //script.setAttribute("data-loading", "lazy");
-      script.setAttribute("crossorigin", "anonymous");
-      script.async = true;
-
-    const container = document.querySelector("main.full-width") || document.querySelector("main");
-
-    if (container) {
-      const children = Array.from(container.children);
-      if (children.length >= 1) {
-        container.insertBefore(script, children[1]);
-      } else {
-        // 否则直接追加到最后
-        container.appendChild(script);
-      }
-    }
-    })();
-  </script>
-  {{ end }}
-</div>
+        // 判断当前是否有文章评论标识
+        let comment = document.querySelector(".comment");
+        if (!comment) {
+            return
+        }
+        let script = document.createElement('script');
+        // 将对应评论的脚本内容填进去
+        script.src = 'https://giscus.app/client.js';
+        script.setAttribute('data-repo', '{{- .repo -}}');
+        script.setAttribute('data-repo-id', '{{- .repoID -}}');
+        script.setAttribute('data-category', '{{- .category -}}');
+        script.setAttribute('data-category-id', '{{- .categoryID -}}');
+        script.setAttribute('data-mapping', 'pathname');
+        script.setAttribute('data-strict', '{{- default 0 .strict -}}');
+        script.setAttribute('data-reactions-enabled', '{{- default 1 .reactionsEnabled -}}');
+        script.setAttribute('data-emit-metadata', '{{- default 0 .emitMetadata -}}');
+        script.setAttribute('data-input-position', '{{- default "top" .inputPosition -}}');
+        script.setAttribute('data-theme', '"{{- default `light` .lightTheme -}}"');
+        script.setAttribute('data-lang', '{{- default "en" .lang -}}');
+        script.setAttribute('data-loading', '{{- .loading -}}');
+        script.setAttribute('crossorigin', 'anonymous');
+        script.async = true;
+        // 寻找合适的元素，添加脚本进去(在页脚前将评论脚本插入)
+        document.querySelector('.site-footer').before(script)
+    })(document);
+</script>
+<div>
+{{- end -}}
