@@ -10,7 +10,7 @@
 <meta property='og:description' content="欢迎来到我的网站">
 <meta property='og:url' content='https://lingsir007.netlify.app/categories/emoji/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='website'><meta property='og:updated_time' content=' 2025-03-22T00:52:58&#43;08:00 '/>
+<meta property='og:type' content='website'><meta property='og:updated_time' content=' 2025-03-22T20:30:21&#43;08:00 '/>
 <meta name="twitter:title" content="Category: Emoji - lingsir007">
 <meta name="twitter:description" content="欢迎来到我的网站"><link rel="alternate" type="application/rss&#43;xml" href="https://lingsir007.netlify.app/categories/emoji/index.xml">
     <link rel="shortcut icon" href="/icons/favicon.ico" />
@@ -1064,20 +1064,30 @@
 </div><div class="js-Pjax1">
     <script>
       (function () {
+        var pathName = window.location.pathname;
+        let langFromPath = 'zh-CN';
+        if (pathName.includes('/zh-hk')) {
+            langFromPath = 'zh-HK';
+        } else if (pathName.includes('/en')) {
+            langFromPath = 'en';
+        }
+        
         window.giscusConfig = {
-          repo: 'Lingjia007\/Hugo_Web',
-          repoId: 'R_kgDOOH5NOA',
-          category: 'Announcements',
-          categoryId: 'DIC_kwDOOH5NOM4Cn-zx',
-          mapping: 'title',
-          strict: '0',
-          reactionsEnabled: '1',
-          emitMetadata: '0',
-          inputPosition: 'top',
-          theme: 'light',
-          lang: 'zh-CN',
-          loading: 'lazy'
+            repo: 'Lingjia007\/Hugo_Web',
+            repoId: 'R_kgDOOH5NOA',
+            category: 'Announcements',
+            categoryId: 'DIC_kwDOOH5NOM4Cn-zx',
+            mapping: 'title',
+            strict: '0',
+            reactionsEnabled: '1',
+            emitMetadata: '0',
+            inputPosition: 'top',
+            theme: 'light',
+            lang: langFromPath, 
+            loading: 'lazy'
         };
+
+        console.log('giscus_language set to:', window.giscusConfig.lang);
 
         let comment = document.querySelector(".comment");
         if (!comment) return;
