@@ -1518,20 +1518,30 @@
 </div><div class="js-Pjax1">
     <script>
       (function () {
+        var pathName = window.location.pathname;
+        let langFromPath = 'zh-CN';
+        if (pathName.includes('/zh-hk')) {
+            langFromPath = 'zh-HK';
+        } else if (pathName.includes('/en')) {
+            langFromPath = 'en';
+        }
+        
         window.giscusConfig = {
-          repo: 'Lingjia007\/Hugo_Web',
-          repoId: 'R_kgDOOH5NOA',
-          category: 'Announcements',
-          categoryId: 'DIC_kwDOOH5NOM4Cn-zx',
-          mapping: 'title',
-          strict: '0',
-          reactionsEnabled: '1',
-          emitMetadata: '0',
-          inputPosition: 'top',
-          theme: 'light',
-          lang: 'zh-CN',
-          loading: 'lazy'
+            repo: 'Lingjia007\/Hugo_Web',
+            repoId: 'R_kgDOOH5NOA',
+            category: 'Announcements',
+            categoryId: 'DIC_kwDOOH5NOM4Cn-zx',
+            mapping: 'title',
+            strict: '0',
+            reactionsEnabled: '1',
+            emitMetadata: '0',
+            inputPosition: 'top',
+            theme: 'light',
+            lang: langFromPath, 
+            loading: 'lazy'
         };
+
+        console.log('giscus_language set to:', window.giscusConfig.lang);
 
         let comment = document.querySelector(".comment");
         if (!comment) return;
