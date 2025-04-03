@@ -6,11 +6,11 @@
 
 <link rel='canonical' href='https://lingsir007.netlify.app/en/categories/syntax/'>
 
-<link rel="stylesheet" href="/scss/style.min.4e7ee41d9434cba62bf6408acce67432b2b9decdf780d044627443c4ed60f75f.css"><meta property='og:title' content="Category: Syntax - lingsir007">
+<link rel="stylesheet" href="/scss/style.min.278c1b65bc119931315213ac6e3fc9387c8572387b53db27eef351be6176e17b.css"><meta property='og:title' content="Category: Syntax - lingsir007">
 <meta property='og:description' content="welcome to my website">
 <meta property='og:url' content='https://lingsir007.netlify.app/en/categories/syntax/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='website'><meta property='og:updated_time' content=' 2025-03-23T22:43:25&#43;08:00 '/>
+<meta property='og:type' content='website'><meta property='og:updated_time' content=' 2025-04-04T01:25:18&#43;08:00 '/>
 <meta name="twitter:title" content="Category: Syntax - lingsir007">
 <meta name="twitter:description" content="welcome to my website"><link rel="alternate" type="application/rss&#43;xml" href="https://lingsir007.netlify.app/en/categories/syntax/index.xml">
     <link rel="shortcut icon" href="/icons/favicon.ico" />
@@ -269,6 +269,23 @@
 </aside>
 
     <aside class="sidebar right-sidebar sticky">
+        
+        
+            <div class="clock-component">
+                <div class="clock">
+                    <div class="hour">
+                        <div class="hr" id="hr"></div>
+                    </div>
+                    <div class="min">
+                        <div class="mn" id="mn"></div>
+                    </div>
+                    <div class="sec">
+                        <div class="sc" id="sc"></div>
+                    </div>
+                </div>
+            </div>
+        
+
         
             
                 <form action="/en/search/" class="search-form widget" >
@@ -630,7 +647,42 @@
     }
   };
 </script>
+<script>
+  
+  function initClock() {
+    
+    var hr = document.getElementById("hr"); 
+    var mn = document.getElementById("mn"); 
+    var sc = document.getElementById("sc"); 
 
+    setInterval(function () {
+      var date = new Date();
+      var HH = date.getHours();
+      var MM = date.getMinutes();
+      var SS = date.getSeconds();
+
+      
+      var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+      var minuteAngle = MM * 6 + (SS / 60) * 6;
+      var secondAngle = SS * 6;
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 1000);
+  }
+
+  
+  window.onload = function () {
+    initClock();
+  };
+
+  
+  document.addEventListener("pjax:complete", () => {
+    initClock();
+  });
+</script>
 <script>
   document.addEventListener("pjax:complete", () => {
     
