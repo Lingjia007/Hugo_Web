@@ -6,7 +6,7 @@
 
 <link rel='canonical' href='https://lingjia007.github.io/Hugo_Web/%E5%8F%8B%E6%83%85%E9%93%BE%E6%8E%A5/'>
 
-<link rel="stylesheet" href="/Hugo_Web/scss/style.min.4e7ee41d9434cba62bf6408acce67432b2b9decdf780d044627443c4ed60f75f.css"><meta property='og:title' content="友情链接">
+<link rel="stylesheet" href="/Hugo_Web/scss/style.min.278c1b65bc119931315213ac6e3fc9387c8572387b53db27eef351be6176e17b.css"><meta property='og:title' content="友情链接">
 <meta property='og:description' content="">
 <meta property='og:url' content='https://lingjia007.github.io/Hugo_Web/%E5%8F%8B%E6%83%85%E9%93%BE%E6%8E%A5/'>
 <meta property='og:site_name' content='lingsir007'>
@@ -737,7 +737,42 @@
     }
   };
 </script>
+<script>
+  
+  function initClock() {
+    
+    var hr = document.getElementById("hr"); 
+    var mn = document.getElementById("mn"); 
+    var sc = document.getElementById("sc"); 
 
+    setInterval(function () {
+      var date = new Date();
+      var HH = date.getHours();
+      var MM = date.getMinutes();
+      var SS = date.getSeconds();
+
+      
+      var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+      var minuteAngle = MM * 6 + (SS / 60) * 6;
+      var secondAngle = SS * 6;
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 1000);
+  }
+
+  
+  window.onload = function () {
+    initClock();
+  };
+
+  
+  document.addEventListener("pjax:complete", () => {
+    initClock();
+  });
+</script>
 <script>
   document.addEventListener("pjax:complete", () => {
     
