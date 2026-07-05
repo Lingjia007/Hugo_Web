@@ -7,16 +7,133 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>zh-hk</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Sat, 04 Jul 2026 21:19:19 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/zh-hk/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Sun, 05 Jul 2026 19:22:21 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/zh-hk/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/index.xml" rel="self" type="application/rss+xml" /><item>
         <title>C 語言的精髓：結構體與指標——嵌入式面向物件平台化分層設計</title>
         <link>https://lingjia007.github.io/Hugo_Web/zh-hk/p/c-%E8%AA%9E%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%B5%90%E6%A7%8B%E9%AB%94%E8%88%87%E6%8C%87%E6%A8%99%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E7%89%A9%E4%BB%B6%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%A4%E8%A8%AD%E8%A8%88/</link>
         <pubDate>Fri, 03 Jul 2026 00:00:00 +0000</pubDate>
         
         <guid>https://lingjia007.github.io/Hugo_Web/zh-hk/p/c-%E8%AA%9E%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%B5%90%E6%A7%8B%E9%AB%94%E8%88%87%E6%8C%87%E6%A8%99%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E7%89%A9%E4%BB%B6%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%A4%E8%A8%AD%E8%A8%88/</guid>
-        <description>&lt;h2 id=&#34;前言&#34;&gt;前言
+        <description>&lt;img src="https://lingjia007.github.io/Hugo_Web/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.png" alt="Featured image of post C 語言的精髓：結構體與指標——嵌入式面向物件平台化分層設計" /&gt;&lt;h2 id=&#34;前言&#34;&gt;前言
 &lt;/h2&gt;&lt;p&gt;C 語言沒有 &lt;code&gt;class&lt;/code&gt;、沒有 &lt;code&gt;virtual&lt;/code&gt;、沒有 &lt;code&gt;interface&lt;/code&gt;，但 Linux 內核、GObject、Zephyr RTOS 這些大型專案全用 C 寫出了完整的面向物件體系。它們的武器只有兩件：&lt;strong&gt;結構體&lt;/strong&gt;和&lt;strong&gt;指標&lt;/strong&gt;。&lt;/p&gt;
 &lt;p&gt;本文以一個嵌入式 LED 驅動的漸進式重構為主線，從最樸素的 &lt;code&gt;struct + me&lt;/code&gt; 出發，一路走到 Linux 內核風格的 &lt;code&gt;gpio_chip&lt;/code&gt; + initcall 自動註冊，用同一顆 LED 講透嵌入式 C 面向物件編程的全部精髓。&lt;/p&gt;
 &lt;hr&gt;
+&lt;h2 id=&#34;零為什麼結構體和指標是-c-的精髓&#34;&gt;零、為什麼結構體和指標是 C 的精髓
+&lt;/h2&gt;&lt;h3 id=&#34;01-c-語言只有三塊基石&#34;&gt;0.1 C 語言只有三塊基石
+&lt;/h3&gt;&lt;p&gt;C 語言提供的複合型別工具極少：基本型別、陣列、結構體、聯合體、列舉、指標。其中真正能承載設計複雜度的只有兩個：&lt;strong&gt;結構體&lt;/strong&gt;和&lt;strong&gt;指標&lt;/strong&gt;。&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;結構體&lt;/strong&gt;是 C 中唯一的資料聚合工具——把多個屬性綁在一起，形成「物件」的雛形&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;指標&lt;/strong&gt;是 C 中唯一的間接參照工具——透過位址操作任意物件，實現「多態」的根基&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;沒有結構體，資料只能散落為全域變數；沒有指標，函式只能操作固定物件，無法實現多實例、多態、回呼。C++ 的 &lt;code&gt;class&lt;/code&gt;、&lt;code&gt;virtual&lt;/code&gt;、&lt;code&gt;interface&lt;/code&gt; 本質上都是這兩者的語法糖。&lt;/p&gt;
+&lt;h3 id=&#34;02-片上外設位址映射結構體指標的天然舞台&#34;&gt;0.2 片上外設位址映射：結構體指標的天然舞台
+&lt;/h3&gt;&lt;p&gt;打開任何一款 ARM Cortex-M 晶片的標準外設庫或 HAL 庫，你會看到這樣的程式碼：&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;STM32 HAL（&lt;code&gt;stm32f407xx.h&lt;/code&gt;）：&lt;/strong&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;typedef&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;SR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;         &lt;span class=&#34;c1&#34;&gt;// 狀態暫存器，偏移 0x00
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;DR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;         &lt;span class=&#34;c1&#34;&gt;// 資料暫存器，偏移 0x04
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BRR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;        &lt;span class=&#34;c1&#34;&gt;// 波特率暫存器，偏移 0x08
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CR1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;        &lt;span class=&#34;c1&#34;&gt;// 控制暫存器1，偏移 0x0C
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CR2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;        &lt;span class=&#34;c1&#34;&gt;// 控制暫存器2，偏移 0x10
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CR3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;        &lt;span class=&#34;c1&#34;&gt;// 控制暫存器3，偏移 0x14
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c1&#34;&gt;// ... 更多暫存器
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;USART_TypeDef&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define USART1  ((USART_TypeDef *)0x40011000)  &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// 強制轉換！
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define USART2  ((USART_TypeDef *)0x40004400)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define USART6  ((USART_TypeDef *)0x40011400)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;strong&gt;這裡發生了什麼？&lt;/strong&gt; 晶片設計者在硬體層面把外設暫存器按固定偏移排列在一段連續位址空間中。C 語言的結構體成員預設也按宣告順序排列，編譯器按成員大小和對齊規則計算偏移——當結構體成員的宣告順序和型別與硬體暫存器佈局一致時，結構體的記憶體佈局與硬體暫存器佈局&lt;strong&gt;完全吻合&lt;/strong&gt;。&lt;/p&gt;
+&lt;p&gt;然後，把外設基底位址&lt;strong&gt;強制轉換&lt;/strong&gt;為指向該結構體的指標，就可以用 &lt;code&gt;USART1-&amp;gt;CR1&lt;/code&gt; 這樣的方式直接讀寫硬體暫存器。&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;現代 C/C++ 編輯器或 IDE（VS Code + clangd、STM32CubeIDE、Keil MDK 等）對結構體成員有&lt;strong&gt;智能補全&lt;/strong&gt;支援——輸入 &lt;code&gt;USART1-&amp;gt;&lt;/code&gt; 時會自動列出 &lt;code&gt;SR&lt;/code&gt;、&lt;code&gt;DR&lt;/code&gt;、&lt;code&gt;BRR&lt;/code&gt;、&lt;code&gt;CR1&lt;/code&gt; 等所有成員，而魔數偏移 &lt;code&gt;0x0C&lt;/code&gt; 則無任何提示。這意味著結構體指標映射不僅編譯時安全，&lt;strong&gt;編寫時也安全&lt;/strong&gt;——拼寫錯誤在輸入階段就被消滅，而非等到執行時才暴露。&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;03-為什麼這不是駭客技巧而是天然設計&#34;&gt;0.3 為什麼這不是「駭客技巧」而是天然設計？
+&lt;/h3&gt;&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;優勢&lt;/th&gt;
+					&lt;th&gt;說明&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;零開銷&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;USART1-&amp;gt;CR1&lt;/code&gt; 編譯後就是一條 &lt;code&gt;LDR&lt;/code&gt;/&lt;code&gt;STR&lt;/code&gt; 指令加上固定偏移，和直接寫 &lt;code&gt;*(volatile uint32_t *)0x4001100C&lt;/code&gt; 完全等價，沒有任何額外開銷&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;型別安全&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;USART1&lt;/code&gt; 是 &lt;code&gt;USART_TypeDef *&lt;/code&gt; 型別，不可能誤寫成 &lt;code&gt;GPIOA-&amp;gt;CR1&lt;/code&gt;——編譯器會報錯，因為 &lt;code&gt;GPIO_TypeDef&lt;/code&gt; 沒有 &lt;code&gt;CR1&lt;/code&gt; 成員&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;可讀性&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;usart_baudrate_set(USART0, 115200)&lt;/code&gt; 比 &lt;code&gt;*(volatile uint32_t *)(0x40011000 + 0x08) = 0x1A0B&lt;/code&gt; 人類可讀得多&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;編譯時檢查&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;結構體成員名寫錯 → 編譯錯誤；魔數偏移寫錯 → 執行時才炸&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;多實例天然支援&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;同一個 &lt;code&gt;USART_TypeDef&lt;/code&gt; 結構體，不同的基底位址 = 不同的外設實例。&lt;code&gt;usart_init(USART0)&lt;/code&gt; 和 &lt;code&gt;usart_init(USART1)&lt;/code&gt; 共用同一份程式碼——這不就是 &lt;code&gt;me&lt;/code&gt; 指標嗎？&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id=&#34;04-從硬體映射到軟體-oop-的統一邏輯&#34;&gt;0.4 從硬體映射到軟體 OOP 的統一邏輯
+&lt;/h3&gt;&lt;p&gt;晶片廠商用結構體指標映射硬體暫存器，和我們用結構體指標實現面向物件，&lt;strong&gt;底層邏輯完全一致&lt;/strong&gt;：&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;硬體映射&lt;/th&gt;
+					&lt;th&gt;軟體 OOP&lt;/th&gt;
+					&lt;th&gt;統一邏輯&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;USART_TypeDef&lt;/code&gt; 結構體&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;struct led&lt;/code&gt; 結構體&lt;/td&gt;
+					&lt;td&gt;結構體聚合資料，形成「物件」&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;USART1&lt;/code&gt; 基底位址強制轉換&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;&amp;amp;red_led&lt;/code&gt; 取位址&lt;/td&gt;
+					&lt;td&gt;指標指向具體實例&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;USART1-&amp;gt;CR1 = val&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;me-&amp;gt;pin = 5&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;透過指標存取實例成員&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;usart_init(USART0)&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;led_init(&amp;amp;red_led)&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;函式透過指標操作不同實例&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;USART_TypeDef&lt;/code&gt; 在所有 USART 間復用&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;led_on()&lt;/code&gt; 在所有 LED 間復用&lt;/td&gt;
+					&lt;td&gt;同一份程式碼操作不同實例——多態的雛形&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;blockquote class=&#34;alert alert-important&#34;&gt;
+    &lt;p&gt;結構體 + 指標不是 C 語言的「補丁」，而是 C 語言與硬體互動的&lt;strong&gt;原生方式&lt;/strong&gt;。晶片廠商用它映射暫存器，內核開發者用它實現多態，我們用它構建平台抽象——一脈相承。&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
 &lt;h2 id=&#34;一封裝的起點struct--me-指標&#34;&gt;一、封裝的起點：struct + me 指標
 &lt;/h2&gt;&lt;h3 id=&#34;11-最樸素的形態&#34;&gt;1.1 最樸素的形態
 &lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;

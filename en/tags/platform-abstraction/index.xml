@@ -7,13 +7,13 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>en</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Sat, 04 Jul 2026 20:40:34 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/en/tags/platform-abstraction/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Sun, 05 Jul 2026 19:22:21 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/en/tags/platform-abstraction/index.xml" rel="self" type="application/rss+xml" /><item>
         <title>A Taste of Bootloader Five-Layer Architecture: OOP Object Design Model from Platform Abstraction to App Orchestration</title>
         <link>https://lingjia007.github.io/Hugo_Web/en/p/a-taste-of-bootloader-five-layer-architecture-oop-object-design-model-from-platform-abstraction-to-app-orchestration/</link>
         <pubDate>Fri, 03 Jul 2026 00:00:00 +0000</pubDate>
         
         <guid>https://lingjia007.github.io/Hugo_Web/en/p/a-taste-of-bootloader-five-layer-architecture-oop-object-design-model-from-platform-abstraction-to-app-orchestration/</guid>
-        <description>&lt;img src="https://lingjia007.github.io/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.png" alt="Featured image of post A Taste of Bootloader Five-Layer Architecture: OOP Object Design Model from Platform Abstraction to App Orchestration" /&gt;&lt;h2 id=&#34;introduction&#34;&gt;Introduction
+        <description>&lt;img src="https://lingjia007.github.io/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop.png" alt="Featured image of post A Taste of Bootloader Five-Layer Architecture: OOP Object Design Model from Platform Abstraction to App Orchestration" /&gt;&lt;h2 id=&#34;introduction&#34;&gt;Introduction
 &lt;/h2&gt;&lt;p&gt;In the previous post &lt;a class=&#34;link&#34; href=&#34;../oop-in-c-embedded/&#34; &gt;The Essence of C: Structs and Pointers&lt;/a&gt;, we started from &lt;code&gt;struct + me&lt;/code&gt; and walked all the way to Linux kernel-style &lt;code&gt;gpio_chip&lt;/code&gt; + initcall auto-registration. The theory is there, but what about practice?&lt;/p&gt;
 &lt;p&gt;This post uses the real code from the &lt;a class=&#34;link&#34; href=&#34;../stm32f407-secure-bootloader/&#34; &gt;STM32F407 Secure Bootloader&lt;/a&gt; project as an example, taking a &lt;strong&gt;taste&lt;/strong&gt; of its five-layer architecture object design model—seeing how the essence of OOP in C takes root in an industrial-grade Bootloader.&lt;/p&gt;
 &lt;blockquote class=&#34;alert alert-note&#34;&gt;
@@ -1101,10 +1101,127 @@
         <pubDate>Fri, 03 Jul 2026 00:00:00 +0000</pubDate>
         
         <guid>https://lingjia007.github.io/Hugo_Web/en/p/the-essence-of-c-structs-and-pointers-embedded-object-oriented-platform-agnostic-layered-design/</guid>
-        <description>&lt;h2 id=&#34;preface&#34;&gt;Preface
+        <description>&lt;img src="https://lingjia007.github.io/Hugo_Web/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.png" alt="Featured image of post The Essence of C: Structs and Pointers — Embedded Object-Oriented Platform-Agnostic Layered Design" /&gt;&lt;h2 id=&#34;preface&#34;&gt;Preface
 &lt;/h2&gt;&lt;p&gt;C has no &lt;code&gt;class&lt;/code&gt;, no &lt;code&gt;virtual&lt;/code&gt;, no &lt;code&gt;interface&lt;/code&gt;, yet large-scale projects like the Linux kernel, GObject, and Zephyr RTOS all build complete object-oriented systems in C. Their weapons are just two: &lt;strong&gt;structs&lt;/strong&gt; and &lt;strong&gt;pointers&lt;/strong&gt;.&lt;/p&gt;
 &lt;p&gt;This article follows the progressive refactoring of an embedded LED driver as its main thread, starting from the most primitive &lt;code&gt;struct + me&lt;/code&gt; and going all the way to Linux kernel-style &lt;code&gt;gpio_chip&lt;/code&gt; + initcall auto-registration, using a single LED to explain the full essence of embedded C object-oriented programming.&lt;/p&gt;
 &lt;hr&gt;
+&lt;h2 id=&#34;0-why-structs-and-pointers-are-the-essence-of-c&#34;&gt;0. Why Structs and Pointers Are the Essence of C
+&lt;/h2&gt;&lt;h3 id=&#34;01-c-has-only-three-cornerstones&#34;&gt;0.1 C Has Only Three Cornerstones
+&lt;/h3&gt;&lt;p&gt;C provides very few composite type tools: basic types, arrays, structs, unions, enums, and pointers. Among these, only two can truly carry design complexity: &lt;strong&gt;structs&lt;/strong&gt; and &lt;strong&gt;pointers&lt;/strong&gt;.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Structs&lt;/strong&gt; are C&amp;rsquo;s only data aggregation tool — binding multiple attributes together, forming the embryo of an &amp;ldquo;object&amp;rdquo;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Pointers&lt;/strong&gt; are C&amp;rsquo;s only indirection tool — operating on arbitrary objects through addresses, the foundation for implementing &amp;ldquo;polymorphism&amp;rdquo;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Without structs, data can only be scattered as global variables; without pointers, functions can only operate on fixed objects, making multi-instance, polymorphism, and callbacks impossible. C++&amp;rsquo;s &lt;code&gt;class&lt;/code&gt;, &lt;code&gt;virtual&lt;/code&gt;, and &lt;code&gt;interface&lt;/code&gt; are essentially syntactic sugar over these two.&lt;/p&gt;
+&lt;h3 id=&#34;02-peripheral-address-mapping-the-natural-stage-for-struct-pointers&#34;&gt;0.2 Peripheral Address Mapping: The Natural Stage for Struct Pointers
+&lt;/h3&gt;&lt;p&gt;Open the standard peripheral library or HAL library for any ARM Cortex-M chip, and you&amp;rsquo;ll see code like this:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;STM32 HAL (&lt;code&gt;stm32f407xx.h&lt;/code&gt;):&lt;/strong&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;typedef&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;SR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;         &lt;span class=&#34;c1&#34;&gt;// Status register, offset 0x00
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;DR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;         &lt;span class=&#34;c1&#34;&gt;// Data register, offset 0x04
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;BRR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;        &lt;span class=&#34;c1&#34;&gt;// Baud rate register, offset 0x08
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CR1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;        &lt;span class=&#34;c1&#34;&gt;// Control register 1, offset 0x0C
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CR2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;        &lt;span class=&#34;c1&#34;&gt;// Control register 2, offset 0x10
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;__IO&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CR3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;        &lt;span class=&#34;c1&#34;&gt;// Control register 3, offset 0x14
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c1&#34;&gt;// ... more registers
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;USART_TypeDef&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define USART1  ((USART_TypeDef *)0x40011000)  &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// Forced cast!
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define USART2  ((USART_TypeDef *)0x40004400)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define USART6  ((USART_TypeDef *)0x40011400)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;strong&gt;What&amp;rsquo;s happening here?&lt;/strong&gt; Chip designers arrange peripheral registers at fixed offsets in a contiguous address space at the hardware level. C struct members are also arranged in declaration order by default, with the compiler calculating offsets based on member size and alignment rules — when the struct member declaration order and types match the hardware register layout, the struct&amp;rsquo;s memory layout &lt;strong&gt;perfectly aligns&lt;/strong&gt; with the hardware register layout.&lt;/p&gt;
+&lt;p&gt;Then, by casting the peripheral base address to a pointer to that struct, you can directly read and write hardware registers using &lt;code&gt;USART1-&amp;gt;CR1&lt;/code&gt;.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;Modern C/C++ editors or IDEs (VS Code + clangd, STM32CubeIDE, Keil MDK, etc.) provide &lt;strong&gt;intelligent autocompletion&lt;/strong&gt; for struct members — typing &lt;code&gt;USART1-&amp;gt;&lt;/code&gt; automatically lists all members like &lt;code&gt;SR&lt;/code&gt;, &lt;code&gt;DR&lt;/code&gt;, &lt;code&gt;BRR&lt;/code&gt;, &lt;code&gt;CR1&lt;/code&gt;, while magic offset &lt;code&gt;0x0C&lt;/code&gt; provides no hints at all. This means struct pointer mapping is not only compile-time safe, but also &lt;strong&gt;editing-time safe&lt;/strong&gt; — typos are eliminated at the input stage, not exposed at runtime.&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;03-why-this-is-not-a-hack-but-a-natural-design&#34;&gt;0.3 Why This Is Not a &amp;ldquo;Hack&amp;rdquo; but a Natural Design
+&lt;/h3&gt;&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Advantage&lt;/th&gt;
+					&lt;th&gt;Explanation&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Zero overhead&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;USART1-&amp;gt;CR1&lt;/code&gt; compiles to a single &lt;code&gt;LDR&lt;/code&gt;/&lt;code&gt;STR&lt;/code&gt; instruction plus a fixed offset, completely equivalent to &lt;code&gt;*(volatile uint32_t *)0x4001100C&lt;/code&gt; — no extra overhead at all&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Type safety&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;USART1&lt;/code&gt; is of type &lt;code&gt;USART_TypeDef *&lt;/code&gt;, so you can&amp;rsquo;t accidentally write &lt;code&gt;GPIOA-&amp;gt;CR1&lt;/code&gt; — the compiler will error because &lt;code&gt;GPIO_TypeDef&lt;/code&gt; has no &lt;code&gt;CR1&lt;/code&gt; member&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Readability&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;usart_baudrate_set(USART0, 115200)&lt;/code&gt; is far more human-readable than &lt;code&gt;*(volatile uint32_t *)(0x40011000 + 0x08) = 0x1A0B&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Compile-time checking&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Wrong struct member name → compile error; wrong magic offset → runtime crash&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Natural multi-instance support&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Same &lt;code&gt;USART_TypeDef&lt;/code&gt; struct, different base addresses = different peripheral instances. &lt;code&gt;usart_init(USART0)&lt;/code&gt; and &lt;code&gt;usart_init(USART1)&lt;/code&gt; share the same code — isn&amp;rsquo;t this the &lt;code&gt;me&lt;/code&gt; pointer?&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id=&#34;04-unified-logic-from-hardware-mapping-to-software-oop&#34;&gt;0.4 Unified Logic: From Hardware Mapping to Software OOP
+&lt;/h3&gt;&lt;p&gt;Chip vendors use struct pointers to map hardware registers, and we use struct pointers to implement object-oriented programming — &lt;strong&gt;the underlying logic is identical&lt;/strong&gt;:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Hardware Mapping&lt;/th&gt;
+					&lt;th&gt;Software OOP&lt;/th&gt;
+					&lt;th&gt;Unified Logic&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;USART_TypeDef&lt;/code&gt; struct&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;struct led&lt;/code&gt; struct&lt;/td&gt;
+					&lt;td&gt;Structs aggregate data, forming &amp;ldquo;objects&amp;rdquo;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;USART1&lt;/code&gt; base address cast&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;&amp;amp;red_led&lt;/code&gt; address-of&lt;/td&gt;
+					&lt;td&gt;Pointer points to a specific instance&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;USART1-&amp;gt;CR1 = val&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;me-&amp;gt;pin = 5&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Access instance members through pointer&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;usart_init(USART0)&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;led_init(&amp;amp;red_led)&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Function operates on different instances via pointer&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;USART_TypeDef&lt;/code&gt; reused across all USARTs&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;led_on()&lt;/code&gt; reused across all LEDs&lt;/td&gt;
+					&lt;td&gt;Same code operates on different instances — the embryo of polymorphism&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;blockquote class=&#34;alert alert-important&#34;&gt;
+    &lt;p&gt;Struct + pointer is not a &amp;ldquo;patch&amp;rdquo; for C, but the &lt;strong&gt;native way&lt;/strong&gt; C interacts with hardware. Chip vendors use it to map registers, kernel developers use it to implement polymorphism, we use it to build platform abstractions — all from the same lineage.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
 &lt;h2 id=&#34;1-the-starting-point-of-encapsulation-struct--me-pointer&#34;&gt;1. The Starting Point of Encapsulation: struct + me Pointer
 &lt;/h2&gt;&lt;h3 id=&#34;11-the-most-primitive-form&#34;&gt;1.1 The Most Primitive Form
 &lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;

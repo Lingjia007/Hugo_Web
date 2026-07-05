@@ -10,10 +10,10 @@
 <meta property='og:description' content="以 STM32F407 安全 Bootloader 為實例，淺嘗 Impl/Platform/Service/Core/App + Drivers(Vendor) 五層架構的 C 物件導向設計模型：ops 虛函式表、container_of 向下轉型、多重繼承雙基類、依賴注入容器、宏封裝安全呼叫，與 oop-in-c-embedded 概念逐一映射">
 <meta property='og:url' content='https://lingjia007.github.io/Hugo_Web/zh-hk/p/%E6%B7%BA%E5%98%97-bootloader-%E4%BA%94%E5%B1%A4%E6%9E%B6%E6%A7%8B%E5%BE%9E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%B7%A8%E6%8E%92%E7%9A%84-oop-%E7%89%A9%E4%BB%B6%E8%A8%AD%E8%A8%88%E6%A8%A1%E5%9E%8B/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='Bootloader' /><meta property='article:tag' content='OOP-in-C' /><meta property='article:tag' content='分層架構' /><meta property='article:tag' content='物件導向' /><meta property='article:tag' content='平台抽象' /><meta property='article:published_time' content='2026-07-03T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-04T20:40:34&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.png' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='Bootloader' /><meta property='article:tag' content='OOP-in-C' /><meta property='article:tag' content='分層架構' /><meta property='article:tag' content='物件導向' /><meta property='article:tag' content='平台抽象' /><meta property='article:published_time' content='2026-07-03T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-05T19:22:21&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop.png' />
 <meta name="twitter:title" content="淺嘗 Bootloader 五層架構：從 Platform 抽象到 App 編排的 OOP 物件設計模型">
 <meta name="twitter:description" content="以 STM32F407 安全 Bootloader 為實例，淺嘗 Impl/Platform/Service/Core/App + Drivers(Vendor) 五層架構的 C 物件導向設計模型：ops 虛函式表、container_of 向下轉型、多重繼承雙基類、依賴注入容器、宏封裝安全呼叫，與 oop-in-c-embedded 概念逐一映射"><meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:image" content='https://lingjia007.github.io/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.png' />
+    <meta name="twitter:image" content='https://lingjia007.github.io/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop.png' />
     <link rel="shortcut icon" href="/Hugo_Web/icons/favicon.ico" />
 
     </head>
@@ -373,8 +373,8 @@
     <header class="article-header">
         <div class="article-image">
             <a href="/Hugo_Web/zh-hk/p/%E6%B7%BA%E5%98%97-bootloader-%E4%BA%94%E5%B1%A4%E6%9E%B6%E6%A7%8B%E5%BE%9E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%B7%A8%E6%8E%92%E7%9A%84-oop-%E7%89%A9%E4%BB%B6%E8%A8%AD%E8%A8%88%E6%A8%A1%E5%9E%8B/">
-                <img src="/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2_hu_d9254e315b5709ed.png"
-                        srcset="/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2_hu_d9254e315b5709ed.png 800w, /Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2_hu_a3f662914944b659.png 1600w"
+                <img src="/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop_hu_326ee24277520331.png"
+                        srcset="/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop_hu_326ee24277520331.png 800w, /Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop_hu_279f6ffa2dba7557.png 1600w"
                         width="800" 
                         height="442" 
                         loading="lazy"
@@ -428,7 +428,7 @@
         <div class="article-lastmod">
                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
                 <time>
-                    Jul 04, 2026 20:40 &#43;0800
+                    Jul 05, 2026 19:22 &#43;0800
                 </time>
             </div><div id="wordCount">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
@@ -1604,7 +1604,7 @@
 
 
         <span>
-            上次改過於 Jul 04, 2026 20:40 &#43;0800
+            上次改過於 Jul 05, 2026 19:22 &#43;0800
         </span>
     </section></footer>
 
@@ -1650,9 +1650,20 @@
         <div class="flex article-list--tile">
             
                 
-<article class="">
+<article class="has-image">
     <a href="/Hugo_Web/zh-hk/p/c-%E8%AA%9E%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%B5%90%E6%A7%8B%E9%AB%94%E8%88%87%E6%8C%87%E6%A8%99%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E7%89%A9%E4%BB%B6%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%A4%E8%A8%AD%E8%A8%88/">
         
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.bc913b6a996b7421fe3ea97f79ea25e3_hu_b1e5a0a00e8e56e1.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post C 語言的精髓：結構體與指標——嵌入式面向物件平台化分層設計"
+                        
+                        data-hash="md5-vJE7aplrdCH&#43;Pql/eeol4w==">
+                
+            </div>
         
 
         <div class="article-details">
@@ -1681,6 +1692,30 @@
 
         <div class="article-details">
             <h2 class="article-title">STM32F407 安全 Bootloader 設計：A/B 雙分區、加密簽名與多渠道升級</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/Hugo_Web/zh-hk/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E7%99%BC%E7%92%B0%E5%BD%A2%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%9B%B6%E6%8B%B7%E8%B2%9D%E5%AF%A6%E6%88%B0stm32-%E8%88%87-gd32-%E9%9B%99%E6%99%B6%E7%89%87%E9%A9%97%E8%AD%89/">
+        
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.aa17ac05ece23fe492616d826bed0cc3_hu_c370f2443c0623d6.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post UART DMA 高效收發：環形緩衝區零拷貝實戰，STM32 與 GD32 雙晶片驗證"
+                        
+                        data-hash="md5-qhesBeziP&#43;SSYW2Ca&#43;0Mww==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">UART DMA 高效收發：環形緩衝區零拷貝實戰，STM32 與 GD32 雙晶片驗證</h2>
         </div>
     </a>
 </article>
@@ -1734,30 +1769,6 @@
 </article>
 
             
-                
-<article class="has-image">
-    <a href="/Hugo_Web/zh-hk/p/lvgl-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E8%88%87%E6%B8%B2%E6%9F%93%E6%A8%B9%E7%AE%A1%E7%90%86%E6%99%BA%E6%85%A7%E5%94%AE%E8%B2%A8%E6%A9%9F%E7%B5%82%E7%AB%AF%E7%9A%84%E6%87%89%E7%94%A8%E6%A8%B9%E6%9E%B6%E6%A7%8B%E5%AF%A6%E8%B8%90/">
-        
-        
-            <div class="article-image">
-                <img src="/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.7092acb7ea331869c1e1d1894091f36f_hu_e021237e267cb631.png" 
-                        width="250" 
-                        height="150" 
-                        loading="lazy"
-                        alt="Featured image of post LVGL 動態載入與渲染樹管理：智慧售貨機終端的應用樹架構實踐"
-                        
-                        data-hash="md5-cJKst&#43;ozGGnB4dGJQJHzbw==">
-                
-            </div>
-        
-
-        <div class="article-details">
-            <h2 class="article-title">LVGL 動態載入與渲染樹管理：智慧售貨機終端的應用樹架構實踐</h2>
-        </div>
-    </a>
-</article>
-
-            
         </div>
     </div>
 </aside>
@@ -1804,7 +1815,9 @@
             
                 
             
-        本網站已穩定運行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;總計<span id="articleCount">&lt; 7 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 38.30 k ></span>字
+                
+            
+        本網站已穩定運行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;總計<span id="articleCount">&lt; 8 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 45.35 k ></span>字
     </section>
     <section class="powerby">
         使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 構建 <br />
