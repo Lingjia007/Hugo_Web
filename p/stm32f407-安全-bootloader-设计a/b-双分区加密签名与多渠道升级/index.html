@@ -3620,6 +3620,15 @@ $$V_{\text{total}} = \text{PASS} \iff \forall i, V_i = \text{PASS}$$<div class="
         dragDirection: config.drag.direction,
         switchType: config.switchType,
       });
+      
+      if (window.innerWidth <= 768) {
+        setTimeout(function () {
+          var waifu = document.getElementById("waifu");
+          var toggle = document.getElementById("waifu-toggle");
+          if (waifu) waifu.style.display = "none";
+          if (toggle) toggle.classList.add("waifu-toggle-active");
+        }, 100);
+      }
     });
     function waitForElement(selector, callback) {
       new MutationObserver(function (mutations) {

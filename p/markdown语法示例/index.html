@@ -1437,6 +1437,15 @@ $$<p>其中：</p>
         dragDirection: config.drag.direction,
         switchType: config.switchType,
       });
+      
+      if (window.innerWidth <= 768) {
+        setTimeout(function () {
+          var waifu = document.getElementById("waifu");
+          var toggle = document.getElementById("waifu-toggle");
+          if (waifu) waifu.style.display = "none";
+          if (toggle) toggle.classList.add("waifu-toggle-active");
+        }, 100);
+      }
     });
     function waitForElement(selector, callback) {
       new MutationObserver(function (mutations) {
