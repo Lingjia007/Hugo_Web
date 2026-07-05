@@ -1,0 +1,2545 @@
+<!DOCTYPE html>
+<html lang="en-us" dir="ltr">
+    <head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 + 零拷贝发送的完整架构，以 STM32F407 (HAL) 和 GD32F470 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析">
+<title>UART DMA 高效收发：环形缓冲区零拷贝实战，STM32 与 GD32 双芯片验证</title>
+
+<link rel='canonical' href='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/'>
+
+<link rel="stylesheet" href="/scss/style.min.553d9fc5cc86a8c9deb4211c02fd07c2210fc13d76ef772a58388b83939349ab.css"><meta property='og:title' content="UART DMA 高效收发：环形缓冲区零拷贝实战，STM32 与 GD32 双芯片验证">
+<meta property='og:description' content="基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 + 零拷贝发送的完整架构，以 STM32F407 (HAL) 和 GD32F470 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析">
+<meta property='og:url' content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/'>
+<meta property='og:site_name' content='lingsir007'>
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='GD32' /><meta property='article:tag' content='UART' /><meta property='article:tag' content='DMA' /><meta property='article:tag' content='环形缓冲区' /><meta property='article:tag' content='lwrb' /><meta property='article:tag' content='零拷贝' /><meta property='article:published_time' content='2026-07-05T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-05T19:22:21&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.png' />
+<meta name="twitter:title" content="UART DMA 高效收发：环形缓冲区零拷贝实战，STM32 与 GD32 双芯片验证">
+<meta name="twitter:description" content="基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 + 零拷贝发送的完整架构，以 STM32F407 (HAL) 和 GD32F470 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析"><meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.png' />
+    <link rel="shortcut icon" href="/icons/favicon.ico" />
+
+    </head>
+    <body class="
+    article-page
+    ">
+    <script>
+        (function() {
+            const colorSchemeKey = 'StackColorScheme';
+            if(!localStorage.getItem(colorSchemeKey)){
+                localStorage.setItem(colorSchemeKey, "auto");
+            }
+        })();
+    </script><script>
+    (function() {
+        const colorSchemeKey = 'StackColorScheme';
+        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+
+        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
+            
+
+            document.documentElement.dataset.scheme = 'dark';
+        } else {
+            document.documentElement.dataset.scheme = 'light';
+        }
+    })();
+</script>
+<div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky ">
+    <button class="hamburger hamburger--spin" type="button" id="toggle-menu" aria-label="切换菜单">
+        <span class="hamburger-box">
+            <span class="hamburger-inner"></span>
+        </span>
+    </button>
+
+    <header>
+        
+            
+            <figure class="site-avatar">
+                <a href="/">
+                
+                    
+                    
+                    
+                        
+                        <img src="/img/avatar_hu_49d0a8f5a8c62cc5.png" width="300"
+                            height="300" class="site-logo" loading="lazy" alt="Avatar">
+                    
+                
+                </a>
+                
+                    <span class="emoji">🤔</span>
+                
+            </figure>
+            
+        
+        
+        <div class="site-meta">
+            <h1 class="site-name"><a href="/">lingsir007</a></h1>
+            <h2 class="site-description">欢迎来到我的网站</h2>
+        </div>
+    </header><ol class="menu-social">
+            
+                <li>
+                    <a 
+                        href='https://github.com/Lingjia007?tab=repositories'
+                        target="_blank"
+                        title="GitHub"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+                <li>
+                    <a 
+                        href='https://twitter.com'
+                        target="_blank"
+                        title="Twitter"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M22 4.01c-1 .49 -1.98 .689 -3 .99c-1.121 -1.265 -2.783 -1.335 -4.38 -.737s-2.643 2.06 -2.62 3.737v1c-3.245 .083 -6.135 -1.395 -8 -4c0 0 -4.182 7.433 4 11c-1.872 1.247 -3.739 2.088 -6 2c3.308 1.803 6.913 2.423 10.034 1.517c3.58 -1.04 6.522 -3.723 7.651 -7.742a13.84 13.84 0 0 0 .497 -3.753c-.002 -.249 1.51 -2.772 1.818 -4.013z" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+        </ol><ol class="menu" id="main-menu">
+        
+        
+        
+        <li >
+            <a href='/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <polyline points="5 12 3 12 12 3 21 12 19 12" />
+  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+  <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+</svg>
+
+
+
+                
+                <span>主页</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/%E5%85%B3%E4%BA%8E/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="7" r="4" />
+  <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+</svg>
+
+
+
+                
+                <span>关于</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/archives/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <rect x="3" y="4" width="18" height="4" rx="2" />
+  <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10" />
+  <line x1="10" y1="12" x2="14" y2="12" />
+</svg>
+
+
+
+                
+                <span>归档</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/search/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="10" cy="10" r="7" />
+  <line x1="21" y1="21" x2="15" y2="15" />
+</svg>
+
+
+
+                
+                <span>搜索</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/%E5%8F%8B%E6%83%85%E9%93%BE%E6%8E%A5/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5" />
+  <path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5" />
+</svg>
+
+
+
+                
+                <span>友情链接</span>
+            </a>
+        </li>
+        
+        <li class="menu-bottom-section">
+            <ol class="menu">
+                    
+                        <li id="i18n-switch">  
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M4 5h7" />
+  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
+  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+</svg>
+
+
+
+                            <select name="language" title="language" onchange="window.location.href = this.selectedOptions[0].value">
+                                
+                                    <option value="https://lingsir007.netlify.app/" selected>简体中文</option>
+                                
+                                    <option value="https://lingsir007.netlify.app/zh-hk/" >繁體中文</option>
+                                
+                                    <option value="https://lingsir007.netlify.app/en/" >English</option>
+                                
+                            </select>
+                        </li>
+                    
+                
+
+                
+                    <li id="dark-mode-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="8" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="16" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <span>暗色模式</span>
+                    </li>
+                
+            </ol>
+        </li>
+    </ol>
+</aside>
+
+    <aside class="sidebar right-sidebar sticky">
+        
+        
+
+        
+            
+                
+    <section class="widget archives">
+        <div class="widget-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <line x1="5" y1="9" x2="19" y2="9" />
+  <line x1="5" y1="15" x2="19" y2="15" />
+  <line x1="11" y1="4" x2="7" y2="20" />
+  <line x1="17" y1="4" x2="13" y2="20" />
+</svg>
+
+
+
+        </div>
+        <h2 class="widget-title section-title">目录</h2>
+        
+        <div class="widget--toc">
+            <nav id="TableOfContents">
+  <ol>
+    <li><a href="#前言">前言</a></li>
+    <li><a href="#一为什么不用中断逐字节收发">一、为什么不用中断逐字节收发？</a>
+      <ol>
+        <li><a href="#q中断收发有什么问题">Q：中断收发有什么问题？</a></li>
+        <li><a href="#qdma-能解决什么">Q：DMA 能解决什么？</a></li>
+      </ol>
+    </li>
+    <li><a href="#二整体架构rx-循环--tx-零拷贝">二、整体架构：RX 循环 + TX 零拷贝</a>
+      <ol>
+        <li><a href="#qrx-和-tx-为什么用不同的-dma-模式">Q：RX 和 TX 为什么用不同的 DMA 模式？</a></li>
+        <li><a href="#q整体数据流是怎样的">Q：整体数据流是怎样的？</a></li>
+      </ol>
+    </li>
+    <li><a href="#三rx-通路dma-circular--三重中断">三、RX 通路：DMA Circular + 三重中断</a>
+      <ol>
+        <li><a href="#q为什么-rx-dma-用-circular-模式">Q：为什么 RX DMA 用 Circular 模式？</a></li>
+        <li><a href="#q三重中断分别是什么为什么需要三个">Q：三重中断分别是什么？为什么需要三个？</a></li>
+        <li><a href="#qdma-计数器怎么反推写入位置">Q：DMA 计数器怎么反推写入位置？</a></li>
+        <li><a href="#q回绕时怎么处理">Q：回绕时怎么处理？</a></li>
+        <li><a href="#qstm32-hal-的统一回调是怎么回事">Q：STM32 HAL 的统一回调是怎么回事？</a></li>
+      </ol>
+    </li>
+    <li><a href="#四tx-通路零拷贝-dma--链式发送">四、TX 通路：零拷贝 DMA + 链式发送</a>
+      <ol>
+        <li><a href="#q什么是零拷贝为什么-tx-可以零拷贝">Q：什么是零拷贝？为什么 TX 可以零拷贝？</a></li>
+        <li><a href="#q环形缓冲区的数据不是可能跨回绕边界吗dma-只能读连续内存怎么办">Q：环形缓冲区的数据不是可能跨回绕边界吗？DMA 只能读连续内存怎么办？</a></li>
+        <li><a href="#qtx-dma-的启动流程是什么">Q：TX DMA 的启动流程是什么？</a></li>
+        <li><a href="#q为什么需要-usart_tx_dma_current_len-这个全局变量">Q：为什么需要 <code>usart_tx_dma_current_len</code> 这个全局变量？</a></li>
+        <li><a href="#qtx-完成中断里做什么">Q：TX 完成中断里做什么？</a></li>
+      </ol>
+    </li>
+    <li><a href="#五lwrb-环形缓冲区核心设计">五、lwrb 环形缓冲区核心设计</a>
+      <ol>
+        <li><a href="#qlwrb-有什么特别之处">Q：lwrb 有什么特别之处？</a></li>
+        <li><a href="#q为什么缓冲区满的条件是-w--r---1-而不是-w--r">Q：为什么缓冲区满的条件是 <code>w == r - 1</code> 而不是 <code>w == r</code>？</a></li>
+        <li><a href="#qlwrb-的线性块接口为什么对-dma-至关重要">Q：lwrb 的线性块接口为什么对 DMA 至关重要？</a></li>
+      </ol>
+    </li>
+    <li><a href="#六stm32-vs-gd32双芯片实现对比">六、STM32 vs GD32：双芯片实现对比</a>
+      <ol>
+        <li><a href="#q两个平台的-dma-架构有什么区别">Q：两个平台的 DMA 架构有什么区别？</a></li>
+        <li><a href="#q中断处理方式有什么不同">Q：中断处理方式有什么不同？</a></li>
+        <li><a href="#qdma-初始化的流程差异">Q：DMA 初始化的流程差异？</a></li>
+        <li><a href="#qnvic-中断优先级有什么讲究">Q：NVIC 中断优先级有什么讲究？</a></li>
+      </ol>
+    </li>
+    <li><a href="#七常见问题与踩坑">七、常见问题与踩坑</a>
+      <ol>
+        <li><a href="#q为什么-dma-初始化必须在-uart-初始化之前">Q：为什么 DMA 初始化必须在 UART 初始化之前？</a></li>
+        <li><a href="#qidle-中断标志怎么清除">Q：IDLE 中断标志怎么清除？</a></li>
+        <li><a href="#qhal_uartex_receivetoidle_dma-为什么要每次回调后重新调用">Q：<code>HAL_UARTEx_ReceiveToIdle_DMA()</code> 为什么要每次回调后重新调用？</a></li>
+        <li><a href="#qrx-缓冲区大小怎么选">Q：RX 缓冲区大小怎么选？</a></li>
+        <li><a href="#qprintf-重定向为什么用阻塞发送">Q：printf 重定向为什么用阻塞发送？</a></li>
+      </ol>
+    </li>
+    <li><a href="#八性能对比dma-vs-中断-vs-轮询">八、性能对比：DMA vs 中断 vs 轮询</a>
+      <ol>
+        <li><a href="#q三种方式的-cpu-开销对比如何">Q：三种方式的 CPU 开销对比如何？</a></li>
+        <li><a href="#qdma-方式的延迟有多大">Q：DMA 方式的延迟有多大？</a></li>
+      </ol>
+    </li>
+    <li><a href="#九移植指南三步移植到你的平台">九、移植指南：三步移植到你的平台</a>
+      <ol>
+        <li><a href="#q如何将此方案移植到其他-mcu">Q：如何将此方案移植到其他 MCU？</a></li>
+      </ol>
+    </li>
+    <li><a href="#十环形缓冲区-vs-乒乓缓存应用范围考量">十、环形缓冲区 vs 乒乓缓存：应用范围考量</a>
+      <ol>
+        <li><a href="#q什么是乒乓缓存ping-pong-buffer">Q：什么是乒乓缓存（Ping-Pong Buffer）？</a></li>
+        <li><a href="#q环形缓冲区和乒乓缓存的核心区别是什么">Q：环形缓冲区和乒乓缓存的核心区别是什么？</a></li>
+        <li><a href="#q各适合什么场景">Q：各适合什么场景？</a></li>
+        <li><a href="#quart-场景为什么首选环形缓冲区">Q：UART 场景为什么首选环形缓冲区？</a></li>
+      </ol>
+    </li>
+    <li><a href="#十一总结">十一、总结</a>
+      <ol>
+        <li><a href="#核心设计要点">核心设计要点</a></li>
+        <li><a href="#双芯片验证结论">双芯片验证结论</a></li>
+      </ol>
+    </li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ol>
+</nav>
+        </div>
+    </section>
+
+            
+        
+    </aside>
+
+
+            <main class="main full-width">
+    <article class="has-image main-article">
+    <header class="article-header">
+        <div class="article-image">
+            <a href="/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/">
+                <img src="/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98_hu_460b9b3676099328.png"
+                        srcset="/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98_hu_460b9b3676099328.png 800w, /p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98_hu_9cb629e2037e6baf.png 1600w"
+                        width="800" 
+                        height="442" 
+                        loading="lazy"
+                        alt="Featured image of post UART DMA 高效收发：环形缓冲区零拷贝实战，STM32 与 GD32 双芯片验证" />
+                
+            </a>
+        </div>
+    
+
+    <div class="article-details">
+    
+    <header class="article-category">
+        
+            <a href="/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F/" >
+                嵌入式
+            </a>
+        
+    </header>
+    
+
+    <div class="article-title-wrapper">
+        <h2 class="article-title">
+            <a href="/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/">UART DMA 高效收发：环形缓冲区零拷贝实战，STM32 与 GD32 双芯片验证</a>
+        </h2>
+    
+        
+        <h3 class="article-subtitle">
+            基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 &#43; 零拷贝发送的完整架构，以 STM32F407 (HAL) 和 GD32F470 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析
+        </h3>
+        
+    </div>
+
+    
+    
+    
+    
+    <footer class="article-time">
+        
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4" />
+  <circle cx="18" cy="18" r="4" />
+  <path d="M15 3v4" />
+  <path d="M7 3v4" />
+  <path d="M3 11h16" />
+  <path d="M18 16.496v1.504l1 1" />
+</svg>
+                <time class="article-time--published">Jul 05, 2026</time>
+            </div>
+        <div class="article-lastmod">
+                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
+                <time>
+                    Jul 05, 2026 19:22 &#43;0800
+                </time>
+            </div><div id="wordCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
+            <time class="article-wordcount">
+                5792  字
+            </time>
+        </div>
+
+        
+
+        <div id="viewCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
+            <time class="article-time--reading">
+                
+                <span id="vercount_value_page_pv">loading... </span> 次
+            </time>
+        </div>
+
+    </footer>
+    
+
+    
+        <footer class="article-translations">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M4 5h7" />
+  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
+  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+</svg>
+
+
+
+            <div>
+                
+                    <a href="https://lingsir007.netlify.app/zh-hk/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E7%99%BC%E7%92%B0%E5%BD%A2%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%9B%B6%E6%8B%B7%E8%B2%9D%E5%AF%A6%E6%88%B0stm32-%E8%88%87-gd32-%E9%9B%99%E6%99%B6%E7%89%87%E9%A9%97%E8%AD%89/" class="link">繁體中文</a>
+                
+                    <a href="https://lingsir007.netlify.app/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/" class="link">English</a>
+                
+            </div>
+        </footer>
+    
+</div>
+
+</header>
+
+    <section class="article-content">
+    
+    
+    <h2 id="前言">前言
+</h2><p>在嵌入式开发中，UART 串口通信是最基础也最常用的外设之一。然而，许多开发者仍然在使用中断逐字节收发或轮询方式，导致 CPU 占用高、数据丢失风险大。<strong>DMA + 环形缓冲区</strong>的组合，才是高效 UART 通信的正确打开方式。</p>
+<p>本文基于 <a class="link" href="https://github.com/MaJerle/lwrb"  target="_blank" rel="noopener"
+    >lwrb</a> 轻量级环形缓冲区库和 <a class="link" href="https://github.com/MaJerle/stm32-usart-uart-dma-rx-tx"  target="_blank" rel="noopener"
+    >stm32-usart-uart-dma-rx-tx</a> 参考实现，分别用 <strong>STM32F407VGT6 (HAL 库)</strong> 和 <strong>GD32F470ZGT6 (标准外设库)</strong> 完成双芯片验证，完整工程见 <a class="link" href="https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
+    >STM32F407VGT6 UART DMA</a> 与 <a class="link" href="https://github.com/Lingjia007/GD32F470ZGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
+    >GD32F470ZGT6 UART DMA</a>，以有问有答的方式深入剖析每一个设计决策。</p>
+<hr>
+<h2 id="一为什么不用中断逐字节收发">一、为什么不用中断逐字节收发？
+</h2><h3 id="q中断收发有什么问题">Q：中断收发有什么问题？
+</h3><p>中断方式每收发一个字节就触发一次中断，在高波特率下问题严重：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>波特率</th>
+					<th>每秒字节数</th>
+					<th>中断频率</th>
+					<th>9600bps 时 CPU 开销</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>9600</td>
+					<td>960</td>
+					<td>~960 Hz</td>
+					<td>可忽略</td>
+			</tr>
+			<tr>
+					<td>115200</td>
+					<td>11520</td>
+					<td>~11.5 kHz</td>
+					<td>~5-10%</td>
+			</tr>
+			<tr>
+					<td>921600</td>
+					<td>92160</td>
+					<td>~92 kHz</td>
+					<td>~30-50%</td>
+			</tr>
+			<tr>
+					<td>3000000</td>
+					<td>300000</td>
+					<td>~300 kHz</td>
+					<td>几乎无法工作</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>每个中断需要保存/恢复上下文（至少 12 个寄存器入栈），CPU 大量时间消耗在中断切换上。更危险的是：<strong>中断处理稍慢就会溢出 ORE 标志，导致数据丢失</strong>。</p>
+<h3 id="qdma-能解决什么">Q：DMA 能解决什么？
+</h3><p>DMA（Direct Memory Access）让硬件自动在 USART 数据寄存器和内存之间搬运数据，CPU 完全不参与逐字节的传输。对于 115200bps，DMA 方式 CPU 开销接近 0%。</p>
+<hr>
+<h2 id="二整体架构rx-循环--tx-零拷贝">二、整体架构：RX 循环 + TX 零拷贝
+</h2><h3 id="qrx-和-tx-为什么用不同的-dma-模式">Q：RX 和 TX 为什么用不同的 DMA 模式？
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>通路</th>
+					<th>DMA 模式</th>
+					<th>原因</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>RX</td>
+					<td><strong>Circular（循环）</strong></td>
+					<td>接收是被动行为，不知道何时有数据、数据多长。循环模式让 DMA 自动回绕，永不停止</td>
+			</tr>
+			<tr>
+					<td>TX</td>
+					<td><strong>Normal（单次）</strong></td>
+					<td>发送是主动行为，每次从环形缓冲区取一段线性数据发送。完成后链式启动下一段</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="q整体数据流是怎样的">Q：整体数据流是怎样的？
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">RX 通路：
+</span></span><span class="line"><span class="cl">[外部数据] → USART_DR → DMA(Circular) → usart_rx_dma_buffer[64]
+</span></span><span class="line"><span class="cl">                                              ↓
+</span></span><span class="line"><span class="cl">                              IDLE / HT / TC 三重中断触发
+</span></span><span class="line"><span class="cl">                                              ↓
+</span></span><span class="line"><span class="cl">                                     usart_rx_check()
+</span></span><span class="line"><span class="cl">                                     (DMA 计数器反推写入位置)
+</span></span><span class="line"><span class="cl">                                              ↓
+</span></span><span class="line"><span class="cl">                                     usart_process_data()
+</span></span><span class="line"><span class="cl">                                              ↓
+</span></span><span class="line"><span class="cl">                                     lwrb_write() → TX 环形缓冲区
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">TX 通路：
+</span></span><span class="line"><span class="cl">应用层 lwrb_write() → TX 环形缓冲区
+</span></span><span class="line"><span class="cl">                              ↓
+</span></span><span class="line"><span class="cl">                   usart_start_tx_dma_transfer()
+</span></span><span class="line"><span class="cl">                   (零拷贝: DMA 直接从环形缓冲区线性块读取)
+</span></span><span class="line"><span class="cl">                              ↓
+</span></span><span class="line"><span class="cl">                   DMA(Normal) → USART_DR → [外部]
+</span></span><span class="line"><span class="cl">                              ↓
+</span></span><span class="line"><span class="cl">                   TX 完成中断 → lwrb_skip() + 链式启动下一段
+</span></span></code></pre></td></tr></table>
+</div>
+</div><hr>
+<h2 id="三rx-通路dma-circular--三重中断">三、RX 通路：DMA Circular + 三重中断
+</h2><h3 id="q为什么-rx-dma-用-circular-模式">Q：为什么 RX DMA 用 Circular 模式？
+</h3><p>Normal 模式下，DMA 传输完成后自动停止，必须在中断中手动重启。重启期间的数据就会丢失。Circular 模式下，DMA 写到缓冲区末尾后自动回到头部继续写，<strong>永不停止</strong>，不存在重启窗口期。</p>
+<h3 id="q三重中断分别是什么为什么需要三个">Q：三重中断分别是什么？为什么需要三个？
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>中断</th>
+					<th>触发时机</th>
+					<th>作用</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>HT (Half Transfer)</strong></td>
+					<td>DMA 写到缓冲区一半时</td>
+					<td>及时处理前半段数据，防止被后半段覆盖</td>
+			</tr>
+			<tr>
+					<td><strong>TC (Transfer Complete)</strong></td>
+					<td>DMA 写完整个缓冲区时</td>
+					<td>及时处理后半段数据，防止被新的前半段覆盖</td>
+			</tr>
+			<tr>
+					<td><strong>IDLE Line</strong></td>
+					<td>UART 检测到总线空闲时</td>
+					<td>处理不定长数据的尾部——最后一个包可能不足半缓冲区，HT 和 TC 都不会触发</td>
+			</tr>
+	</tbody>
+</table></div>
+<p><strong>关键</strong>：如果只有 HT + TC，当数据量不足半缓冲区时，将永远不会触发中断，数据会&quot;卡&quot;在 DMA 缓冲区中。IDLE 中断解决了这个问题——总线空闲意味着一帧数据结束。</p>
+<h3 id="qdma-计数器怎么反推写入位置">Q：DMA 计数器怎么反推写入位置？
+</h3><p>DMA 硬件维护一个递减计数器 <code>CNDTR</code>（GD32 中为 <code>CNT</code>），初始值为缓冲区大小，每次传输后减 1。当前写入位置：</p>
+$$\text{pos} = N - \text{CNDTR}$$<p>其中 $N$ 为缓冲区大小。例如 <code>N=64</code>，<code>CNDTR=52</code> 时，<code>pos=12</code>，表示 DMA 已写入前 12 个字节。</p>
+<p><strong>STM32 HAL 实现：</strong></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">size_t</span> <span class="n">pos</span> <span class="o">=</span> <span class="nf">ARRAY_LEN</span><span class="p">(</span><span class="n">usart_rx_dma_buffer</span><span class="p">)</span> <span class="o">-</span> <span class="nf">__HAL_DMA_GET_COUNTER</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hdma_usart1_rx</span><span class="p">);</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>GD32 标准库实现：</strong></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">size_t</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">USART0_RX_DMA_LENGTH</span> <span class="o">-</span> <span class="nf">dma_transfer_number_get</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_RX_DMA_CH</span><span class="p">);</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="q回绕时怎么处理">Q：回绕时怎么处理？
+</h3><p>DMA Circular 写到缓冲区末尾会自动回到头部。<code>usart_rx_check()</code> 需要处理两种情况：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>情况</th>
+					<th>条件</th>
+					<th>处理</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>线性写入</td>
+					<td><code>pos &gt; old_pos</code></td>
+					<td>单次调用 <code>usart_process_data(old_pos, pos - old_pos)</code></td>
+			</tr>
+			<tr>
+					<td>回绕写入</td>
+					<td><code>pos &lt; old_pos</code></td>
+					<td>分两段：尾部 <code>[old_pos, N)</code> + 头部 <code>[0, pos)</code></td>
+			</tr>
+	</tbody>
+</table></div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">if</span> <span class="p">(</span><span class="n">pos</span> <span class="o">&gt;</span> <span class="n">old_pos</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">usart_process_data</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_rx_dma_buffer</span><span class="p">[</span><span class="n">old_pos</span><span class="p">],</span> <span class="n">pos</span> <span class="o">-</span> <span class="n">old_pos</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">pos</span> <span class="o">&lt;</span> <span class="n">old_pos</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">usart_process_data</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_rx_dma_buffer</span><span class="p">[</span><span class="n">old_pos</span><span class="p">],</span> <span class="n">N</span> <span class="o">-</span> <span class="n">old_pos</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">usart_process_data</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_rx_dma_buffer</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pos</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="n">old_pos</span> <span class="o">=</span> <span class="n">pos</span><span class="p">;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><blockquote class="alert alert-important">
+    <p><code>pos == old_pos</code> 表示没有新数据到来，无需处理。这个判断不能省略——DMA 计数器可能在两次检查之间没有变化。</p></blockquote><h3 id="qstm32-hal-的统一回调是怎么回事">Q：STM32 HAL 的统一回调是怎么回事？
+</h3><p>STM32 HAL 提供了 <code>HAL_UARTEx_ReceiveToIdle_DMA()</code>，它将 HT、TC、IDLE 三种中断统一到一个回调 <code>HAL_UARTEx_RxEventCallback()</code> 中：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">HAL_UARTEx_RxEventCallback</span><span class="p">(</span><span class="n">UART_HandleTypeDef</span> <span class="o">*</span><span class="n">huart</span><span class="p">,</span> <span class="kt">uint16_t</span> <span class="n">size</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">huart</span><span class="o">-&gt;</span><span class="n">Instance</span> <span class="o">==</span> <span class="n">USART1</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_rx_check</span><span class="p">();</span>  <span class="c1">// 三种中断最终都调用同一个函数
+</span></span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>GD32 方案则需要手动在三个中断处理函数中分别调用 <code>usart_rx_check()</code>。</p>
+<hr>
+<h2 id="四tx-通路零拷贝-dma--链式发送">四、TX 通路：零拷贝 DMA + 链式发送
+</h2><h3 id="q什么是零拷贝为什么-tx-可以零拷贝">Q：什么是零拷贝？为什么 TX 可以零拷贝？
+</h3><p>传统做法：先把环形缓冲区数据 <code>memcpy</code> 到一个线性缓冲区，再把线性缓冲区地址给 DMA。这有一次额外的内存拷贝。</p>
+<p><strong>零拷贝</strong>：DMA 直接从环形缓冲区的连续内存区域读取数据，无需中间缓冲区。这利用了 lwrb 的线性块接口：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">size_t</span> <span class="n">len</span> <span class="o">=</span> <span class="nf">lwrb_get_linear_block_read_length</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">);</span>    <span class="c1">// 连续可读长度
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="o">*</span><span class="n">addr</span> <span class="o">=</span> <span class="nf">lwrb_get_linear_block_read_address</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">);</span>   <span class="c1">// 连续可读起始地址
+</span></span></span><span class="line"><span class="cl"><span class="c1">// DMA 直接从 addr 读取 len 字节
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="q环形缓冲区的数据不是可能跨回绕边界吗dma-只能读连续内存怎么办">Q：环形缓冲区的数据不是可能跨回绕边界吗？DMA 只能读连续内存怎么办？
+</h3><p>确实，环形缓冲区的数据可能跨越缓冲区末尾回到头部，形成两段不连续的区域。lwrb 的 <code>get_linear_block_read_length()</code> 只返回<strong>从读指针到写指针（或缓冲区末尾）的连续长度</strong>，不会跨越回绕边界。</p>
+<p>解决方案：<strong>链式发送</strong>。一次 DMA 只发送线性段，传输完成中断中再检查环形缓冲区是否还有数据，有则启动下一轮 DMA。如果环形缓冲区数据跨回绕边界，会自动拆分为两次 DMA 传输：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">环形缓冲区: [....ABCDE.....FGH....]
+</span></span><span class="line"><span class="cl">                     ↑              ↑
+</span></span><span class="line"><span class="cl">                   读指针         写指针
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">DMA 第 1 次: 发送 &#34;ABCDE&#34; (线性段到缓冲区末尾)
+</span></span><span class="line"><span class="cl">DMA 第 2 次: 发送 &#34;FGH&#34;  (从缓冲区头部开始的新线性段)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="qtx-dma-的启动流程是什么">Q：TX DMA 的启动流程是什么？
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">usart_start_tx_dma_transfer</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">__disable_irq</span><span class="p">();</span>  <span class="c1">// 进入临界区
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">usart_tx_dma_current_len</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// DMA 空闲
+</span></span></span><span class="line"><span class="cl">        <span class="kt">size_t</span> <span class="n">len</span> <span class="o">=</span> <span class="nf">lwrb_get_linear_block_read_length</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">len</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="kt">void</span> <span class="o">*</span><span class="n">addr</span> <span class="o">=</span> <span class="nf">lwrb_get_linear_block_read_address</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="n">usart_tx_dma_current_len</span> <span class="o">=</span> <span class="n">len</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">            <span class="c1">// STM32 HAL:
+</span></span></span><span class="line"><span class="cl">            <span class="c1">// HAL_DMA_Abort(&amp;hdma_usart1_tx);
+</span></span></span><span class="line"><span class="cl">            <span class="c1">// HAL_UART_Transmit_DMA(&amp;huart1, addr, len);
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">            <span class="c1">// GD32 标准库:
+</span></span></span><span class="line"><span class="cl">            <span class="nf">dma_channel_disable</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_TX_DMA_CH</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">dma_flag_clear</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_TX_DMA_CH</span><span class="p">,</span> <span class="p">...);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">dma_transfer_number_config</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_TX_DMA_CH</span><span class="p">,</span> <span class="n">len</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">dma_memory_address_config</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_TX_DMA_CH</span><span class="p">,</span> <span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="n">addr</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">dma_channel_enable</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_TX_DMA_CH</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">__enable_irq</span><span class="p">();</span>  <span class="c1">// 退出临界区
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="q为什么需要-usart_tx_dma_current_len-这个全局变量">Q：为什么需要 <code>usart_tx_dma_current_len</code> 这个全局变量？
+</h3><p>它充当<strong>互斥标志</strong>：值为 0 表示 DMA 空闲，可以启动新传输；非 0 表示 DMA 正在传输，不能干扰。应用层写入环形缓冲区后调用 <code>usart_start_tx_dma_transfer()</code>，如果 DMA 正忙就返回——数据安全地留在环形缓冲区中，等当前传输完成的中断会自动启动下一轮。</p>
+<h3 id="qtx-完成中断里做什么">Q：TX 完成中断里做什么？
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// 1. 跳过已发送的数据（移动环形缓冲区读指针）
+</span></span></span><span class="line"><span class="cl"><span class="nf">lwrb_skip</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">,</span> <span class="n">usart_tx_dma_current_len</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 2. 标记 DMA 空闲
+</span></span></span><span class="line"><span class="cl"><span class="n">usart_tx_dma_current_len</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 3. 尝试链式启动下一轮
+</span></span></span><span class="line"><span class="cl"><span class="nf">usart_start_tx_dma_transfer</span><span class="p">();</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>lwrb_skip()</code> 只移动读指针，不做任何数据拷贝——这是零拷贝的另一半。</p>
+<hr>
+<h2 id="五lwrb-环形缓冲区核心设计">五、lwrb 环形缓冲区核心设计
+</h2><h3 id="qlwrb-有什么特别之处">Q：lwrb 有什么特别之处？
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>特性</th>
+					<th>说明</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>轻量</td>
+					<td>头文件 + 源文件各一个，无动态分配</td>
+			</tr>
+			<tr>
+					<td>线程安全</td>
+					<td>读写指针用 <code>volatile</code> 修饰，单写单读场景无需锁</td>
+			</tr>
+			<tr>
+					<td>零拷贝接口</td>
+					<td><code>get_linear_block_read_address/length</code> 直接暴露内部地址给 DMA</td>
+			</tr>
+			<tr>
+					<td>魔术字校验</td>
+					<td><code>magic1=0xDEADBEEF, magic2=~0xDEADBEEF</code>，检测缓冲区是否已初始化</td>
+			</tr>
+			<tr>
+					<td>实际容量</td>
+					<td><code>size - 1</code>，满条件 <code>w == r - 1</code></td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="q为什么缓冲区满的条件是-w--r---1-而不是-w--r">Q：为什么缓冲区满的条件是 <code>w == r - 1</code> 而不是 <code>w == r</code>？
+</h3><p><code>w == r</code> 表示&quot;空&quot;（读写指针重合）。如果满也用 <code>w == r</code>，就无法区分空和满。保留一个字节不写（<code>w</code> 比 <code>r</code> 少走一步），就能通过指针关系判断状态：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>条件</th>
+					<th>状态</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>w == r</code></td>
+					<td>空</td>
+			</tr>
+			<tr>
+					<td><code>(w + 1) % size == r</code></td>
+					<td>满</td>
+			</tr>
+			<tr>
+					<td>其他</td>
+					<td>有数据但未满</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="qlwrb-的线性块接口为什么对-dma-至关重要">Q：lwrb 的线性块接口为什么对 DMA 至关重要？
+</h3><p>DMA 只能搬运<strong>连续</strong>的内存区域。环形缓冲区的数据在回绕时分为两段不连续区域。线性块接口返回**从读指针到缓冲区末尾（或写指针，取较小者）**的连续区域，DMA 可以直接使用这段地址：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// 返回从读指针开始的连续可读长度
+</span></span></span><span class="line"><span class="cl"><span class="kt">size_t</span> <span class="nf">lwrb_get_linear_block_read_length</span><span class="p">(</span><span class="kt">lwrb_t</span> <span class="o">*</span><span class="n">lwrb</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">len</span><span class="p">,</span> <span class="n">w</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">w</span> <span class="o">=</span> <span class="n">lwrb</span><span class="o">-&gt;</span><span class="n">w</span><span class="p">;</span>  <span class="c1">// 一次性读取写指针
+</span></span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">w</span> <span class="o">&gt;=</span> <span class="n">lwrb</span><span class="o">-&gt;</span><span class="n">r</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">len</span> <span class="o">=</span> <span class="n">w</span> <span class="o">-</span> <span class="n">lwrb</span><span class="o">-&gt;</span><span class="n">r</span><span class="p">;</span>  <span class="c1">// 线性区域
+</span></span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">len</span> <span class="o">=</span> <span class="n">lwrb</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">-</span> <span class="n">lwrb</span><span class="o">-&gt;</span><span class="n">r</span><span class="p">;</span>  <span class="c1">// 读指针到缓冲区末尾
+</span></span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">len</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><hr>
+<h2 id="六stm32-vs-gd32双芯片实现对比">六、STM32 vs GD32：双芯片实现对比
+</h2><h3 id="q两个平台的-dma-架构有什么区别">Q：两个平台的 DMA 架构有什么区别？
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>维度</th>
+					<th>STM32F407</th>
+					<th>GD32F470</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>DMA 模型</td>
+					<td><strong>Stream + Channel</strong> (DMA2_Stream2_CH4)</td>
+					<td><strong>Channel + Subperi</strong> (DMA1_CH2_SUB4)</td>
+			</tr>
+			<tr>
+					<td>RX DMA</td>
+					<td>DMA2_Stream2</td>
+					<td>DMA1_Channel2</td>
+			</tr>
+			<tr>
+					<td>TX DMA</td>
+					<td>DMA2_Stream7</td>
+					<td>DMA1_Channel7</td>
+			</tr>
+			<tr>
+					<td>DMA 计数器</td>
+					<td><code>__HAL_DMA_GET_COUNTER()</code> 宏</td>
+					<td><code>dma_transfer_number_get()</code> 函数</td>
+			</tr>
+			<tr>
+					<td>中断管理</td>
+					<td>HAL 统一回调 (<code>HAL_UARTEx_RxEventCallback</code>)</td>
+					<td>手动编写 IRQ Handler</td>
+			</tr>
+			<tr>
+					<td>抽象层级</td>
+					<td>厚封装（HAL）</td>
+					<td>薄封装（标准外设库）</td>
+			</tr>
+			<tr>
+					<td>GPIO 复用</td>
+					<td><code>HAL_GPIO_Init()</code> 一步完成</td>
+					<td><code>gpio_af_set()</code> + <code>gpio_mode_set()</code> + <code>gpio_output_options_set()</code> 三步</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="q中断处理方式有什么不同">Q：中断处理方式有什么不同？
+</h3><p><strong>STM32 HAL 方案</strong>：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// 中断自动分发到 HAL 回调
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">USART1_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span> <span class="nf">HAL_UART_IRQHandler</span><span class="p">(</span><span class="o">&amp;</span><span class="n">huart1</span><span class="p">);</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">DMA2_Stream2_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span> <span class="nf">HAL_DMA_IRQHandler</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hdma_usart1_rx</span><span class="p">);</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">DMA2_Stream7_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span> <span class="nf">HAL_DMA_IRQHandler</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hdma_usart1_tx</span><span class="p">);</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 统一回调
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">HAL_UARTEx_RxEventCallback</span><span class="p">(</span><span class="n">UART_HandleTypeDef</span> <span class="o">*</span><span class="n">huart</span><span class="p">,</span> <span class="kt">uint16_t</span> <span class="n">size</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">usart_rx_check</span><span class="p">();</span>  <span class="c1">// HT/TC/IDLE 统一入口
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">HAL_UART_TxCpltCallback</span><span class="p">(</span><span class="n">UART_HandleTypeDef</span> <span class="o">*</span><span class="n">huart</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lwrb_skip</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">,</span> <span class="n">usart_tx_dma_current_len</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">usart_tx_dma_current_len</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">usart_start_tx_dma_transfer</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>GD32 标准库方案</strong>：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// 手动编写每个中断处理函数
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">USART0_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">RESET</span> <span class="o">!=</span> <span class="nf">usart_interrupt_flag_get</span><span class="p">(</span><span class="n">USART0</span><span class="p">,</span> <span class="n">USART_INT_FLAG_IDLE</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_interrupt_flag_clear</span><span class="p">(</span><span class="n">USART0</span><span class="p">,</span> <span class="n">USART_INT_FLAG_IDLE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_data_receive</span><span class="p">(</span><span class="n">USART0</span><span class="p">);</span>  <span class="c1">// 读 DR 清除 IDLE
+</span></span></span><span class="line"><span class="cl">        <span class="nf">usart_rx_check</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">DMA1_Channel2_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// RX DMA
+</span></span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">dma_interrupt_flag_get</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH2</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_FTF</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">dma_interrupt_flag_clear</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH2</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_FTF</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_rx_check</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">dma_interrupt_flag_get</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH2</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_HTF</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">dma_interrupt_flag_clear</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH2</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_HTF</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_rx_check</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">DMA1_Channel7_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// TX DMA
+</span></span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">dma_interrupt_flag_get</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH7</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_FTF</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">dma_interrupt_flag_clear</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH7</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_FTF</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lwrb_skip</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">,</span> <span class="n">usart_tx_dma_current_len</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">usart_tx_dma_current_len</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_start_tx_dma_transfer</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="qdma-初始化的流程差异">Q：DMA 初始化的流程差异？
+</h3><p><strong>STM32 HAL</strong>（CubeMX 生成）：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// RX DMA - 在 UART 初始化中自动关联
+</span></span></span><span class="line"><span class="cl"><span class="n">hdma_usart1_rx</span><span class="p">.</span><span class="n">Instance</span> <span class="o">=</span> <span class="n">DMA2_Stream2</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">hdma_usart1_rx</span><span class="p">.</span><span class="n">Init</span><span class="p">.</span><span class="n">Channel</span> <span class="o">=</span> <span class="n">DMA_CHANNEL_4</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">hdma_usart1_rx</span><span class="p">.</span><span class="n">Init</span><span class="p">.</span><span class="n">Direction</span> <span class="o">=</span> <span class="n">DMA_PERIPH_TO_MEMORY</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">hdma_usart1_rx</span><span class="p">.</span><span class="n">Init</span><span class="p">.</span><span class="n">Mode</span> <span class="o">=</span> <span class="n">DMA_CIRCULAR</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nf">HAL_DMA_Init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hdma_usart1_rx</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">__HAL_LINKDMA</span><span class="p">(</span><span class="o">&amp;</span><span class="n">huart1</span><span class="p">,</span> <span class="n">hdmarx</span><span class="p">,</span> <span class="n">hdma_usart1_rx</span><span class="p">);</span>  <span class="c1">// 关联到 UART 句柄
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 启动接收
+</span></span></span><span class="line"><span class="cl"><span class="nf">HAL_UARTEx_ReceiveToIdle_DMA</span><span class="p">(</span><span class="o">&amp;</span><span class="n">huart1</span><span class="p">,</span> <span class="n">usart_rx_dma_buffer</span><span class="p">,</span> <span class="mi">64</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">__HAL_DMA_DISABLE_IT</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hdma_usart1_rx</span><span class="p">,</span> <span class="n">DMA_IT_HT</span><span class="p">);</span>  <span class="c1">// 可选：关闭 HT 中断
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>GD32 标准库</strong>（手动配置）：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">dma_single_data_parameter_struct</span> <span class="n">dma_init</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">periph_addr</span> <span class="o">=</span> <span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="o">&amp;</span><span class="nf">USART_DATA</span><span class="p">(</span><span class="n">USART0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">periph_inc</span> <span class="o">=</span> <span class="n">DMA_PERIPH_INCREASE_DISABLE</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">memory0_addr</span> <span class="o">=</span> <span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="n">usart_rx_dma_buffer</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">memory_inc</span> <span class="o">=</span> <span class="n">DMA_MEMORY_INCREASE_ENABLE</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">periph_memory_width</span> <span class="o">=</span> <span class="n">DMA_PERIPH_WIDTH_8BIT</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">circular_mode</span> <span class="o">=</span> <span class="n">DMA_CIRCULAR_MODE_ENABLE</span><span class="p">;</span>  <span class="c1">// 关键！
+</span></span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">direction</span> <span class="o">=</span> <span class="n">DMA_PERIPH_TO_MEMORY</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">number</span> <span class="o">=</span> <span class="n">USART0_RX_DMA_LENGTH</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">priority</span> <span class="o">=</span> <span class="n">DMA_PRIORITY_MEDIUM</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nf">dma_single_data_mode_init</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_RX_DMA_CH</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">dma_init</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">dma_channel_subperipheral_select</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_RX_DMA_CH</span><span class="p">,</span> <span class="n">USART0_DMA_SUBPERI</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">dma_channel_enable</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_RX_DMA_CH</span><span class="p">);</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="qnvic-中断优先级有什么讲究">Q：NVIC 中断优先级有什么讲究？
+</h3><p>所有相关中断（USART、RX DMA、TX DMA）必须设为<strong>相同优先级</strong>，确保它们不会互相抢占。这是因为 <code>usart_rx_check()</code> 不是可重入的——如果 RX DMA 的 TC 中断打断了 IDLE 中断中的 <code>usart_rx_check()</code>，会导致 <code>old_pos</code> 状态混乱。</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>平台</th>
+					<th>优先级设置</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>STM32</td>
+					<td>全部设为 <code>(0, 0)</code></td>
+			</tr>
+			<tr>
+					<td>GD32</td>
+					<td>全部设为 <code>(2, 2)</code> 或 <code>(2, 5)</code></td>
+			</tr>
+	</tbody>
+</table></div>
+<blockquote class="alert alert-warning">
+    <p>如果应用中还有其他更高优先级的中断（如定时器），UART 相关中断可以整体降低优先级，但三者之间必须相同。</p></blockquote><hr>
+<h2 id="七常见问题与踩坑">七、常见问题与踩坑
+</h2><h3 id="q为什么-dma-初始化必须在-uart-初始化之前">Q：为什么 DMA 初始化必须在 UART 初始化之前？
+</h3><p>DMA 时钟必须先于 UART 时钟使能。STM32 中 <code>MX_DMA_Init()</code> 必须在 <code>MX_USART1_UART_Init()</code> 之前调用，否则 HAL 内部关联 DMA 句柄时会失败。CubeMX 生成的代码默认遵循此顺序，但手动调整时容易出错。</p>
+<h3 id="qidle-中断标志怎么清除">Q：IDLE 中断标志怎么清除？
+</h3><p>IDLE 标志的清除方式比较特殊——需要<strong>先读状态寄存器，再读数据寄存器</strong>：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>平台</th>
+					<th>清除方式</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>STM32 HAL</td>
+					<td><code>__HAL_UART_CLEAR_IDLEFLAG()</code> (内部读 SR + DR)</td>
+			</tr>
+			<tr>
+					<td>GD32</td>
+					<td><code>usart_interrupt_flag_clear()</code> + <code>usart_data_receive()</code></td>
+			</tr>
+	</tbody>
+</table></div>
+<p>如果清除不正确，IDLE 中断会持续触发，进入死循环。</p>
+<h3 id="qhal_uartex_receivetoidle_dma-为什么要每次回调后重新调用">Q：<code>HAL_UARTEx_ReceiveToIdle_DMA()</code> 为什么要每次回调后重新调用？
+</h3><p>STM32 HAL 的设计：虽然 RX DMA 配置为 Circular 模式不会停止，但 <code>ReceiveToIdle_DMA</code> 内部还管理了 IDLE 中断的使能。回调中如果不重新调用，IDLE 中断可能不会再次触发。HT 和 TC 中断则由 DMA 硬件自动触发，不需要重新使能。</p>
+<p>GD32 方案不存在这个问题——IDLE 中断在初始化时一次性使能，不需要每次重启。</p>
+<h3 id="qrx-缓冲区大小怎么选">Q：RX 缓冲区大小怎么选？
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>缓冲区大小</th>
+					<th>HT 触发间隔 (115200bps)</th>
+					<th>适填场景</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>32 字节</td>
+					<td>~1.4 ms</td>
+					<td>低速、短包</td>
+			</tr>
+			<tr>
+					<td>64 字节</td>
+					<td>~2.8 ms</td>
+					<td>通用（推荐）</td>
+			</tr>
+			<tr>
+					<td>128 字节</td>
+					<td>~5.6 ms</td>
+					<td>高速、长包</td>
+			</tr>
+			<tr>
+					<td>256 字节</td>
+					<td>~11.1 ms</td>
+					<td>超高速或主频低的 MCU</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>原则：<strong>缓冲区大小 ≥ 最大连续数据帧长度 × 2</strong>。HT 和 TC 将缓冲区一分为二，各半必须能容纳一帧数据。</p>
+<h3 id="qprintf-重定向为什么用阻塞发送">Q：printf 重定向为什么用阻塞发送？
+</h3><p>示例中的 <code>fputc()</code> 使用轮询方式逐字节发送，不用 DMA。原因是 printf 通常在调试场景使用，调用时需要确保数据完整输出。如果用 DMA 异步发送，printf 返回时数据可能还没发完。实际产品中建议用 <code>usart_send_string()</code> 代替 printf。</p>
+<hr>
+<h2 id="八性能对比dma-vs-中断-vs-轮询">八、性能对比：DMA vs 中断 vs 轮询
+</h2><h3 id="q三种方式的-cpu-开销对比如何">Q：三种方式的 CPU 开销对比如何？
+</h3><p>以 115200bps、168MHz 主频为例，接收 1KB 数据：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>方式</th>
+					<th>CPU 时间</th>
+					<th>占比</th>
+					<th>数据丢失风险</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>轮询</td>
+					<td>~5.6 ms (100%)</td>
+					<td>100%</td>
+					<td>无（但 CPU 全占）</td>
+			</tr>
+			<tr>
+					<td>中断</td>
+					<td>~0.5 ms (9%)</td>
+					<td>~9%</td>
+					<td>中断延迟时可能</td>
+			</tr>
+			<tr>
+					<td>DMA</td>
+					<td>~0.02 ms (0.4%)</td>
+					<td>&lt; 1%</td>
+					<td>几乎为零</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>DMA 方式的 CPU 时间仅用于 <code>usart_rx_check()</code> 中的指针计算和数据搬运（写入 TX 环形缓冲区），实际 DMA 传输过程 CPU 不参与。</p>
+<h3 id="qdma-方式的延迟有多大">Q：DMA 方式的延迟有多大？
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>事件</th>
+					<th>最大延迟</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>收到数据到 HT/TC 中断触发</td>
+					<td>半缓冲区传输时间 (64B@115200 ≈ 2.8ms)</td>
+			</tr>
+			<tr>
+					<td>收到数据到 IDLE 中断触发</td>
+					<td>1 字符时间 + IDLE 检测时间 (≈ 0.1ms)</td>
+			</tr>
+			<tr>
+					<td>TX 数据从写入环形缓冲区到 DMA 启动</td>
+					<td>当前 DMA 传输完成时间 + 临界区时间</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>IDLE 中断是延迟最低的触发方式，适合对实时性要求高的场景。</p>
+<hr>
+<h2 id="九移植指南三步移植到你的平台">九、移植指南：三步移植到你的平台
+</h2><h3 id="q如何将此方案移植到其他-mcu">Q：如何将此方案移植到其他 MCU？
+</h3><p><strong>第一步：配置 RX DMA</strong></p>
+<ol>
+<li>DMA 配置为 Circular 模式，外设到内存</li>
+<li>外设地址 = USART 数据寄存器地址</li>
+<li>内存地址 = <code>usart_rx_dma_buffer</code></li>
+<li>使能 HT + TC 中断</li>
+<li>使能 USART IDLE 中断</li>
+</ol>
+<p><strong>第二步：配置 TX DMA</strong></p>
+<ol>
+<li>DMA 配置为 Normal 模式，内存到外设</li>
+<li>不在初始化时启动（按需启动）</li>
+<li>使能 TC 中断</li>
+</ol>
+<p><strong>第三步：实现三个核心函数</strong></p>
+<ol>
+<li><code>usart_rx_check()</code> — 读 DMA 计数器，计算位置，处理数据</li>
+<li><code>usart_start_tx_dma_transfer()</code> — 临界区保护，零拷贝启动</li>
+<li>TX 完成中断处理 — <code>lwrb_skip()</code> + 链式启动</li>
+</ol>
+<hr>
+<h2 id="十环形缓冲区-vs-乒乓缓存应用范围考量">十、环形缓冲区 vs 乒乓缓存：应用范围考量
+</h2><h3 id="q什么是乒乓缓存ping-pong-buffer">Q：什么是乒乓缓存（Ping-Pong Buffer）？
+</h3><p>乒乓缓存使用<strong>两个等大的线性缓冲区</strong>交替工作：DMA 写入 A 缓冲区时，CPU 处理 B 缓冲区；DMA 半传输完成时交换角色。本质上就是 DMA Circular + HT/TC 中断的&quot;半缓冲区&quot;机制。</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">缓冲区 A [0, N/2)   ← HT 中断时 CPU 处理 A，DMA 继续写 B
+</span></span><span class="line"><span class="cl">缓冲区 B [N/2, N)   ← TC 中断时 CPU 处理 B，DMA 继续写 A（回绕）
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="q环形缓冲区和乒乓缓存的核心区别是什么">Q：环形缓冲区和乒乓缓存的核心区别是什么？
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>维度</th>
+					<th>环形缓冲区 (lwrb)</th>
+					<th>乒乓缓存</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>数据结构</td>
+					<td>一段连续内存 + 读写指针</td>
+					<td>两个等大线性缓冲区</td>
+			</tr>
+			<tr>
+					<td>处理粒度</td>
+					<td>任意长度（按实际写入量处理）</td>
+					<td>固定半缓冲区大小</td>
+			</tr>
+			<tr>
+					<td>数据延迟</td>
+					<td>IDLE 中断触发后立即处理</td>
+					<td>必须等 HT/TC 才能处理</td>
+			</tr>
+			<tr>
+					<td>不定长帧</td>
+					<td>天然支持（IDLE 可触发）</td>
+					<td>需要额外机制处理不足半缓冲区的尾部</td>
+			</tr>
+			<tr>
+					<td>内存利用</td>
+					<td>实际容量 <code>size - 1</code></td>
+					<td>两个缓冲区各 <code>N/2</code>，必须等满才处理</td>
+			</tr>
+			<tr>
+					<td>实现复杂度</td>
+					<td>需要处理回绕、线性块</td>
+					<td>逻辑简单，HT/TC 直接切换</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="q各适合什么场景">Q：各适合什么场景？
+</h3><p><strong>环形缓冲区更适合</strong>：</p>
+<ul>
+<li><strong>不定长协议帧</strong>：Modbus RTU、自定义命令协议，帧长度不固定，IDLE 中断可立即检测帧结束</li>
+<li><strong>低延迟交互</strong>：人机交互、AT 指令响应，IDLE 中断保证帧尾不卡</li>
+<li><strong>TX 异步发送</strong>：零拷贝 + 链式续传，应用层随时写入，DMA 自动排程</li>
+</ul>
+<p><strong>乒乓缓存更适合</strong>：</p>
+<ul>
+<li><strong>定长采样流</strong>：ADC/I2S 音频采样、传感器高速等间隔数据流，每帧固定长度</li>
+<li><strong>批量处理管线</strong>：FFT、数字滤波等需要整块数据才能运算的场景</li>
+<li><strong>双核共享</strong>：一个核写 A，另一个核处理 B，天然无锁交替</li>
+</ul>
+<h3 id="quart-场景为什么首选环形缓冲区">Q：UART 场景为什么首选环形缓冲区？
+</h3><p>UART 通信的典型特征：</p>
+<ol>
+<li><strong>数据帧长度不固定</strong>：一条 AT 命令可能 10 字节，下一条可能 200 字节</li>
+<li><strong>帧间隔不确定</strong>：两次通信之间可能有 ms 级空闲（IDLE 可检测）</li>
+<li><strong>需要低延迟响应</strong>：收到命令后应尽快回复，不能等半缓冲区填满</li>
+</ol>
+<p>乒乓缓存的 HT/TC 触发机制要求&quot;半缓冲区填满才处理&quot;，如果帧长不足半缓冲区，数据就会一直&quot;卡&quot;在里面。虽然可以加 IDLE 中断来补救，但本质上已经退化成环形缓冲区的处理逻辑了——不如一开始就用环形缓冲区。</p>
+<blockquote class="alert alert-tip">
+    <p>如果你的 UART 场景是<strong>定长高速数据流</strong>（如连续传感器采样），乒乓缓存实现更简单；如果是<strong>不定长命令交互</strong>（绝大多数 UART 场景），环形缓冲区是更自然的选择。</p></blockquote><hr>
+<h2 id="十一总结">十一、总结
+</h2><h3 id="核心设计要点">核心设计要点
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>要点</th>
+					<th>原因</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>RX DMA Circular</td>
+					<td>永不停止，无重启窗口期，不丢数据</td>
+			</tr>
+			<tr>
+					<td>TX DMA Normal</td>
+					<td>每次发一段线性数据，链式续传</td>
+			</tr>
+			<tr>
+					<td>三重中断 (HT+TC+IDLE)</td>
+					<td>HT/TC 保证高速连续流不丢，IDLE 保证不定长包尾不卡</td>
+			</tr>
+			<tr>
+					<td>DMA 计数器反推位置</td>
+					<td>零额外硬件，纯软件计算当前写入位置</td>
+			</tr>
+			<tr>
+					<td>TX 零拷贝</td>
+					<td>DMA 直接从环形缓冲区线性块读取，无中间缓冲区</td>
+			</tr>
+			<tr>
+					<td><code>usart_tx_dma_current_len</code> 互斥标志</td>
+					<td>避免应用层和中断层同时操作 DMA</td>
+			</tr>
+			<tr>
+					<td>同优先级中断</td>
+					<td>防止 <code>usart_rx_check()</code> 被抢占导致状态混乱</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="双芯片验证结论">双芯片验证结论
+</h3><p>STM32 HAL 和 GD32 标准外设库在<strong>架构层面完全一致</strong>——RX Circular + TX Normal + lwrb 零拷贝 + 三重中断。差异仅在 API 调用方式：</p>
+<ul>
+<li><strong>HAL 厚封装</strong>：回调机制统一管理中断，开发快但调试时调用栈深</li>
+<li><strong>标准库薄封装</strong>：手动管理中断标志，代码透明度高但细节多</li>
+</ul>
+<p>选择哪种取决于项目需求——快速原型选 HAL，深度调试选标准库。</p>
+<hr>
+<h2 id="参考资料">参考资料
+</h2><ul>
+<li><a class="link" href="https://github.com/MaJerle/lwrb"  target="_blank" rel="noopener"
+    >lwrb — Lightweight ring buffer library</a></li>
+<li><a class="link" href="https://github.com/MaJerle/stm32-usart-uart-dma-rx-tx"  target="_blank" rel="noopener"
+    >stm32-usart-uart-dma-rx-tx — UART DMA RX/TX example</a></li>
+<li><a class="link" href="https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
+    >STM32F407VGT6 UART DMA Efficient RingBuffer — 本文 STM32 工程</a></li>
+<li><a class="link" href="https://github.com/Lingjia007/GD32F470ZGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
+    >GD32F470ZGT6 UART DMA Efficient RingBuffer — 本文 GD32 工程</a></li>
+<li><a class="link" href="https://www.st.com/resource/en/reference_manual/dm00031020.pdf"  target="_blank" rel="noopener"
+    >STM32F407 Reference Manual (RM0090)</a></li>
+<li><a class="link" href="https://www.gigadevice.com.cn/"  target="_blank" rel="noopener"
+    >GD32F4xx User Manual</a></li>
+<li><a class="link" href="../oop-in-c-embedded/" >C语言的精髓：结构体与指针</a></li>
+<li><a class="link" href="../stm32f407-secure-bootloader/" >STM32F407 安全 Bootloader 设计</a></li>
+</ul>
+
+</section>
+
+
+    <footer class="article-footer">
+    
+    <section class="article-tags">
+        
+            <a href="/tags/stm32/">STM32</a>
+        
+            <a href="/tags/gd32/">GD32</a>
+        
+            <a href="/tags/uart/">UART</a>
+        
+            <a href="/tags/dma/">DMA</a>
+        
+            <a href="/tags/%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA/">环形缓冲区</a>
+        
+            <a href="/tags/lwrb/">Lwrb</a>
+        
+            <a href="/tags/%E9%9B%B6%E6%8B%B7%E8%B4%9D/">零拷贝</a>
+        
+    </section>
+
+
+    
+    <section class="article-copyright">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <path d="M14.5 9a3.5 4 0 1 0 0 6" />
+</svg>
+
+
+
+        <span>Licensed under CC BY-NC-SA 4.0</span>
+    </section>
+    <section class="article-lastmod">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <polyline points="12 7 12 12 15 15" />
+</svg>
+
+
+
+        <span>
+            最后更新于 Jul 05, 2026 19:22 &#43;0800
+        </span>
+    </section></footer>
+
+
+    
+        <link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI&#43;WdtXRGWt2kTvGFasHpSy3SV"crossorigin="anonymous"
+            ><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG&#43;vnGctmUb0ZY0l8"crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"integrity="sha384-&#43;VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4&#43;/RRE05"crossorigin="anonymous"
+                defer
+                >
+            </script><script>
+  window.addEventListener("DOMContentLoaded", () => {
+    const mainArticleElement = document.querySelector(".main-article");
+    renderMathInElement(mainArticleElement, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  });
+</script>
+<div class="math-katex"></div>
+
+    
+</article>
+
+    
+
+    
+
+<aside class="related-content--wrapper">
+    <h2 class="section-title">相关文章</h2>
+    <div class="related-content">
+        <div class="flex article-list--tile">
+            
+                
+<article class="has-image">
+    <a href="/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/">
+        
+        
+            <div class="article-image">
+                <img src="/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop.845ad1bc14f6864ea3e8db6e61af4b4f_hu_7dfd5ddb3e7a77a7.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post 浅尝 Bootloader 五层架构：从 Platform 抽象到 App 编排的 OOP 对象设计模型"
+                        
+                        data-hash="md5-hFrRvBT2hk6j6NtuYa9LTw==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">浅尝 Bootloader 五层架构：从 Platform 抽象到 App 编排的 OOP 对象设计模型</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/p/gnu-ld-%E9%93%BE%E6%8E%A5%E8%84%9A%E6%9C%AC%E8%AF%A6%E8%A7%A3%E4%BB%8E-stm32f407-%E5%AE%9E%E4%BE%8B%E5%89%96%E6%9E%90%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80%E4%B8%8E%E6%AE%B5%E9%87%8D%E5%AE%9A%E4%BD%8D/">
+        
+        
+            <div class="article-image">
+                <img src="/p/gnu-ld-%E9%93%BE%E6%8E%A5%E8%84%9A%E6%9C%AC%E8%AF%A6%E8%A7%A3%E4%BB%8E-stm32f407-%E5%AE%9E%E4%BE%8B%E5%89%96%E6%9E%90%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80%E4%B8%8E%E6%AE%B5%E9%87%8D%E5%AE%9A%E4%BD%8D/gnu-ld-linker-script.fcad4f3ea326a9f595ecedb86073a2db_hu_604e604f3f084745.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post GNU LD 链接脚本详解：从 STM32F407 实例剖析嵌入式内存布局与段重定位"
+                        
+                        data-hash="md5-/K1PPqMmqfWV7O24YHOi2w==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">GNU LD 链接脚本详解：从 STM32F407 实例剖析嵌入式内存布局与段重定位</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/p/pyiaptoolkitstm32-iap-%E4%B8%8A%E4%BD%8D%E6%9C%BA%E5%B7%A5%E5%85%B7%E5%A5%97%E4%BB%B6%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/">
+        
+        
+            <div class="article-image">
+                <img src="/p/pyiaptoolkitstm32-iap-%E4%B8%8A%E4%BD%8D%E6%9C%BA%E5%B7%A5%E5%85%B7%E5%A5%97%E4%BB%B6%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/PyIAPToolKit.bce3b53e3d529bb9662f75f33ad529b9_hu_796cd764b38bb6af.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post PyIAPToolKit：STM32 IAP 上位机工具套件设计与实现"
+                        
+                        data-hash="md5-vOO1Pj1Sm7lmL3XzOtUpuQ==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">PyIAPToolKit：STM32 IAP 上位机工具套件设计与实现</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/p/stm32f407-%E5%AE%89%E5%85%A8-bootloader-%E8%AE%BE%E8%AE%A1a/b-%E5%8F%8C%E5%88%86%E5%8C%BA%E5%8A%A0%E5%AF%86%E7%AD%BE%E5%90%8D%E4%B8%8E%E5%A4%9A%E6%B8%A0%E9%81%93%E5%8D%87%E7%BA%A7/">
+        
+        
+            <div class="article-image">
+                <img src="/p/stm32f407-%E5%AE%89%E5%85%A8-bootloader-%E8%AE%BE%E8%AE%A1a/b-%E5%8F%8C%E5%88%86%E5%8C%BA%E5%8A%A0%E5%AF%86%E7%AD%BE%E5%90%8D%E4%B8%8E%E5%A4%9A%E6%B8%A0%E9%81%93%E5%8D%87%E7%BA%A7/STM32F407%E5%AE%89%E5%85%A8Bootloader%E8%AE%BE%E8%AE%A1.7c8335e5345c22f2e144305e64572346_hu_246f581f8c773c70.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post STM32F407 安全 Bootloader 设计：A/B 双分区、加密签名与多渠道升级"
+                        
+                        data-hash="md5-fIM15TRcIvLhRDBeZFcjRg==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">STM32F407 安全 Bootloader 设计：A/B 双分区、加密签名与多渠道升级</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/">
+        
+        
+            <div class="article-image">
+                <img src="/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.bc913b6a996b7421fe3ea97f79ea25e3_hu_b1e5a0a00e8e56e1.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post C 语言的精髓：结构体与指针——嵌入式面向对象平台化分层设计"
+                        
+                        data-hash="md5-vJE7aplrdCH&#43;Pql/eeol4w==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">C 语言的精髓：结构体与指针——嵌入式面向对象平台化分层设计</h2>
+        </div>
+    </a>
+</article>
+
+            
+        </div>
+    </div>
+</aside>
+
+     
+    
+        
+    
+    <div class="comment"></div>
+
+    
+
+    <footer class="site-footer">
+    <section class="copyright">
+        &copy; 
+        
+            2025 - 
+        
+        2026 lingsir007
+    </section>
+    
+    <section class="running-time">
+        
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+        本网站已稳定运行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;总计<span id="articleCount">&lt; 9 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 45.95 k ></span>字
+    </section>
+    <section class="powerby">
+        使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 构建 <br />
+        主题 <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.30.0">Stack</a></b> 由 <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a> 设计
+    </section>
+</footer>
+
+
+    
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    
+    <div class="pswp__bg"></div>
+
+    
+    <div class="pswp__scroll-wrap">
+
+        
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                
+                
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo="crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU="crossorigin="anonymous"
+                defer
+                >
+            </script><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css"crossorigin="anonymous"
+            ><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css"crossorigin="anonymous"
+            >
+
+            </main>
+        </div>
+        <script 
+                src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z&#43;KMkF24hUW8WePSA9HM="crossorigin="anonymous"
+                
+                >
+            </script><script type="text/javascript" src="/ts/main.99ce1801c4bad426a42fc436add4721e149159dbb598636e9578fd59cf778c83.js" defer></script> <script>
+    (function () {
+        const customFont = document.createElement('link');
+        customFont.href = "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap";
+
+        customFont.type = "text/css";
+        customFont.rel = "stylesheet";
+
+        document.head.appendChild(customFont);
+    }());
+</script> <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css"
+/>
+
+<script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
+<script>
+  var pjax = new Pjax({
+    selectors: ["title", ".main-container", ".js-Pjax1", ".js-Pjax2"],
+  });
+</script>
+
+<div id="aplayer"></div>
+<script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
+
+<script>
+  const staticDir = "https://lingsir007.netlify.app/";
+  const ap = new APlayer({
+    container: document.getElementById("aplayer"),
+    audio: [
+      {
+        name: "Keil Generic Key",
+        artist: "EDGE",
+        url: staticDir + "music/Keil Generic Key-EDGE/song.mp3",
+        cover: staticDir + "music/Keil Generic Key-EDGE/cover.png",
+        lrc: staticDir + "music/Keil Generic Key-EDGE/lyric.lrc",
+      },
+      {
+        name: "查无此字",
+        artist: "林奕匡",
+        url: staticDir + "music/查无此字-林奕匡/song.mp3",
+        cover: staticDir + "music/查无此字-林奕匡/cover.jpg",
+        lrc: staticDir + "music/查无此字-林奕匡/lyric.lrc",
+      },
+      {
+        name: "爱别等",
+        artist: "洪卓立",
+        url: staticDir + "music/爱别等-洪卓立/song.mp3",
+        cover: staticDir + "music/爱别等-洪卓立/cover.jpg",
+        lrc: staticDir + "music/爱别等-洪卓立/lyric.lrc",
+      },
+      {
+        name: "乖乖报到",
+        artist: "MC 张天赋",
+        url: staticDir + "music/乖乖报到-MC 张天赋/song.mp3",
+        cover: staticDir + "music/乖乖报到-MC 张天赋/cover.jpg",
+        lrc: staticDir + "music/乖乖报到-MC 张天赋/lyric.lrc",
+      },
+      {
+        name: "指纹",
+        artist: "胡歌",
+        url: staticDir + "music/指纹-胡歌/song.mp3",
+        cover: staticDir + "music/指纹-胡歌/cover.jpg",
+        lrc: staticDir + "music/指纹-胡歌/lyric.lrc",
+      },
+      {
+        name: "还记得",
+        artist: "周柏豪",
+        url: staticDir + "music/还记得-周柏豪/song.mp3",
+        cover: staticDir + "music/还记得-周柏豪/cover.jpg",
+        lrc: staticDir + "music/还记得-周柏豪/lyric.lrc",
+      },
+      {
+        name: "摄氏零度",
+        artist: "张敬轩",
+        url: staticDir + "music/摄氏零度-张敬轩/song.mp3",
+        cover: staticDir + "music/摄氏零度-张敬轩/cover.jpg",
+        lrc: staticDir + "music/摄氏零度-张敬轩/lyric.lrc",
+      },
+      {
+        name: "下一位前度",
+        artist: "林家谦",
+        url: staticDir + "music/下一位前度-林家谦/song.mp3",
+        cover: staticDir + "music/下一位前度-林家谦/cover.jpg",
+        lrc: staticDir + "music/下一位前度-林家谦/lyric.lrc",
+      },
+      {
+        name: "初初",
+        artist: "古巨基",
+        url: staticDir + "music/初初-古巨基/song.mp3",
+        cover: staticDir + "music/初初-古巨基/cover.jpg",
+        lrc: staticDir + "music/初初-古巨基/lyric.lrc",
+      },
+      {
+        name: "这个故事教训我们",
+        artist: "李克勤",
+        url: staticDir + "music/这个故事教训我们-李克勤/song.mp3",
+        cover: staticDir + "music/这个故事教训我们-李克勤/cover.jpg",
+        lrc: staticDir + "music/这个故事教训我们-李克勤/lyric.lrc",
+      },
+      {
+        name: "最后祝福",
+        artist: "黄宗泽",
+        url: staticDir + "music/最后祝福-黄宗泽/song.mp3",
+        cover: staticDir + "music/最后祝福-黄宗泽/cover.jpg",
+        lrc: staticDir + "music/最后祝福-黄宗泽/lyric.lrc",
+      }
+    ],
+    lrcType: 3,
+    fixed: true
+  });
+</script>
+
+<script>
+  
+  function calculateRunningDays(startDateStr, elementId) {
+    let s1 = new Date(startDateStr.replace(/-/g, "/"));
+    let s2 = new Date();
+    let timeDifference = s2.getTime() - s1.getTime();
+
+    let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+    let hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    let minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+
+    
+    let dayText = "天"; 
+    let hourText = "小时";
+    let minuteText = "分钟";
+
+    let result = `<span>< ${days} ${dayText} ${hours} ${hourText} ${minutes} ${minuteText} ></span>`;
+    document.getElementById(elementId).innerHTML = result;
+    }
+
+    document.addEventListener("pjax:complete", () => {
+        calculateRunningDays('2025-3-14', 'runningdays');
+    });
+    calculateRunningDays('2025-3-14', 'runningdays');
+</script>
+
+<script>
+  pjax._handleResponse = pjax.handleResponse;
+  pjax.handleResponse = function (responseText, request, href, options) {
+    if (request.responseText.match("<html")) {
+      if (responseText) {
+        
+        let newDom = new DOMParser().parseFromString(responseText, "text/html");
+        
+        let bodyClass = newDom.body.className;
+        document.body.setAttribute("class", bodyClass);
+      }
+      
+      pjax._handleResponse(responseText, request, href, options);
+    } else {
+      
+    }
+  };
+</script>
+
+<script>
+  
+  function initClock() {
+    
+    var hr = document.getElementById("hr"); 
+    var mn = document.getElementById("mn"); 
+    var sc = document.getElementById("sc"); 
+    if (!hr || !mn || !sc) return;
+
+    
+    var date = new Date();
+    var HH = date.getHours();
+    var MM = date.getMinutes();
+    var SS = date.getSeconds();
+
+    
+    var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+    var minuteAngle = MM * 6 + (SS / 60) * 6;
+    var secondAngle = SS * 6;
+
+    
+    hr.style.transition = "none";
+    mn.style.transition = "none";
+    sc.style.transition = "none";
+
+    
+    hr.style.transform = "rotate(0deg)";
+    mn.style.transform = "rotate(0deg)";
+    sc.style.transform = "rotate(0deg)";
+
+    
+    setTimeout(() => {
+      hr.style.transition = "";
+      mn.style.transition = "";
+      sc.style.transition = "";
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 0);
+
+    
+    setInterval(function () {
+      var date = new Date();
+      var HH = date.getHours();
+      var MM = date.getMinutes();
+      var SS = date.getSeconds();
+
+      
+      var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+      var minuteAngle = MM * 6 + (SS / 60) * 6;
+      var secondAngle = SS * 6;
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 1000);
+  }
+
+  
+  window.onload = function () {
+    initClock();
+  };
+
+  
+  document.addEventListener("pjax:complete", () => {
+    initClock();
+  });
+</script>
+
+<script>
+  document.addEventListener("pjax:complete", () => {
+    
+    window.Stack.init();
+  });
+</script>
+
+<script>
+  async function renderKaTeX() {
+    
+    let katex = document.querySelector(".math-katex");
+    if (!katex) {
+      return;
+    }
+    
+    while (typeof renderMathInElement !== "function") {
+      await delay(500);
+    }
+    
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  }
+
+  
+
+  function delay(time) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, time);
+    });
+  }
+
+  document.addEventListener("pjax:complete", () => {
+    renderKaTeX();
+  });
+</script>
+
+<script src="https://lingsir007.netlify.app/js/topbar.min.js"></script>
+
+<script>
+  
+  topbar.config({
+    barColors: {
+      0: "rgba(255,  255, 255, 1)", 
+      "1.0": "rgba(0, 149, 234,  1)", 
+    },
+  });
+
+  document.addEventListener("pjax:send", () => {
+    
+    topbar.show();
+  });
+
+  document.addEventListener("pjax:complete", () => {
+    
+    topbar.hide();
+  });
+</script>
+
+<script>
+  const cdnPath =
+    "https://cdn.jsdelivr.net/gh/Lingjia007/live2d-widget-v3@main";
+  const config = {
+    
+    path: {
+      homePath: "/",
+      modelPath: "https:\/\/lingsir007.netlify.app\/live2d-moc3/",
+      cssPath: "https:\/\/lingsir007.netlify.app\/js/waifu.css",
+      tipsJsonPath: "https:\/\/lingsir007.netlify.app\/js/my-waifu-tips.json",
+      tipsJsPath: cdnPath + "/waifu-tips.js",
+      live2dCorePath: "https:\/\/lingsir007.netlify.app\/js/live2dcubismcore.js",
+      live2dSdkPath: "https:\/\/lingsir007.netlify.app\/js/live2d-sdk.js",
+    },
+    
+    tools: [
+      "hitokoto",
+      "asteroids",
+      "express",
+      "switch-model",
+      "switch-texture",
+      "photo",
+      "info",
+      "quit",
+    ],
+    
+    drag: {
+      enable: true,
+      direction: ["x", 0],
+    },
+    
+    switchType: "order",
+  };
+
+  
+  if (screen.width >= 10) {
+    Promise.all([
+      loadExternalResource(config.path.cssPath, "css"),
+      loadExternalResource(config.path.live2dCorePath, "js"),
+      loadExternalResource(config.path.live2dSdkPath, "js"),
+      loadExternalResource(config.path.tipsJsPath, "js"),
+    ]).then(() => {
+      initWidget({
+        homePath: config.path.homePath,
+        waifuPath: config.path.tipsJsonPath,
+        cdnPath: config.path.modelPath,
+        tools: config.tools,
+        dragEnable: config.drag.enable,
+        dragDirection: config.drag.direction,
+        switchType: config.switchType,
+      });
+    });
+    function waitForElement(selector, callback) {
+      new MutationObserver(function (mutations) {
+        if (document.querySelector(selector)) {
+          callback();
+          this.disconnect();
+        }
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    }
+  }
+
+  
+  function loadExternalResource(url, type) {
+    return new Promise((resolve, reject) => {
+      let tag;
+      if (type === "css") {
+        tag = document.createElement("link");
+        tag.rel = "stylesheet";
+        tag.href = url;
+      } else if (type === "js") {
+        tag = document.createElement("script");
+        tag.src = url;
+      }
+      if (tag) {
+        tag.onload = () => resolve(url);
+        tag.onerror = () => reject(url);
+        document.head.appendChild(tag);
+      }
+    });
+  }
+</script>
+
+<style>
+  .highlight {
+     
+    max-height: 400px;
+    overflow: hidden;
+  }
+
+  .code-show {
+    max-height: none !important;
+  }
+
+  .code-more-box {
+    width: 100%;
+    padding-top: 78px;
+    background-image: -webkit-gradient(
+      linear,
+      left top,
+      left bottom,
+      from(rgba(255, 255, 255, 0)),
+      to(#fff)
+    );
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+  }
+
+  .code-more-btn {
+    display: block;
+    margin: auto;
+    width: 44px;
+    height: 22px;
+    background: #f0f0f5;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding-top: 6px;
+    cursor: pointer;
+  }
+
+  .code-more-img {
+    cursor: pointer !important;
+    display: block;
+    margin: auto;
+    width: 22px;
+    height: 16px;
+  }
+</style>
+
+<script>
+  function initCodeMoreBox() {
+    let codeBlocks = document.querySelectorAll(".highlight");
+    if (!codeBlocks) {
+      return;
+    }
+    codeBlocks.forEach((codeBlock) => {
+      
+      if (codeBlock.scrollHeight <= codeBlock.clientHeight) {
+        return;
+      }
+      
+      
+      let codeMoreBox = document.createElement("div");
+      codeMoreBox.classList.add("code-more-box");
+      
+      let codeMoreBtn = document.createElement("span");
+      codeMoreBtn.classList.add("code-more-btn");
+      codeMoreBtn.addEventListener("click", () => {
+        codeBlock.classList.add("code-show");
+        codeMoreBox.style.display = "none";
+        
+        window.dispatchEvent(new Event("resize"));
+      });
+      
+      let img = document.createElement("img");
+      img.classList.add("code-more-img");
+      img.src = "https:\/\/lingsir007.netlify.app\/icons/codeMore.png";
+      
+      codeMoreBtn.appendChild(img);
+      codeMoreBox.appendChild(codeMoreBtn);
+      codeBlock.appendChild(codeMoreBox);
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initCodeMoreBox();
+  });
+  initCodeMoreBox();
+</script>
+
+<div id="particles-js"></div>
+
+<script src="https://lingsir007.netlify.app/background/particles.min.js"></script>
+<script>
+  particlesJS.load(
+    "particles-js",
+    "https:\/\/lingsir007.netlify.app\/background/particlesjs-config.json",
+    function () {
+      console.log("particles.js loaded - callback");
+    },
+  );
+</script>
+
+<style>
+  #particles-js {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: -1;
+  }
+</style>
+
+<style>
+  #TableOfContents > ul,
+  ol {
+    ul,
+    ol {
+      display: none;
+    }
+    .open {
+      display: block;
+    }
+  }
+</style>
+
+<script>
+  function initTocHide() {
+    
+    let toc = document.querySelector(".widget--toc");
+    if (!toc) {
+      return;
+    }
+    
+    window.addEventListener("scroll", function () {
+      
+      let openUl = document.querySelectorAll(".open");
+      if (openUl.length > 0) {
+        openUl.forEach((ul) => {
+          ul.classList.remove("open");
+        });
+      }
+      
+      let currentLi = document.querySelector(".active-class");
+      if (!currentLi) {
+        return;
+      }
+      
+      if (currentLi.children.length > 1) {
+        currentLi.children[1].classList.add("open");
+      }
+      
+      let ul = currentLi.parentElement;
+      do {
+        ul.classList.add("open");
+        ul = ul.parentElement.parentElement;
+      } while (
+        ul !== undefined &&
+        (ul.localName === "ul" || ul.localName === "ol")
+      );
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initTocHide();
+  });
+  initTocHide();
+</script>
+
+<style>
+  @font-face {
+    font-family: "AlibabaPuHuiTi-3-65-Medium";
+    src: url(https://lingsir007.netlify.app/font/AlibabaPuHuiTi-3-65-Medium.ttf)
+      format("truetype");
+  }
+
+  :root {
+    --base-font-family: "AlibabaPuHuiTi-3-65-Medium";
+    --code-font-family: "AlibabaPuHuiTi-3-65-Medium";
+  }
+</style>
+
+<style>
+  #backTopBtn {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    z-index: 99;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    background-image: url("https://lingsir007.netlify.app/icons/backTop.svg");
+  }
+</style>
+
+<script>
+  
+
+  function initScrollTop() {
+    let rightSideBar = document.querySelector(".right-sidebar");
+    if (!rightSideBar) {
+      return;
+    }
+    
+    let btn = document.createElement("div");
+    btn.id = "backTopBtn";
+    btn.onclick = backToTop;
+    rightSideBar.appendChild(btn);
+    
+    window.onscroll = function () {
+      
+      if (
+        document.body.scrollTop > 20 ||
+        document.documentElement.scrollTop > 20
+      ) {
+        btn.style.display = "block";
+      } else {
+        btn.style.display = "none";
+      }
+    };
+  }
+
+  
+
+  function backToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initScrollTop();
+  });
+  initScrollTop();
+</script>
+
+<div class="js-Pjax2">
+  
+  <script>
+    (function () {
+      
+      const verScript = document.createElement("script");
+      verScript.defer = true;
+      verScript.src = "https://cn.vercount.one/js";
+      document.body.appendChild(verScript);
+
+      
+      function showHideView() {
+        const viewCounts = document.querySelectorAll("#viewCount");
+        if (viewCounts) {
+          const isArticle = !!document.querySelector(".article-page");
+          viewCounts.forEach((ele) => {
+            ele.style.display = isArticle ? "" : "none";
+          });
+        }
+      }
+      
+      showHideView();
+      
+      document.addEventListener("pjax:complete", function () {
+        showHideView();
+      });
+    })();
+  </script>
+</div><script>
+  (function () {
+    var giscusConfig = {
+      repo: "Lingjia007\/Hugo_Web",
+      repoId: "R_kgDOTNf24g",
+      category: "Announcements",
+      categoryId: "DIC_kwDOTNf24s4DAe9e",
+      mapping: 'title',
+      strict: "0",
+      reactionsEnabled: "1",
+      emitMetadata: "0",
+      inputPosition: 'top',
+      theme: 'light',
+      loading: "lazy",
+    };
+    var giscusLightTheme = 'light';
+    var giscusDarkTheme = 'dark_dimmed';
+
+    function getGiscusLang() {
+      var path = window.location.pathname;
+      if (path.indexOf("/zh-hk") !== -1) return "zh-HK";
+      if (path.indexOf("/en") !== -1) return "en";
+      return "zh-CN";
+    }
+
+    function getGiscusTheme() {
+      if (document.documentElement.dataset.scheme === "light") {
+        return giscusLightTheme;
+      }
+      return giscusDarkTheme;
+    }
+
+    function setGiscusTheme(theme) {
+      var giscus = document.querySelector("iframe.giscus-frame");
+      if (giscus) {
+        giscus.contentWindow.postMessage(
+          { giscus: { setConfig: { theme: theme } } },
+          "https://giscus.app",
+        );
+      }
+    }
+
+    function loadGiscus() {
+      var comment = document.querySelector(".comment");
+      if (!comment) return;
+      comment.innerHTML = "";
+      var lang = getGiscusLang();
+      var script = document.createElement("script");
+      script.src = "https://giscus.app/client.js";
+      script.setAttribute("data-repo", giscusConfig.repo);
+      script.setAttribute("data-repo-id", giscusConfig.repoId);
+      script.setAttribute("data-category", giscusConfig.category);
+      script.setAttribute("data-category-id", giscusConfig.categoryId);
+      script.setAttribute("data-mapping", giscusConfig.mapping);
+      script.setAttribute("data-strict", giscusConfig.strict);
+      script.setAttribute(
+        "data-reactions-enabled",
+        giscusConfig.reactionsEnabled,
+      );
+      script.setAttribute("data-emit-metadata", giscusConfig.emitMetadata);
+      script.setAttribute("data-input-position", giscusConfig.inputPosition);
+      script.setAttribute("data-theme", giscusConfig.theme);
+      script.setAttribute("data-lang", lang);
+      script.setAttribute("data-loading", giscusConfig.loading);
+      script.setAttribute("crossorigin", "anonymous");
+      script.async = true;
+      comment.appendChild(script);
+    }
+
+    window.addEventListener("message", function (e) {
+      if (e.origin !== "https://giscus.app") return;
+      setGiscusTheme(getGiscusTheme());
+    });
+    window.addEventListener("onColorSchemeChange", function () {
+      setGiscusTheme(getGiscusTheme());
+    });
+
+    loadGiscus();
+    document.addEventListener("pjax:complete", loadGiscus);
+  })();
+</script>
+
+    </body>
+</html>

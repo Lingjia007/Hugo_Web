@@ -1,0 +1,2543 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive + zero-copy transmit architecture, verified on both STM32F407 (HAL) and GD32F470 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission">
+<title>Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms</title>
+
+<link rel='canonical' href='https://lingsir007.netlify.app/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/'>
+
+<link rel="stylesheet" href="/scss/style.min.553d9fc5cc86a8c9deb4211c02fd07c2210fc13d76ef772a58388b83939349ab.css"><meta property='og:title' content="Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms">
+<meta property='og:description' content="Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive + zero-copy transmit architecture, verified on both STM32F407 (HAL) and GD32F470 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission">
+<meta property='og:url' content='https://lingsir007.netlify.app/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/'>
+<meta property='og:site_name' content='lingsir007'>
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='GD32' /><meta property='article:tag' content='UART' /><meta property='article:tag' content='DMA' /><meta property='article:tag' content='Ring-Buffer' /><meta property='article:tag' content='lwrb' /><meta property='article:tag' content='Zero-Copy' /><meta property='article:published_time' content='2026-07-05T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-05T19:22:21&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.png' />
+<meta name="twitter:title" content="Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms">
+<meta name="twitter:description" content="Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive + zero-copy transmit architecture, verified on both STM32F407 (HAL) and GD32F470 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission"><meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.png' />
+    <link rel="shortcut icon" href="/icons/favicon.ico" />
+
+    </head>
+    <body class="
+    article-page
+    ">
+    <script>
+        (function() {
+            const colorSchemeKey = 'StackColorScheme';
+            if(!localStorage.getItem(colorSchemeKey)){
+                localStorage.setItem(colorSchemeKey, "auto");
+            }
+        })();
+    </script><script>
+    (function() {
+        const colorSchemeKey = 'StackColorScheme';
+        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+
+        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
+            
+
+            document.documentElement.dataset.scheme = 'dark';
+        } else {
+            document.documentElement.dataset.scheme = 'light';
+        }
+    })();
+</script>
+<div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky ">
+    <button class="hamburger hamburger--spin" type="button" id="toggle-menu" aria-label="Toggle Menu">
+        <span class="hamburger-box">
+            <span class="hamburger-inner"></span>
+        </span>
+    </button>
+
+    <header>
+        
+            
+            <figure class="site-avatar">
+                <a href="/en/">
+                
+                    
+                    
+                    
+                        
+                        <img src="/img/avatar_hu_49d0a8f5a8c62cc5.png" width="300"
+                            height="300" class="site-logo" loading="lazy" alt="Avatar">
+                    
+                
+                </a>
+                
+                    <span class="emoji">🤔</span>
+                
+            </figure>
+            
+        
+        
+        <div class="site-meta">
+            <h1 class="site-name"><a href="/en">lingsir007</a></h1>
+            <h2 class="site-description">welcome to my website</h2>
+        </div>
+    </header><ol class="menu-social">
+            
+                <li>
+                    <a 
+                        href='https://github.com/Lingjia007?tab=repositories'
+                        target="_blank"
+                        title="GitHub"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+                <li>
+                    <a 
+                        href='https://twitter.com'
+                        target="_blank"
+                        title="Twitter"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M22 4.01c-1 .49 -1.98 .689 -3 .99c-1.121 -1.265 -2.783 -1.335 -4.38 -.737s-2.643 2.06 -2.62 3.737v1c-3.245 .083 -6.135 -1.395 -8 -4c0 0 -4.182 7.433 4 11c-1.872 1.247 -3.739 2.088 -6 2c3.308 1.803 6.913 2.423 10.034 1.517c3.58 -1.04 6.522 -3.723 7.651 -7.742a13.84 13.84 0 0 0 .497 -3.753c-.002 -.249 1.51 -2.772 1.818 -4.013z" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+        </ol><ol class="menu" id="main-menu">
+        
+        
+        
+        <li >
+            <a href='/en/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <polyline points="5 12 3 12 12 3 21 12 19 12" />
+  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+  <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+</svg>
+
+
+
+                
+                <span>Home</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/en/about/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="7" r="4" />
+  <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+</svg>
+
+
+
+                
+                <span>About</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/en/archives/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <rect x="3" y="4" width="18" height="4" rx="2" />
+  <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10" />
+  <line x1="10" y1="12" x2="14" y2="12" />
+</svg>
+
+
+
+                
+                <span>Archives</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/en/search/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="10" cy="10" r="7" />
+  <line x1="21" y1="21" x2="15" y2="15" />
+</svg>
+
+
+
+                
+                <span>Search</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/en/links/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5" />
+  <path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5" />
+</svg>
+
+
+
+                
+                <span>Links</span>
+            </a>
+        </li>
+        
+        <li class="menu-bottom-section">
+            <ol class="menu">
+                    
+                        <li id="i18n-switch">  
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M4 5h7" />
+  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
+  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+</svg>
+
+
+
+                            <select name="language" title="language" onchange="window.location.href = this.selectedOptions[0].value">
+                                
+                                    <option value="https://lingsir007.netlify.app/" >简体中文</option>
+                                
+                                    <option value="https://lingsir007.netlify.app/zh-hk/" >繁體中文</option>
+                                
+                                    <option value="https://lingsir007.netlify.app/en/" selected>English</option>
+                                
+                            </select>
+                        </li>
+                    
+                
+
+                
+                    <li id="dark-mode-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="8" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="16" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <span>Dark Mode</span>
+                    </li>
+                
+            </ol>
+        </li>
+    </ol>
+</aside>
+
+    <aside class="sidebar right-sidebar sticky">
+        
+        
+
+        
+            
+                
+    <section class="widget archives">
+        <div class="widget-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <line x1="5" y1="9" x2="19" y2="9" />
+  <line x1="5" y1="15" x2="19" y2="15" />
+  <line x1="11" y1="4" x2="7" y2="20" />
+  <line x1="17" y1="4" x2="13" y2="20" />
+</svg>
+
+
+
+        </div>
+        <h2 class="widget-title section-title">Table of contents</h2>
+        
+        <div class="widget--toc">
+            <nav id="TableOfContents">
+  <ol>
+    <li><a href="#foreword">Foreword</a></li>
+    <li><a href="#1-why-not-use-byte-by-byte-interrupt-transmission">1. Why Not Use Byte-by-Byte Interrupt Transmission?</a>
+      <ol>
+        <li><a href="#q-whats-wrong-with-interrupt-driven-transmission">Q: What&rsquo;s wrong with interrupt-driven transmission?</a></li>
+        <li><a href="#q-what-can-dma-solve">Q: What can DMA solve?</a></li>
+      </ol>
+    </li>
+    <li><a href="#2-overall-architecture-rx-circular--tx-zero-copy">2. Overall Architecture: RX Circular + TX Zero-Copy</a>
+      <ol>
+        <li><a href="#q-why-do-rx-and-tx-use-different-dma-modes">Q: Why do RX and TX use different DMA modes?</a></li>
+        <li><a href="#q-what-does-the-overall-data-flow-look-like">Q: What does the overall data flow look like?</a></li>
+      </ol>
+    </li>
+    <li><a href="#3-rx-path-dma-circular--triple-interrupt">3. RX Path: DMA Circular + Triple Interrupt</a>
+      <ol>
+        <li><a href="#q-why-does-rx-dma-use-circular-mode">Q: Why does RX DMA use Circular mode?</a></li>
+        <li><a href="#q-what-are-the-triple-interrupts-why-are-three-needed">Q: What are the triple interrupts? Why are three needed?</a></li>
+        <li><a href="#q-how-does-the-dma-counter-infer-the-write-position">Q: How does the DMA counter infer the write position?</a></li>
+        <li><a href="#q-how-is-wrap-around-handled">Q: How is wrap-around handled?</a></li>
+        <li><a href="#q-what-is-the-unified-callback-in-stm32-hal">Q: What is the unified callback in STM32 HAL?</a></li>
+      </ol>
+    </li>
+    <li><a href="#4-tx-path-zero-copy-dma--chained-transmission">4. TX Path: Zero-Copy DMA + Chained Transmission</a>
+      <ol>
+        <li><a href="#q-what-is-zero-copy-why-can-tx-be-zero-copy">Q: What is zero-copy? Why can TX be zero-copy?</a></li>
+        <li><a href="#q-the-ring-buffer-data-might-span-the-wrap-around-boundary-right-dma-can-only-read-contiguous-memory--how-is-this-handled">Q: The ring buffer data might span the wrap-around boundary, right? DMA can only read contiguous memory — how is this handled?</a></li>
+        <li><a href="#q-what-is-the-tx-dma-startup-flow">Q: What is the TX DMA startup flow?</a></li>
+        <li><a href="#q-why-is-the-usart_tx_dma_current_len-global-variable-needed">Q: Why is the <code>usart_tx_dma_current_len</code> global variable needed?</a></li>
+        <li><a href="#q-what-happens-in-the-tx-complete-interrupt">Q: What happens in the TX complete interrupt?</a></li>
+      </ol>
+    </li>
+    <li><a href="#5-lwrb-ring-buffer-core-design">5. lwrb Ring Buffer Core Design</a>
+      <ol>
+        <li><a href="#q-what-makes-lwrb-special">Q: What makes lwrb special?</a></li>
+        <li><a href="#q-why-is-the-buffer-full-condition-w--r---1-instead-of-w--r">Q: Why is the buffer full condition <code>w == r - 1</code> instead of <code>w == r</code>?</a></li>
+        <li><a href="#q-why-is-lwrbs-linear-block-interface-critical-for-dma">Q: Why is lwrb&rsquo;s linear block interface critical for DMA?</a></li>
+      </ol>
+    </li>
+    <li><a href="#6-stm32-vs-gd32-dual-platform-implementation-comparison">6. STM32 vs GD32: Dual-Platform Implementation Comparison</a>
+      <ol>
+        <li><a href="#q-what-are-the-differences-in-dma-architecture-between-the-two-platforms">Q: What are the differences in DMA architecture between the two platforms?</a></li>
+        <li><a href="#q-how-do-the-interrupt-handling-approaches-differ">Q: How do the interrupt handling approaches differ?</a></li>
+        <li><a href="#q-what-are-the-differences-in-dma-initialization-flow">Q: What are the differences in DMA initialization flow?</a></li>
+        <li><a href="#q-what-are-the-considerations-for-nvic-interrupt-priority">Q: What are the considerations for NVIC interrupt priority?</a></li>
+      </ol>
+    </li>
+    <li><a href="#7-common-pitfalls-and-faqs">7. Common Pitfalls and FAQs</a>
+      <ol>
+        <li><a href="#q-why-must-dma-initialization-come-before-uart-initialization">Q: Why must DMA initialization come before UART initialization?</a></li>
+        <li><a href="#q-how-is-the-idle-interrupt-flag-cleared">Q: How is the IDLE interrupt flag cleared?</a></li>
+        <li><a href="#q-why-does-hal_uartex_receivetoidle_dma-need-to-be-called-again-after-each-callback">Q: Why does <code>HAL_UARTEx_ReceiveToIdle_DMA()</code> need to be called again after each callback?</a></li>
+        <li><a href="#q-how-should-the-rx-buffer-size-be-chosen">Q: How should the RX buffer size be chosen?</a></li>
+        <li><a href="#q-why-does-printf-redirection-use-blocking-transmission">Q: Why does printf redirection use blocking transmission?</a></li>
+      </ol>
+    </li>
+    <li><a href="#8-performance-comparison-dma-vs-interrupt-vs-polling">8. Performance Comparison: DMA vs Interrupt vs Polling</a>
+      <ol>
+        <li><a href="#q-how-do-the-cpu-overheads-of-the-three-approaches-compare">Q: How do the CPU overheads of the three approaches compare?</a></li>
+        <li><a href="#q-what-is-the-latency-of-the-dma-approach">Q: What is the latency of the DMA approach?</a></li>
+      </ol>
+    </li>
+    <li><a href="#9-porting-guide-three-steps-to-port-to-your-platform">9. Porting Guide: Three Steps to Port to Your Platform</a>
+      <ol>
+        <li><a href="#q-how-to-port-this-solution-to-other-mcus">Q: How to port this solution to other MCUs?</a></li>
+      </ol>
+    </li>
+    <li><a href="#10-ring-buffer-vs-ping-pong-buffer-application-scope">10. Ring Buffer vs Ping-Pong Buffer: Application Scope</a>
+      <ol>
+        <li><a href="#q-what-is-a-ping-pong-buffer">Q: What is a Ping-Pong Buffer?</a></li>
+        <li><a href="#q-what-are-the-core-differences-between-ring-buffer-and-ping-pong-buffer">Q: What are the core differences between ring buffer and ping-pong buffer?</a></li>
+        <li><a href="#q-which-is-suitable-for-which-scenario">Q: Which is suitable for which scenario?</a></li>
+        <li><a href="#q-why-is-ring-buffer-the-first-choice-for-uart">Q: Why is ring buffer the first choice for UART?</a></li>
+      </ol>
+    </li>
+    <li><a href="#11-summary">11. Summary</a>
+      <ol>
+        <li><a href="#core-design-points">Core Design Points</a></li>
+        <li><a href="#dual-platform-verification-conclusions">Dual-Platform Verification Conclusions</a></li>
+      </ol>
+    </li>
+    <li><a href="#references">References</a></li>
+  </ol>
+</nav>
+        </div>
+    </section>
+
+            
+        
+    </aside>
+
+
+            <main class="main full-width">
+    <article class="has-image main-article">
+    <header class="article-header">
+        <div class="article-image">
+            <a href="/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/">
+                <img src="/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98_hu_460b9b3676099328.png"
+                        srcset="/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98_hu_460b9b3676099328.png 800w, /p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98_hu_9cb629e2037e6baf.png 1600w"
+                        width="800" 
+                        height="442" 
+                        loading="lazy"
+                        alt="Featured image of post Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms" />
+                
+            </a>
+        </div>
+    
+
+    <div class="article-details">
+    
+    <header class="article-category">
+        
+            <a href="/en/categories/embedded/" >
+                Embedded
+            </a>
+        
+    </header>
+    
+
+    <div class="article-title-wrapper">
+        <h2 class="article-title">
+            <a href="/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/">Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms</a>
+        </h2>
+    
+        
+        <h3 class="article-subtitle">
+            Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive &#43; zero-copy transmit architecture, verified on both STM32F407 (HAL) and GD32F470 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission
+        </h3>
+        
+    </div>
+
+    
+    
+    
+    
+    <footer class="article-time">
+        
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4" />
+  <circle cx="18" cy="18" r="4" />
+  <path d="M15 3v4" />
+  <path d="M7 3v4" />
+  <path d="M3 11h16" />
+  <path d="M18 16.496v1.504l1 1" />
+</svg>
+                <time class="article-time--published">Jul 05, 2026</time>
+            </div>
+        <div class="article-lastmod">
+                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
+                <time>
+                    Jul 05, 2026 19:22 &#43;0800
+                </time>
+            </div><div id="wordCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
+            <time class="article-wordcount">
+                3457  words
+            </time>
+        </div>
+
+        
+
+        <div id="viewCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
+            <time class="article-time--reading">
+                
+                <span id="vercount_value_page_pv">loading... </span> views
+            </time>
+        </div>
+
+    </footer>
+    
+
+    
+        <footer class="article-translations">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M4 5h7" />
+  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
+  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+</svg>
+
+
+
+            <div>
+                
+                    <a href="https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/" class="link">简体中文</a>
+                
+                    <a href="https://lingsir007.netlify.app/zh-hk/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E7%99%BC%E7%92%B0%E5%BD%A2%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%9B%B6%E6%8B%B7%E8%B2%9D%E5%AF%A6%E6%88%B0stm32-%E8%88%87-gd32-%E9%9B%99%E6%99%B6%E7%89%87%E9%A9%97%E8%AD%89/" class="link">繁體中文</a>
+                
+            </div>
+        </footer>
+    
+</div>
+
+</header>
+
+    <section class="article-content">
+    
+    
+    <h2 id="foreword">Foreword
+</h2><p>In embedded development, UART serial communication is one of the most fundamental and commonly used peripherals. However, many developers still use byte-by-byte interrupt-driven or polling approaches, resulting in high CPU overhead and significant risk of data loss. The <strong>DMA + ring buffer</strong> combination is the proper way to achieve efficient UART communication.</p>
+<p>This post is based on the <a class="link" href="https://github.com/MaJerle/lwrb"  target="_blank" rel="noopener"
+    >lwrb</a> lightweight ring buffer library and the <a class="link" href="https://github.com/MaJerle/stm32-usart-uart-dma-rx-tx"  target="_blank" rel="noopener"
+    >stm32-usart-uart-dma-rx-tx</a> reference implementation, verified on both <strong>STM32F407VGT6 (HAL library)</strong> and <strong>GD32F470ZGT6 (Standard Peripheral Library)</strong> dual platforms. Complete project sources: <a class="link" href="https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
+    >STM32F407VGT6 UART DMA</a> and <a class="link" href="https://github.com/Lingjia007/GD32F470ZGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
+    >GD32F470ZGT6 UART DMA</a>. Every design decision is deeply analyzed in a Q&amp;A format.</p>
+<hr>
+<h2 id="1-why-not-use-byte-by-byte-interrupt-transmission">1. Why Not Use Byte-by-Byte Interrupt Transmission?
+</h2><h3 id="q-whats-wrong-with-interrupt-driven-transmission">Q: What&rsquo;s wrong with interrupt-driven transmission?
+</h3><p>The interrupt approach triggers an interrupt for every byte sent or received, which becomes a severe problem at high baud rates:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Baud Rate</th>
+					<th>Bytes/sec</th>
+					<th>Interrupt Freq</th>
+					<th>CPU Overhead at 9600bps</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>9600</td>
+					<td>960</td>
+					<td>~960 Hz</td>
+					<td>Negligible</td>
+			</tr>
+			<tr>
+					<td>115200</td>
+					<td>11520</td>
+					<td>~11.5 kHz</td>
+					<td>~5-10%</td>
+			</tr>
+			<tr>
+					<td>921600</td>
+					<td>92160</td>
+					<td>~92 kHz</td>
+					<td>~30-50%</td>
+			</tr>
+			<tr>
+					<td>3000000</td>
+					<td>300000</td>
+					<td>~300 kHz</td>
+					<td>Nearly unusable</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>Each interrupt requires saving/restoring context (at least 12 registers pushed onto the stack), consuming significant CPU time in interrupt switching. Even more dangerously: <strong>if interrupt processing is slightly slow, the ORE (Overrun Error) flag will be set, causing data loss</strong>.</p>
+<h3 id="q-what-can-dma-solve">Q: What can DMA solve?
+</h3><p>DMA (Direct Memory Access) allows hardware to automatically transfer data between the USART data register and memory, with zero CPU involvement in byte-by-byte transfers. At 115200bps, the DMA approach has nearly 0% CPU overhead.</p>
+<hr>
+<h2 id="2-overall-architecture-rx-circular--tx-zero-copy">2. Overall Architecture: RX Circular + TX Zero-Copy
+</h2><h3 id="q-why-do-rx-and-tx-use-different-dma-modes">Q: Why do RX and TX use different DMA modes?
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Path</th>
+					<th>DMA Mode</th>
+					<th>Reason</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>RX</td>
+					<td><strong>Circular</strong></td>
+					<td>Reception is passive — you don&rsquo;t know when data will arrive or how long it will be. Circular mode lets DMA automatically wrap around, never stopping</td>
+			</tr>
+			<tr>
+					<td>TX</td>
+					<td><strong>Normal</strong></td>
+					<td>Transmission is active — each time a linear segment is fetched from the ring buffer and sent. After completion, the next segment is launched via chaining</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="q-what-does-the-overall-data-flow-look-like">Q: What does the overall data flow look like?
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">RX Path:
+</span></span><span class="line"><span class="cl">[External Data] -&gt; USART_DR -&gt; DMA(Circular) -&gt; usart_rx_dma_buffer[64]
+</span></span><span class="line"><span class="cl">                                              |
+</span></span><span class="line"><span class="cl">                              IDLE / HT / TC triple interrupt triggers
+</span></span><span class="line"><span class="cl">                                              |
+</span></span><span class="line"><span class="cl">                                     usart_rx_check()
+</span></span><span class="line"><span class="cl">                                     (DMA counter infers write position)
+</span></span><span class="line"><span class="cl">                                              |
+</span></span><span class="line"><span class="cl">                                     usart_process_data()
+</span></span><span class="line"><span class="cl">                                              |
+</span></span><span class="line"><span class="cl">                                     lwrb_write() -&gt; TX ring buffer
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">TX Path:
+</span></span><span class="line"><span class="cl">Application lwrb_write() -&gt; TX ring buffer
+</span></span><span class="line"><span class="cl">                              |
+</span></span><span class="line"><span class="cl">                   usart_start_tx_dma_transfer()
+</span></span><span class="line"><span class="cl">                   (Zero-copy: DMA reads directly from ring buffer linear block)
+</span></span><span class="line"><span class="cl">                              |
+</span></span><span class="line"><span class="cl">                   DMA(Normal) -&gt; USART_DR -&gt; [External]
+</span></span><span class="line"><span class="cl">                              |
+</span></span><span class="line"><span class="cl">                   TX complete interrupt -&gt; lwrb_skip() + chained launch of next segment
+</span></span></code></pre></td></tr></table>
+</div>
+</div><hr>
+<h2 id="3-rx-path-dma-circular--triple-interrupt">3. RX Path: DMA Circular + Triple Interrupt
+</h2><h3 id="q-why-does-rx-dma-use-circular-mode">Q: Why does RX DMA use Circular mode?
+</h3><p>In Normal mode, DMA automatically stops after a transfer completes, and must be manually restarted in an interrupt. Any data arriving during the restart window will be lost. In Circular mode, after DMA writes to the end of the buffer, it automatically wraps back to the beginning and continues writing, <strong>never stopping</strong> — there is no restart window.</p>
+<h3 id="q-what-are-the-triple-interrupts-why-are-three-needed">Q: What are the triple interrupts? Why are three needed?
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Interrupt</th>
+					<th>Trigger Timing</th>
+					<th>Purpose</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>HT (Half Transfer)</strong></td>
+					<td>When DMA writes to half buffer</td>
+					<td>Process the first half of data promptly, preventing it from being overwritten by the second half</td>
+			</tr>
+			<tr>
+					<td><strong>TC (Transfer Complete)</strong></td>
+					<td>When DMA writes the full buffer</td>
+					<td>Process the second half of data promptly, preventing it from being overwritten by the new first half</td>
+			</tr>
+			<tr>
+					<td><strong>IDLE Line</strong></td>
+					<td>When UART detects bus idle</td>
+					<td>Handle the tail of variable-length data — the last packet may be smaller than half the buffer, so neither HT nor TC will trigger</td>
+			</tr>
+	</tbody>
+</table></div>
+<p><strong>Key point</strong>: With only HT + TC, when the data volume is less than half the buffer size, no interrupt will ever trigger, and data will be &ldquo;stuck&rdquo; in the DMA buffer. The IDLE interrupt solves this — bus idle means a frame of data has ended.</p>
+<h3 id="q-how-does-the-dma-counter-infer-the-write-position">Q: How does the DMA counter infer the write position?
+</h3><p>DMA hardware maintains a decrementing counter <code>CNDTR</code> (<code>CNT</code> in GD32), initialized to the buffer size, decrementing by 1 after each transfer. The current write position:</p>
+$$\text{pos} = N - \text{CNDTR}$$<p>where $N$ is the buffer size. For example, with <code>N=64</code> and <code>CNDTR=52</code>, <code>pos=12</code>, meaning DMA has written the first 12 bytes.</p>
+<p><strong>STM32 HAL implementation:</strong></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">size_t</span> <span class="n">pos</span> <span class="o">=</span> <span class="nf">ARRAY_LEN</span><span class="p">(</span><span class="n">usart_rx_dma_buffer</span><span class="p">)</span> <span class="o">-</span> <span class="nf">__HAL_DMA_GET_COUNTER</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hdma_usart1_rx</span><span class="p">);</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>GD32 Standard Peripheral Library implementation:</strong></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">size_t</span> <span class="n">pos</span> <span class="o">=</span> <span class="n">USART0_RX_DMA_LENGTH</span> <span class="o">-</span> <span class="nf">dma_transfer_number_get</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_RX_DMA_CH</span><span class="p">);</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="q-how-is-wrap-around-handled">Q: How is wrap-around handled?
+</h3><p>DMA Circular mode automatically wraps back to the beginning after writing to the end of the buffer. <code>usart_rx_check()</code> needs to handle two cases:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Case</th>
+					<th>Condition</th>
+					<th>Processing</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Linear write</td>
+					<td><code>pos &gt; old_pos</code></td>
+					<td>Single call to <code>usart_process_data(old_pos, pos - old_pos)</code></td>
+			</tr>
+			<tr>
+					<td>Wrap-around</td>
+					<td><code>pos &lt; old_pos</code></td>
+					<td>Two segments: tail <code>[old_pos, N)</code> + head <code>[0, pos)</code></td>
+			</tr>
+	</tbody>
+</table></div>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">if</span> <span class="p">(</span><span class="n">pos</span> <span class="o">&gt;</span> <span class="n">old_pos</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">usart_process_data</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_rx_dma_buffer</span><span class="p">[</span><span class="n">old_pos</span><span class="p">],</span> <span class="n">pos</span> <span class="o">-</span> <span class="n">old_pos</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="n">pos</span> <span class="o">&lt;</span> <span class="n">old_pos</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">usart_process_data</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_rx_dma_buffer</span><span class="p">[</span><span class="n">old_pos</span><span class="p">],</span> <span class="n">N</span> <span class="o">-</span> <span class="n">old_pos</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">usart_process_data</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_rx_dma_buffer</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pos</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="n">old_pos</span> <span class="o">=</span> <span class="n">pos</span><span class="p">;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><blockquote class="alert alert-important">
+    <p><code>pos == old_pos</code> means no new data has arrived and no processing is needed. This check must not be omitted — the DMA counter may not have changed between two checks.</p></blockquote><h3 id="q-what-is-the-unified-callback-in-stm32-hal">Q: What is the unified callback in STM32 HAL?
+</h3><p>STM32 HAL provides <code>HAL_UARTEx_ReceiveToIdle_DMA()</code>, which unifies HT, TC, and IDLE interrupts into a single callback <code>HAL_UARTEx_RxEventCallback()</code>:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">HAL_UARTEx_RxEventCallback</span><span class="p">(</span><span class="n">UART_HandleTypeDef</span> <span class="o">*</span><span class="n">huart</span><span class="p">,</span> <span class="kt">uint16_t</span> <span class="n">size</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">huart</span><span class="o">-&gt;</span><span class="n">Instance</span> <span class="o">==</span> <span class="n">USART1</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_rx_check</span><span class="p">();</span>  <span class="c1">// All three interrupts ultimately call the same function
+</span></span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>The GD32 approach requires manually calling <code>usart_rx_check()</code> in each of the three interrupt handlers separately.</p>
+<hr>
+<h2 id="4-tx-path-zero-copy-dma--chained-transmission">4. TX Path: Zero-Copy DMA + Chained Transmission
+</h2><h3 id="q-what-is-zero-copy-why-can-tx-be-zero-copy">Q: What is zero-copy? Why can TX be zero-copy?
+</h3><p>Traditional approach: first <code>memcpy</code> data from the ring buffer to a linear buffer, then give the linear buffer address to DMA. This involves one extra memory copy.</p>
+<p><strong>Zero-copy</strong>: DMA reads directly from the ring buffer&rsquo;s contiguous memory region, with no intermediate buffer. This leverages lwrb&rsquo;s linear block interface:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">size_t</span> <span class="n">len</span> <span class="o">=</span> <span class="nf">lwrb_get_linear_block_read_length</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">);</span>    <span class="c1">// Contiguous readable length
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="o">*</span><span class="n">addr</span> <span class="o">=</span> <span class="nf">lwrb_get_linear_block_read_address</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">);</span>   <span class="c1">// Contiguous readable start address
+</span></span></span><span class="line"><span class="cl"><span class="c1">// DMA reads len bytes directly from addr
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="q-the-ring-buffer-data-might-span-the-wrap-around-boundary-right-dma-can-only-read-contiguous-memory--how-is-this-handled">Q: The ring buffer data might span the wrap-around boundary, right? DMA can only read contiguous memory — how is this handled?
+</h3><p>Indeed, ring buffer data may cross the buffer end and wrap back to the beginning, forming two non-contiguous regions. lwrb&rsquo;s <code>get_linear_block_read_length()</code> only returns the <strong>contiguous length from the read pointer to the write pointer (or buffer end)</strong>, never crossing the wrap-around boundary.</p>
+<p>The solution: <strong>chained transmission</strong>. Each DMA transfer sends only one linear segment. In the transfer-complete interrupt, check if the ring buffer still has data; if so, launch the next DMA round. If the ring buffer data crosses a wrap-around boundary, it is automatically split into two DMA transfers:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">Ring Buffer: [....ABCDE.....FGH....]
+</span></span><span class="line"><span class="cl">                     ^              ^
+</span></span><span class="line"><span class="cl">                   read ptr      write ptr
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">DMA 1st transfer: Send &#34;ABCDE&#34; (linear segment to buffer end)
+</span></span><span class="line"><span class="cl">DMA 2nd transfer: Send &#34;FGH&#34;  (new linear segment from buffer beginning)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="q-what-is-the-tx-dma-startup-flow">Q: What is the TX DMA startup flow?
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">usart_start_tx_dma_transfer</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">__disable_irq</span><span class="p">();</span>  <span class="c1">// Enter critical section
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">usart_tx_dma_current_len</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// DMA idle
+</span></span></span><span class="line"><span class="cl">        <span class="kt">size_t</span> <span class="n">len</span> <span class="o">=</span> <span class="nf">lwrb_get_linear_block_read_length</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">len</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="kt">void</span> <span class="o">*</span><span class="n">addr</span> <span class="o">=</span> <span class="nf">lwrb_get_linear_block_read_address</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="n">usart_tx_dma_current_len</span> <span class="o">=</span> <span class="n">len</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">            <span class="c1">// STM32 HAL:
+</span></span></span><span class="line"><span class="cl">            <span class="c1">// HAL_DMA_Abort(&amp;hdma_usart1_tx);
+</span></span></span><span class="line"><span class="cl">            <span class="c1">// HAL_UART_Transmit_DMA(&amp;huart1, addr, len);
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">            <span class="c1">// GD32 Standard Peripheral Library:
+</span></span></span><span class="line"><span class="cl">            <span class="nf">dma_channel_disable</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_TX_DMA_CH</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">dma_flag_clear</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_TX_DMA_CH</span><span class="p">,</span> <span class="p">...);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">dma_transfer_number_config</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_TX_DMA_CH</span><span class="p">,</span> <span class="n">len</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">dma_memory_address_config</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_TX_DMA_CH</span><span class="p">,</span> <span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="n">addr</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">dma_channel_enable</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_TX_DMA_CH</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">__enable_irq</span><span class="p">();</span>  <span class="c1">// Exit critical section
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="q-why-is-the-usart_tx_dma_current_len-global-variable-needed">Q: Why is the <code>usart_tx_dma_current_len</code> global variable needed?
+</h3><p>It serves as a <strong>mutex flag</strong>: a value of 0 means DMA is idle and a new transfer can be started; non-zero means DMA is currently transferring and must not be disturbed. After writing to the ring buffer, the application calls <code>usart_start_tx_dma_transfer()</code>, which returns immediately if DMA is busy — the data safely remains in the ring buffer, and the current transfer-complete interrupt will automatically launch the next round.</p>
+<h3 id="q-what-happens-in-the-tx-complete-interrupt">Q: What happens in the TX complete interrupt?
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// 1. Skip the sent data (advance the ring buffer read pointer)
+</span></span></span><span class="line"><span class="cl"><span class="nf">lwrb_skip</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">,</span> <span class="n">usart_tx_dma_current_len</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 2. Mark DMA as idle
+</span></span></span><span class="line"><span class="cl"><span class="n">usart_tx_dma_current_len</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 3. Attempt chained launch of next round
+</span></span></span><span class="line"><span class="cl"><span class="nf">usart_start_tx_dma_transfer</span><span class="p">();</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>lwrb_skip()</code> only moves the read pointer with zero data copying — this is the other half of zero-copy.</p>
+<hr>
+<h2 id="5-lwrb-ring-buffer-core-design">5. lwrb Ring Buffer Core Design
+</h2><h3 id="q-what-makes-lwrb-special">Q: What makes lwrb special?
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Feature</th>
+					<th>Description</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Lightweight</td>
+					<td>One header + one source file, no dynamic allocation</td>
+			</tr>
+			<tr>
+					<td>Thread-safe</td>
+					<td>Read/write pointers use <code>volatile</code>, no locks needed in single-writer single-reader scenarios</td>
+			</tr>
+			<tr>
+					<td>Zero-copy API</td>
+					<td><code>get_linear_block_read_address/length</code> exposes internal addresses directly to DMA</td>
+			</tr>
+			<tr>
+					<td>Magic word check</td>
+					<td><code>magic1=0xDEADBEEF, magic2=~0xDEADBEEF</code>, detects whether buffer is initialized</td>
+			</tr>
+			<tr>
+					<td>Actual capacity</td>
+					<td><code>size - 1</code>, full condition is <code>w == r - 1</code></td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="q-why-is-the-buffer-full-condition-w--r---1-instead-of-w--r">Q: Why is the buffer full condition <code>w == r - 1</code> instead of <code>w == r</code>?
+</h3><p><code>w == r</code> means &ldquo;empty&rdquo; (read and write pointers coincide). If full also used <code>w == r</code>, there would be no way to distinguish empty from full. By reserving one byte (keeping <code>w</code> one step behind <code>r</code>), the state can be determined from the pointer relationship:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Condition</th>
+					<th>State</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>w == r</code></td>
+					<td>Empty</td>
+			</tr>
+			<tr>
+					<td><code>(w + 1) % size == r</code></td>
+					<td>Full</td>
+			</tr>
+			<tr>
+					<td>Otherwise</td>
+					<td>Has data but not full</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="q-why-is-lwrbs-linear-block-interface-critical-for-dma">Q: Why is lwrb&rsquo;s linear block interface critical for DMA?
+</h3><p>DMA can only transfer <strong>contiguous</strong> memory regions. Ring buffer data, when wrapped, is split into two non-contiguous regions. The linear block interface returns the <strong>contiguous region from the read pointer to the buffer end (or the write pointer, whichever is smaller)</strong>, which DMA can use directly:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// Returns contiguous readable length from the read pointer
+</span></span></span><span class="line"><span class="cl"><span class="kt">size_t</span> <span class="nf">lwrb_get_linear_block_read_length</span><span class="p">(</span><span class="kt">lwrb_t</span> <span class="o">*</span><span class="n">lwrb</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">size_t</span> <span class="n">len</span><span class="p">,</span> <span class="n">w</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">w</span> <span class="o">=</span> <span class="n">lwrb</span><span class="o">-&gt;</span><span class="n">w</span><span class="p">;</span>  <span class="c1">// Read write pointer once
+</span></span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">w</span> <span class="o">&gt;=</span> <span class="n">lwrb</span><span class="o">-&gt;</span><span class="n">r</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">len</span> <span class="o">=</span> <span class="n">w</span> <span class="o">-</span> <span class="n">lwrb</span><span class="o">-&gt;</span><span class="n">r</span><span class="p">;</span>  <span class="c1">// Linear region
+</span></span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">len</span> <span class="o">=</span> <span class="n">lwrb</span><span class="o">-&gt;</span><span class="n">size</span> <span class="o">-</span> <span class="n">lwrb</span><span class="o">-&gt;</span><span class="n">r</span><span class="p">;</span>  <span class="c1">// Read pointer to buffer end
+</span></span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="n">len</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><hr>
+<h2 id="6-stm32-vs-gd32-dual-platform-implementation-comparison">6. STM32 vs GD32: Dual-Platform Implementation Comparison
+</h2><h3 id="q-what-are-the-differences-in-dma-architecture-between-the-two-platforms">Q: What are the differences in DMA architecture between the two platforms?
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Dimension</th>
+					<th>STM32F407</th>
+					<th>GD32F470</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>DMA Model</td>
+					<td><strong>Stream + Channel</strong> (DMA2_Stream2_CH4)</td>
+					<td><strong>Channel + Subperi</strong> (DMA1_CH2_SUB4)</td>
+			</tr>
+			<tr>
+					<td>RX DMA</td>
+					<td>DMA2_Stream2</td>
+					<td>DMA1_Channel2</td>
+			</tr>
+			<tr>
+					<td>TX DMA</td>
+					<td>DMA2_Stream7</td>
+					<td>DMA1_Channel7</td>
+			</tr>
+			<tr>
+					<td>DMA Counter</td>
+					<td><code>__HAL_DMA_GET_COUNTER()</code> macro</td>
+					<td><code>dma_transfer_number_get()</code> function</td>
+			</tr>
+			<tr>
+					<td>Interrupt Mgmt</td>
+					<td>HAL unified callback (<code>HAL_UARTEx_RxEventCallback</code>)</td>
+					<td>Manual IRQ Handler writing</td>
+			</tr>
+			<tr>
+					<td>Abstraction Level</td>
+					<td>Thick wrapper (HAL)</td>
+					<td>Thin wrapper (Standard Peripheral Library)</td>
+			</tr>
+			<tr>
+					<td>GPIO Alternate Function</td>
+					<td><code>HAL_GPIO_Init()</code> done in one step</td>
+					<td><code>gpio_af_set()</code> + <code>gpio_mode_set()</code> + <code>gpio_output_options_set()</code> three steps</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="q-how-do-the-interrupt-handling-approaches-differ">Q: How do the interrupt handling approaches differ?
+</h3><p><strong>STM32 HAL approach</strong>:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// Interrupts automatically dispatched to HAL callbacks
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">USART1_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span> <span class="nf">HAL_UART_IRQHandler</span><span class="p">(</span><span class="o">&amp;</span><span class="n">huart1</span><span class="p">);</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">DMA2_Stream2_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span> <span class="nf">HAL_DMA_IRQHandler</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hdma_usart1_rx</span><span class="p">);</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">DMA2_Stream7_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span> <span class="nf">HAL_DMA_IRQHandler</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hdma_usart1_tx</span><span class="p">);</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Unified callback
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">HAL_UARTEx_RxEventCallback</span><span class="p">(</span><span class="n">UART_HandleTypeDef</span> <span class="o">*</span><span class="n">huart</span><span class="p">,</span> <span class="kt">uint16_t</span> <span class="n">size</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">usart_rx_check</span><span class="p">();</span>  <span class="c1">// HT/TC/IDLE unified entry
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">HAL_UART_TxCpltCallback</span><span class="p">(</span><span class="n">UART_HandleTypeDef</span> <span class="o">*</span><span class="n">huart</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lwrb_skip</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">,</span> <span class="n">usart_tx_dma_current_len</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">usart_tx_dma_current_len</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">usart_start_tx_dma_transfer</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>GD32 Standard Peripheral Library approach</strong>:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// Manually write each interrupt handler
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">USART0_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">RESET</span> <span class="o">!=</span> <span class="nf">usart_interrupt_flag_get</span><span class="p">(</span><span class="n">USART0</span><span class="p">,</span> <span class="n">USART_INT_FLAG_IDLE</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_interrupt_flag_clear</span><span class="p">(</span><span class="n">USART0</span><span class="p">,</span> <span class="n">USART_INT_FLAG_IDLE</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_data_receive</span><span class="p">(</span><span class="n">USART0</span><span class="p">);</span>  <span class="c1">// Read DR to clear IDLE
+</span></span></span><span class="line"><span class="cl">        <span class="nf">usart_rx_check</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">DMA1_Channel2_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// RX DMA
+</span></span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">dma_interrupt_flag_get</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH2</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_FTF</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">dma_interrupt_flag_clear</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH2</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_FTF</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_rx_check</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">dma_interrupt_flag_get</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH2</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_HTF</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">dma_interrupt_flag_clear</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH2</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_HTF</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_rx_check</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">DMA1_Channel7_IRQHandler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>  <span class="c1">// TX DMA
+</span></span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">dma_interrupt_flag_get</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH7</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_FTF</span><span class="p">))</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">dma_interrupt_flag_clear</span><span class="p">(</span><span class="n">DMA1</span><span class="p">,</span> <span class="n">DMA_CH7</span><span class="p">,</span> <span class="n">DMA_INT_FLAG_FTF</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lwrb_skip</span><span class="p">(</span><span class="o">&amp;</span><span class="n">usart_tx_rb</span><span class="p">,</span> <span class="n">usart_tx_dma_current_len</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">usart_tx_dma_current_len</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">usart_start_tx_dma_transfer</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="q-what-are-the-differences-in-dma-initialization-flow">Q: What are the differences in DMA initialization flow?
+</h3><p><strong>STM32 HAL</strong> (CubeMX generated):</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// RX DMA - automatically linked during UART initialization
+</span></span></span><span class="line"><span class="cl"><span class="n">hdma_usart1_rx</span><span class="p">.</span><span class="n">Instance</span> <span class="o">=</span> <span class="n">DMA2_Stream2</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">hdma_usart1_rx</span><span class="p">.</span><span class="n">Init</span><span class="p">.</span><span class="n">Channel</span> <span class="o">=</span> <span class="n">DMA_CHANNEL_4</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">hdma_usart1_rx</span><span class="p">.</span><span class="n">Init</span><span class="p">.</span><span class="n">Direction</span> <span class="o">=</span> <span class="n">DMA_PERIPH_TO_MEMORY</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">hdma_usart1_rx</span><span class="p">.</span><span class="n">Init</span><span class="p">.</span><span class="n">Mode</span> <span class="o">=</span> <span class="n">DMA_CIRCULAR</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nf">HAL_DMA_Init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hdma_usart1_rx</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">__HAL_LINKDMA</span><span class="p">(</span><span class="o">&amp;</span><span class="n">huart1</span><span class="p">,</span> <span class="n">hdmarx</span><span class="p">,</span> <span class="n">hdma_usart1_rx</span><span class="p">);</span>  <span class="c1">// Link to UART handle
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Start reception
+</span></span></span><span class="line"><span class="cl"><span class="nf">HAL_UARTEx_ReceiveToIdle_DMA</span><span class="p">(</span><span class="o">&amp;</span><span class="n">huart1</span><span class="p">,</span> <span class="n">usart_rx_dma_buffer</span><span class="p">,</span> <span class="mi">64</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">__HAL_DMA_DISABLE_IT</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hdma_usart1_rx</span><span class="p">,</span> <span class="n">DMA_IT_HT</span><span class="p">);</span>  <span class="c1">// Optional: disable HT interrupt
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>GD32 Standard Peripheral Library</strong> (manual configuration):</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">dma_single_data_parameter_struct</span> <span class="n">dma_init</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">periph_addr</span> <span class="o">=</span> <span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="o">&amp;</span><span class="nf">USART_DATA</span><span class="p">(</span><span class="n">USART0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">periph_inc</span> <span class="o">=</span> <span class="n">DMA_PERIPH_INCREASE_DISABLE</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">memory0_addr</span> <span class="o">=</span> <span class="p">(</span><span class="kt">uint32_t</span><span class="p">)</span><span class="n">usart_rx_dma_buffer</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">memory_inc</span> <span class="o">=</span> <span class="n">DMA_MEMORY_INCREASE_ENABLE</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">periph_memory_width</span> <span class="o">=</span> <span class="n">DMA_PERIPH_WIDTH_8BIT</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">circular_mode</span> <span class="o">=</span> <span class="n">DMA_CIRCULAR_MODE_ENABLE</span><span class="p">;</span>  <span class="c1">// Key!
+</span></span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">direction</span> <span class="o">=</span> <span class="n">DMA_PERIPH_TO_MEMORY</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">number</span> <span class="o">=</span> <span class="n">USART0_RX_DMA_LENGTH</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">dma_init</span><span class="p">.</span><span class="n">priority</span> <span class="o">=</span> <span class="n">DMA_PRIORITY_MEDIUM</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nf">dma_single_data_mode_init</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_RX_DMA_CH</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">dma_init</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">dma_channel_subperipheral_select</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_RX_DMA_CH</span><span class="p">,</span> <span class="n">USART0_DMA_SUBPERI</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">dma_channel_enable</span><span class="p">(</span><span class="n">USART0_DMA</span><span class="p">,</span> <span class="n">USART0_RX_DMA_CH</span><span class="p">);</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="q-what-are-the-considerations-for-nvic-interrupt-priority">Q: What are the considerations for NVIC interrupt priority?
+</h3><p>All related interrupts (USART, RX DMA, TX DMA) must be set to the <strong>same priority</strong> to ensure they do not preempt each other. This is because <code>usart_rx_check()</code> is not reentrant — if the RX DMA TC interrupt preempts <code>usart_rx_check()</code> during an IDLE interrupt, it will cause <code>old_pos</code> state corruption.</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Platform</th>
+					<th>Priority Setting</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>STM32</td>
+					<td>All set to <code>(0, 0)</code></td>
+			</tr>
+			<tr>
+					<td>GD32</td>
+					<td>All set to <code>(2, 2)</code> or <code>(2, 5)</code></td>
+			</tr>
+	</tbody>
+</table></div>
+<blockquote class="alert alert-warning">
+    <p>If the application has other higher-priority interrupts (e.g., timers), the UART-related interrupts can be lowered in priority as a group, but the three must remain at the same priority relative to each other.</p></blockquote><hr>
+<h2 id="7-common-pitfalls-and-faqs">7. Common Pitfalls and FAQs
+</h2><h3 id="q-why-must-dma-initialization-come-before-uart-initialization">Q: Why must DMA initialization come before UART initialization?
+</h3><p>The DMA clock must be enabled before the UART clock. On STM32, <code>MX_DMA_Init()</code> must be called before <code>MX_USART1_UART_Init()</code>, otherwise the HAL will fail when internally linking the DMA handle. CubeMX-generated code follows this order by default, but it is easy to get wrong when manually adjusting the code.</p>
+<h3 id="q-how-is-the-idle-interrupt-flag-cleared">Q: How is the IDLE interrupt flag cleared?
+</h3><p>The IDLE flag clearing method is somewhat special — it requires <strong>reading the status register first, then reading the data register</strong>:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Platform</th>
+					<th>Clearing Method</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>STM32 HAL</td>
+					<td><code>__HAL_UART_CLEAR_IDLEFLAG()</code> (internally reads SR + DR)</td>
+			</tr>
+			<tr>
+					<td>GD32</td>
+					<td><code>usart_interrupt_flag_clear()</code> + <code>usart_data_receive()</code></td>
+			</tr>
+	</tbody>
+</table></div>
+<p>If not cleared correctly, the IDLE interrupt will trigger continuously, entering an infinite loop.</p>
+<h3 id="q-why-does-hal_uartex_receivetoidle_dma-need-to-be-called-again-after-each-callback">Q: Why does <code>HAL_UARTEx_ReceiveToIdle_DMA()</code> need to be called again after each callback?
+</h3><p>This is by STM32 HAL design: although RX DMA configured in Circular mode does not stop, <code>ReceiveToIdle_DMA</code> internally also manages IDLE interrupt enabling. If not called again in the callback, the IDLE interrupt may not trigger again. HT and TC interrupts are automatically triggered by DMA hardware and do not need re-enabling.</p>
+<p>The GD32 approach does not have this issue — the IDLE interrupt is enabled once during initialization and does not need to be restarted each time.</p>
+<h3 id="q-how-should-the-rx-buffer-size-be-chosen">Q: How should the RX buffer size be chosen?
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Buffer Size</th>
+					<th>HT Trigger Interval (115200bps)</th>
+					<th>Suitable Scenario</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>32 bytes</td>
+					<td>~1.4 ms</td>
+					<td>Low speed, short packets</td>
+			</tr>
+			<tr>
+					<td>64 bytes</td>
+					<td>~2.8 ms</td>
+					<td>General use (recommended)</td>
+			</tr>
+			<tr>
+					<td>128 bytes</td>
+					<td>~5.6 ms</td>
+					<td>High speed, long packets</td>
+			</tr>
+			<tr>
+					<td>256 bytes</td>
+					<td>~11.1 ms</td>
+					<td>Ultra-high speed or low-frequency MCU</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>Rule: <strong>Buffer size &gt;= maximum continuous data frame length x 2</strong>. HT and TC split the buffer in half, and each half must be able to hold one frame of data.</p>
+<h3 id="q-why-does-printf-redirection-use-blocking-transmission">Q: Why does printf redirection use blocking transmission?
+</h3><p>The <code>fputc()</code> in the example uses polling mode for byte-by-byte transmission instead of DMA. The reason is that printf is typically used in debugging scenarios where you need to ensure data is fully output before returning. With DMA asynchronous transmission, the data may not have been fully sent when printf returns. In production, it is recommended to use <code>usart_send_string()</code> instead of printf.</p>
+<hr>
+<h2 id="8-performance-comparison-dma-vs-interrupt-vs-polling">8. Performance Comparison: DMA vs Interrupt vs Polling
+</h2><h3 id="q-how-do-the-cpu-overheads-of-the-three-approaches-compare">Q: How do the CPU overheads of the three approaches compare?
+</h3><p>Using 115200bps, 168MHz main frequency, receiving 1KB of data:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Approach</th>
+					<th>CPU Time</th>
+					<th>Proportion</th>
+					<th>Data Loss Risk</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Polling</td>
+					<td>~5.6 ms (100%)</td>
+					<td>100%</td>
+					<td>None (but CPU fully occupied)</td>
+			</tr>
+			<tr>
+					<td>Interrupt</td>
+					<td>~0.5 ms (9%)</td>
+					<td>~9%</td>
+					<td>Possible under interrupt latency</td>
+			</tr>
+			<tr>
+					<td>DMA</td>
+					<td>~0.02 ms (0.4%)</td>
+					<td>&lt; 1%</td>
+					<td>Nearly zero</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>The CPU time for the DMA approach is only used for pointer calculation and data movement in <code>usart_rx_check()</code> (writing to the TX ring buffer); the actual DMA transfer process involves no CPU participation.</p>
+<h3 id="q-what-is-the-latency-of-the-dma-approach">Q: What is the latency of the DMA approach?
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Event</th>
+					<th>Maximum Latency</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Data received to HT/TC interrupt trigger</td>
+					<td>Half-buffer transfer time (64B@115200 ~= 2.8ms)</td>
+			</tr>
+			<tr>
+					<td>Data received to IDLE interrupt trigger</td>
+					<td>1 character time + IDLE detection time (~= 0.1ms)</td>
+			</tr>
+			<tr>
+					<td>TX data from ring buffer write to DMA start</td>
+					<td>Current DMA transfer completion time + critical section time</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>The IDLE interrupt is the lowest-latency trigger method, suitable for scenarios with strict real-time requirements.</p>
+<hr>
+<h2 id="9-porting-guide-three-steps-to-port-to-your-platform">9. Porting Guide: Three Steps to Port to Your Platform
+</h2><h3 id="q-how-to-port-this-solution-to-other-mcus">Q: How to port this solution to other MCUs?
+</h3><p><strong>Step 1: Configure RX DMA</strong></p>
+<ol>
+<li>Configure DMA as Circular mode, peripheral-to-memory</li>
+<li>Peripheral address = USART data register address</li>
+<li>Memory address = <code>usart_rx_dma_buffer</code></li>
+<li>Enable HT + TC interrupts</li>
+<li>Enable USART IDLE interrupt</li>
+</ol>
+<p><strong>Step 2: Configure TX DMA</strong></p>
+<ol>
+<li>Configure DMA as Normal mode, memory-to-peripheral</li>
+<li>Do not start at initialization (start on demand)</li>
+<li>Enable TC interrupt</li>
+</ol>
+<p><strong>Step 3: Implement three core functions</strong></p>
+<ol>
+<li><code>usart_rx_check()</code> — read DMA counter, calculate position, process data</li>
+<li><code>usart_start_tx_dma_transfer()</code> — critical section protection, zero-copy startup</li>
+<li>TX complete interrupt handler — <code>lwrb_skip()</code> + chained launch</li>
+</ol>
+<hr>
+<h2 id="10-ring-buffer-vs-ping-pong-buffer-application-scope">10. Ring Buffer vs Ping-Pong Buffer: Application Scope
+</h2><h3 id="q-what-is-a-ping-pong-buffer">Q: What is a Ping-Pong Buffer?
+</h3><p>A ping-pong buffer uses <strong>two equal-sized linear buffers</strong> that alternate: while DMA writes to buffer A, the CPU processes buffer B; when DMA reaches the half-transfer point, the roles swap. This is essentially the &ldquo;half-buffer&rdquo; mechanism of DMA Circular mode with HT/TC interrupts.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">Buffer A [0, N/2)    ← HT interrupt: CPU processes A, DMA continues writing B
+</span></span><span class="line"><span class="cl">Buffer B [N/2, N)    ← TC interrupt: CPU processes B, DMA wraps to write A
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="q-what-are-the-core-differences-between-ring-buffer-and-ping-pong-buffer">Q: What are the core differences between ring buffer and ping-pong buffer?
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Dimension</th>
+					<th>Ring Buffer (lwrb)</th>
+					<th>Ping-Pong Buffer</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Data structure</td>
+					<td>One contiguous memory block + read/write pointers</td>
+					<td>Two equal-sized linear buffers</td>
+			</tr>
+			<tr>
+					<td>Processing granularity</td>
+					<td>Any length (process actual written amount)</td>
+					<td>Fixed half-buffer size</td>
+			</tr>
+			<tr>
+					<td>Data latency</td>
+					<td>Process immediately after IDLE interrupt</td>
+					<td>Must wait for HT/TC to process</td>
+			</tr>
+			<tr>
+					<td>Variable-length frames</td>
+					<td>Native support (IDLE can trigger)</td>
+					<td>Needs extra mechanism for tail shorter than half-buffer</td>
+			</tr>
+			<tr>
+					<td>Memory utilization</td>
+					<td>Effective capacity <code>size - 1</code></td>
+					<td>Each buffer <code>N/2</code>, must wait until full</td>
+			</tr>
+			<tr>
+					<td>Implementation complexity</td>
+					<td>Must handle wraparound, linear blocks</td>
+					<td>Simple logic, HT/TC direct swap</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="q-which-is-suitable-for-which-scenario">Q: Which is suitable for which scenario?
+</h3><p><strong>Ring buffer is better for</strong>:</p>
+<ul>
+<li><strong>Variable-length protocol frames</strong>: Modbus RTU, custom command protocols where frame length is not fixed; IDLE interrupt can immediately detect frame end</li>
+<li><strong>Low-latency interaction</strong>: Human-machine interaction, AT command response; IDLE interrupt ensures frame tails don&rsquo;t get stuck</li>
+<li><strong>TX asynchronous transmission</strong>: Zero-copy + chained continuation; application writes anytime, DMA auto-schedules</li>
+</ul>
+<p><strong>Ping-pong buffer is better for</strong>:</p>
+<ul>
+<li><strong>Fixed-length sample streams</strong>: ADC/I2S audio sampling, high-speed equi-interval sensor data streams, each frame fixed length</li>
+<li><strong>Batch processing pipelines</strong>: FFT, digital filtering — scenarios requiring a complete block of data before computation</li>
+<li><strong>Dual-core sharing</strong>: One core writes A, the other processes B; naturally lock-free alternation</li>
+</ul>
+<h3 id="q-why-is-ring-buffer-the-first-choice-for-uart">Q: Why is ring buffer the first choice for UART?
+</h3><p>Typical characteristics of UART communication:</p>
+<ol>
+<li><strong>Variable frame length</strong>: An AT command might be 10 bytes, the next might be 200 bytes</li>
+<li><strong>Uncertain inter-frame gaps</strong>: There may be ms-level idle time between communications (detectable by IDLE)</li>
+<li><strong>Low-latency response needed</strong>: Commands should be processed as soon as received, not waiting for half-buffer to fill</li>
+</ol>
+<p>Ping-pong buffer&rsquo;s HT/TC trigger mechanism requires &ldquo;half-buffer full before processing.&rdquo; If the frame is shorter than half-buffer, data stays stuck inside. Adding IDLE interrupt as a remedy essentially degenerates into ring buffer logic — better to use ring buffer from the start.</p>
+<blockquote class="alert alert-tip">
+    <p>If your UART scenario involves <strong>fixed-length high-speed data streams</strong> (e.g., continuous sensor sampling), ping-pong buffer is simpler to implement; for <strong>variable-length command interaction</strong> (the vast majority of UART scenarios), ring buffer is the more natural choice.</p></blockquote><hr>
+<h2 id="11-summary">11. Summary
+</h2><h3 id="core-design-points">Core Design Points
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Point</th>
+					<th>Reason</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>RX DMA Circular</td>
+					<td>Never stops, no restart window, no data loss</td>
+			</tr>
+			<tr>
+					<td>TX DMA Normal</td>
+					<td>Send one linear segment at a time, chain-continue</td>
+			</tr>
+			<tr>
+					<td>Triple interrupt (HT+TC+IDLE)</td>
+					<td>HT/TC ensures no loss in high-speed continuous streams; IDLE ensures variable-length packet tails don&rsquo;t get stuck</td>
+			</tr>
+			<tr>
+					<td>DMA counter infers position</td>
+					<td>Zero extra hardware, pure software calculation of current write position</td>
+			</tr>
+			<tr>
+					<td>TX zero-copy</td>
+					<td>DMA reads directly from ring buffer linear block, no intermediate buffer</td>
+			</tr>
+			<tr>
+					<td><code>usart_tx_dma_current_len</code> mutex flag</td>
+					<td>Prevents application and interrupt layers from operating DMA simultaneously</td>
+			</tr>
+			<tr>
+					<td>Same-priority interrupts</td>
+					<td>Prevents <code>usart_rx_check()</code> from being preempted, avoiding state corruption</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="dual-platform-verification-conclusions">Dual-Platform Verification Conclusions
+</h3><p>STM32 HAL and GD32 Standard Peripheral Library are <strong>architecturally identical</strong> — RX Circular + TX Normal + lwrb zero-copy + triple interrupt. Differences lie only in API calling conventions:</p>
+<ul>
+<li><strong>HAL thick wrapper</strong>: Callback mechanism manages interrupts uniformly, fast development but deep call stacks during debugging</li>
+<li><strong>Standard Library thin wrapper</strong>: Manual interrupt flag management, high code transparency but more detail work</li>
+</ul>
+<p>Which to choose depends on project requirements — HAL for rapid prototyping, Standard Library for in-depth debugging.</p>
+<hr>
+<h2 id="references">References
+</h2><ul>
+<li><a class="link" href="https://github.com/MaJerle/lwrb"  target="_blank" rel="noopener"
+    >lwrb — Lightweight ring buffer library</a></li>
+<li><a class="link" href="https://github.com/MaJerle/stm32-usart-uart-dma-rx-tx"  target="_blank" rel="noopener"
+    >stm32-usart-uart-dma-rx-tx — UART DMA RX/TX example</a></li>
+<li><a class="link" href="https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
+    >STM32F407VGT6 UART DMA Efficient RingBuffer — STM32 project for this post</a></li>
+<li><a class="link" href="https://github.com/Lingjia007/GD32F470ZGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
+    >GD32F470ZGT6 UART DMA Efficient RingBuffer — GD32 project for this post</a></li>
+<li><a class="link" href="https://www.st.com/resource/en/reference_manual/dm00031020.pdf"  target="_blank" rel="noopener"
+    >STM32F407 Reference Manual (RM0090)</a></li>
+<li><a class="link" href="https://www.gigadevice.com.cn/"  target="_blank" rel="noopener"
+    >GD32F4xx User Manual</a></li>
+<li><a class="link" href="../oop-in-c-embedded/" >The Essence of C: Structs and Pointers</a></li>
+<li><a class="link" href="../stm32f407-secure-bootloader/" >STM32F407 Secure Bootloader Design</a></li>
+</ul>
+
+</section>
+
+
+    <footer class="article-footer">
+    
+    <section class="article-tags">
+        
+            <a href="/en/tags/stm32/">STM32</a>
+        
+            <a href="/en/tags/gd32/">GD32</a>
+        
+            <a href="/en/tags/uart/">UART</a>
+        
+            <a href="/en/tags/dma/">DMA</a>
+        
+            <a href="/en/tags/ring-buffer/">Ring-Buffer</a>
+        
+            <a href="/en/tags/lwrb/">Lwrb</a>
+        
+            <a href="/en/tags/zero-copy/">Zero-Copy</a>
+        
+    </section>
+
+
+    
+    <section class="article-copyright">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <path d="M14.5 9a3.5 4 0 1 0 0 6" />
+</svg>
+
+
+
+        <span>Licensed under CC BY-NC-SA 4.0</span>
+    </section>
+    <section class="article-lastmod">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <polyline points="12 7 12 12 15 15" />
+</svg>
+
+
+
+        <span>
+            Last updated on Jul 05, 2026 19:22 &#43;0800
+        </span>
+    </section></footer>
+
+
+    
+        <link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI&#43;WdtXRGWt2kTvGFasHpSy3SV"crossorigin="anonymous"
+            ><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG&#43;vnGctmUb0ZY0l8"crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"integrity="sha384-&#43;VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4&#43;/RRE05"crossorigin="anonymous"
+                defer
+                >
+            </script><script>
+  window.addEventListener("DOMContentLoaded", () => {
+    const mainArticleElement = document.querySelector(".main-article");
+    renderMathInElement(mainArticleElement, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  });
+</script>
+<div class="math-katex"></div>
+
+    
+</article>
+
+    
+
+    
+
+<aside class="related-content--wrapper">
+    <h2 class="section-title">Related content</h2>
+    <div class="related-content">
+        <div class="flex article-list--tile">
+            
+                
+<article class="has-image">
+    <a href="/en/p/a-taste-of-bootloader-five-layer-architecture-oop-object-design-model-from-platform-abstraction-to-app-orchestration/">
+        
+        
+            <div class="article-image">
+                <img src="/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop.845ad1bc14f6864ea3e8db6e61af4b4f_hu_7dfd5ddb3e7a77a7.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post A Taste of Bootloader Five-Layer Architecture: OOP Object Design Model from Platform Abstraction to App Orchestration"
+                        
+                        data-hash="md5-hFrRvBT2hk6j6NtuYa9LTw==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">A Taste of Bootloader Five-Layer Architecture: OOP Object Design Model from Platform Abstraction to App Orchestration</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/en/p/gnu-ld-linker-script-in-depth-dissecting-embedded-memory-layout-and-section-relocation-via-an-stm32f407-example/">
+        
+        
+            <div class="article-image">
+                <img src="/p/gnu-ld-%E9%93%BE%E6%8E%A5%E8%84%9A%E6%9C%AC%E8%AF%A6%E8%A7%A3%E4%BB%8E-stm32f407-%E5%AE%9E%E4%BE%8B%E5%89%96%E6%9E%90%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80%E4%B8%8E%E6%AE%B5%E9%87%8D%E5%AE%9A%E4%BD%8D/gnu-ld-linker-script.fcad4f3ea326a9f595ecedb86073a2db_hu_604e604f3f084745.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post GNU LD Linker Script in Depth: Dissecting Embedded Memory Layout and Section Relocation via an STM32F407 Example"
+                        
+                        data-hash="md5-/K1PPqMmqfWV7O24YHOi2w==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">GNU LD Linker Script in Depth: Dissecting Embedded Memory Layout and Section Relocation via an STM32F407 Example</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/en/p/pyiaptoolkit-design-and-implementation-of-an-stm32-iap-host-tool-suite/">
+        
+        
+            <div class="article-image">
+                <img src="/p/pyiaptoolkitstm32-iap-%E4%B8%8A%E4%BD%8D%E6%9C%BA%E5%B7%A5%E5%85%B7%E5%A5%97%E4%BB%B6%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/PyIAPToolKit.bce3b53e3d529bb9662f75f33ad529b9_hu_796cd764b38bb6af.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post PyIAPToolKit: Design and Implementation of an STM32 IAP Host Tool Suite"
+                        
+                        data-hash="md5-vOO1Pj1Sm7lmL3XzOtUpuQ==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">PyIAPToolKit: Design and Implementation of an STM32 IAP Host Tool Suite</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/en/p/stm32f407-secure-bootloader-design-a/b-dual-partition-encryption/signing-and-multi-channel-upgrade/">
+        
+        
+            <div class="article-image">
+                <img src="/p/stm32f407-%E5%AE%89%E5%85%A8-bootloader-%E8%AE%BE%E8%AE%A1a/b-%E5%8F%8C%E5%88%86%E5%8C%BA%E5%8A%A0%E5%AF%86%E7%AD%BE%E5%90%8D%E4%B8%8E%E5%A4%9A%E6%B8%A0%E9%81%93%E5%8D%87%E7%BA%A7/STM32F407%E5%AE%89%E5%85%A8Bootloader%E8%AE%BE%E8%AE%A1.7c8335e5345c22f2e144305e64572346_hu_246f581f8c773c70.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post STM32F407 Secure Bootloader Design: A/B Dual Partition, Encryption/Signing, and Multi-Channel Upgrade"
+                        
+                        data-hash="md5-fIM15TRcIvLhRDBeZFcjRg==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">STM32F407 Secure Bootloader Design: A/B Dual Partition, Encryption/Signing, and Multi-Channel Upgrade</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/en/p/the-essence-of-c-structs-and-pointers-embedded-object-oriented-platform-agnostic-layered-design/">
+        
+        
+            <div class="article-image">
+                <img src="/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.bc913b6a996b7421fe3ea97f79ea25e3_hu_b1e5a0a00e8e56e1.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post The Essence of C: Structs and Pointers — Embedded Object-Oriented Platform-Agnostic Layered Design"
+                        
+                        data-hash="md5-vJE7aplrdCH&#43;Pql/eeol4w==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">The Essence of C: Structs and Pointers — Embedded Object-Oriented Platform-Agnostic Layered Design</h2>
+        </div>
+    </a>
+</article>
+
+            
+        </div>
+    </div>
+</aside>
+
+     
+    
+        
+    
+    <div class="comment"></div>
+
+    
+
+    <footer class="site-footer">
+    <section class="copyright">
+        &copy; 
+        
+            2025 - 
+        
+        2026 lingsir007
+    </section>
+    
+    <section class="running-time">
+        
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+        This website has been running stably<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 8 ></span> articles <span style="font-weight: bold;">·</span> Total <span id="articlewordCount">&lt; 27.00 k ></span> words
+    </section>
+    <section class="powerby">
+        Built with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> <br />
+        Theme <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.30.0">Stack</a></b> designed by <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a>
+    </section>
+</footer>
+
+
+    
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    
+    <div class="pswp__bg"></div>
+
+    
+    <div class="pswp__scroll-wrap">
+
+        
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                
+                
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo="crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU="crossorigin="anonymous"
+                defer
+                >
+            </script><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css"crossorigin="anonymous"
+            ><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css"crossorigin="anonymous"
+            >
+
+            </main>
+        </div>
+        <script 
+                src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z&#43;KMkF24hUW8WePSA9HM="crossorigin="anonymous"
+                
+                >
+            </script><script type="text/javascript" src="/ts/main.99ce1801c4bad426a42fc436add4721e149159dbb598636e9578fd59cf778c83.js" defer></script> <script>
+    (function () {
+        const customFont = document.createElement('link');
+        customFont.href = "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap";
+
+        customFont.type = "text/css";
+        customFont.rel = "stylesheet";
+
+        document.head.appendChild(customFont);
+    }());
+</script> <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css"
+/>
+
+<script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
+<script>
+  var pjax = new Pjax({
+    selectors: ["title", ".main-container", ".js-Pjax1", ".js-Pjax2"],
+  });
+</script>
+
+<div id="aplayer"></div>
+<script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
+
+<script>
+  const staticDir = "https://lingsir007.netlify.app/en/";
+  const ap = new APlayer({
+    container: document.getElementById("aplayer"),
+    audio: [
+      {
+        name: "Keil Generic Key",
+        artist: "EDGE",
+        url: staticDir + "music/Keil Generic Key-EDGE/song.mp3",
+        cover: staticDir + "music/Keil Generic Key-EDGE/cover.png",
+        lrc: staticDir + "music/Keil Generic Key-EDGE/lyric.lrc",
+      },
+      {
+        name: "查无此字",
+        artist: "林奕匡",
+        url: staticDir + "music/查无此字-林奕匡/song.mp3",
+        cover: staticDir + "music/查无此字-林奕匡/cover.jpg",
+        lrc: staticDir + "music/查无此字-林奕匡/lyric.lrc",
+      },
+      {
+        name: "爱别等",
+        artist: "洪卓立",
+        url: staticDir + "music/爱别等-洪卓立/song.mp3",
+        cover: staticDir + "music/爱别等-洪卓立/cover.jpg",
+        lrc: staticDir + "music/爱别等-洪卓立/lyric.lrc",
+      },
+      {
+        name: "乖乖报到",
+        artist: "MC 张天赋",
+        url: staticDir + "music/乖乖报到-MC 张天赋/song.mp3",
+        cover: staticDir + "music/乖乖报到-MC 张天赋/cover.jpg",
+        lrc: staticDir + "music/乖乖报到-MC 张天赋/lyric.lrc",
+      },
+      {
+        name: "指纹",
+        artist: "胡歌",
+        url: staticDir + "music/指纹-胡歌/song.mp3",
+        cover: staticDir + "music/指纹-胡歌/cover.jpg",
+        lrc: staticDir + "music/指纹-胡歌/lyric.lrc",
+      },
+      {
+        name: "还记得",
+        artist: "周柏豪",
+        url: staticDir + "music/还记得-周柏豪/song.mp3",
+        cover: staticDir + "music/还记得-周柏豪/cover.jpg",
+        lrc: staticDir + "music/还记得-周柏豪/lyric.lrc",
+      },
+      {
+        name: "摄氏零度",
+        artist: "张敬轩",
+        url: staticDir + "music/摄氏零度-张敬轩/song.mp3",
+        cover: staticDir + "music/摄氏零度-张敬轩/cover.jpg",
+        lrc: staticDir + "music/摄氏零度-张敬轩/lyric.lrc",
+      },
+      {
+        name: "下一位前度",
+        artist: "林家谦",
+        url: staticDir + "music/下一位前度-林家谦/song.mp3",
+        cover: staticDir + "music/下一位前度-林家谦/cover.jpg",
+        lrc: staticDir + "music/下一位前度-林家谦/lyric.lrc",
+      },
+      {
+        name: "初初",
+        artist: "古巨基",
+        url: staticDir + "music/初初-古巨基/song.mp3",
+        cover: staticDir + "music/初初-古巨基/cover.jpg",
+        lrc: staticDir + "music/初初-古巨基/lyric.lrc",
+      },
+      {
+        name: "这个故事教训我们",
+        artist: "李克勤",
+        url: staticDir + "music/这个故事教训我们-李克勤/song.mp3",
+        cover: staticDir + "music/这个故事教训我们-李克勤/cover.jpg",
+        lrc: staticDir + "music/这个故事教训我们-李克勤/lyric.lrc",
+      },
+      {
+        name: "最后祝福",
+        artist: "黄宗泽",
+        url: staticDir + "music/最后祝福-黄宗泽/song.mp3",
+        cover: staticDir + "music/最后祝福-黄宗泽/cover.jpg",
+        lrc: staticDir + "music/最后祝福-黄宗泽/lyric.lrc",
+      }
+    ],
+    lrcType: 3,
+    fixed: true
+  });
+</script>
+
+<script>
+  
+  function calculateRunningDays(startDateStr, elementId) {
+    let s1 = new Date(startDateStr.replace(/-/g, "/"));
+    let s2 = new Date();
+    let timeDifference = s2.getTime() - s1.getTime();
+
+    let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+    let hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    let minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+
+    
+    let dayText = "d "; 
+    let hourText = "h ";
+    let minuteText = "m ";
+
+    let result = `<span>< ${days} ${dayText} ${hours} ${hourText} ${minutes} ${minuteText} ></span>`;
+    document.getElementById(elementId).innerHTML = result;
+    }
+
+    document.addEventListener("pjax:complete", () => {
+        calculateRunningDays('2025-3-14', 'runningdays');
+    });
+    calculateRunningDays('2025-3-14', 'runningdays');
+</script>
+
+<script>
+  pjax._handleResponse = pjax.handleResponse;
+  pjax.handleResponse = function (responseText, request, href, options) {
+    if (request.responseText.match("<html")) {
+      if (responseText) {
+        
+        let newDom = new DOMParser().parseFromString(responseText, "text/html");
+        
+        let bodyClass = newDom.body.className;
+        document.body.setAttribute("class", bodyClass);
+      }
+      
+      pjax._handleResponse(responseText, request, href, options);
+    } else {
+      
+    }
+  };
+</script>
+
+<script>
+  
+  function initClock() {
+    
+    var hr = document.getElementById("hr"); 
+    var mn = document.getElementById("mn"); 
+    var sc = document.getElementById("sc"); 
+    if (!hr || !mn || !sc) return;
+
+    
+    var date = new Date();
+    var HH = date.getHours();
+    var MM = date.getMinutes();
+    var SS = date.getSeconds();
+
+    
+    var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+    var minuteAngle = MM * 6 + (SS / 60) * 6;
+    var secondAngle = SS * 6;
+
+    
+    hr.style.transition = "none";
+    mn.style.transition = "none";
+    sc.style.transition = "none";
+
+    
+    hr.style.transform = "rotate(0deg)";
+    mn.style.transform = "rotate(0deg)";
+    sc.style.transform = "rotate(0deg)";
+
+    
+    setTimeout(() => {
+      hr.style.transition = "";
+      mn.style.transition = "";
+      sc.style.transition = "";
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 0);
+
+    
+    setInterval(function () {
+      var date = new Date();
+      var HH = date.getHours();
+      var MM = date.getMinutes();
+      var SS = date.getSeconds();
+
+      
+      var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+      var minuteAngle = MM * 6 + (SS / 60) * 6;
+      var secondAngle = SS * 6;
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 1000);
+  }
+
+  
+  window.onload = function () {
+    initClock();
+  };
+
+  
+  document.addEventListener("pjax:complete", () => {
+    initClock();
+  });
+</script>
+
+<script>
+  document.addEventListener("pjax:complete", () => {
+    
+    window.Stack.init();
+  });
+</script>
+
+<script>
+  async function renderKaTeX() {
+    
+    let katex = document.querySelector(".math-katex");
+    if (!katex) {
+      return;
+    }
+    
+    while (typeof renderMathInElement !== "function") {
+      await delay(500);
+    }
+    
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  }
+
+  
+
+  function delay(time) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, time);
+    });
+  }
+
+  document.addEventListener("pjax:complete", () => {
+    renderKaTeX();
+  });
+</script>
+
+<script src="https://lingsir007.netlify.app/en/js/topbar.min.js"></script>
+
+<script>
+  
+  topbar.config({
+    barColors: {
+      0: "rgba(255,  255, 255, 1)", 
+      "1.0": "rgba(0, 149, 234,  1)", 
+    },
+  });
+
+  document.addEventListener("pjax:send", () => {
+    
+    topbar.show();
+  });
+
+  document.addEventListener("pjax:complete", () => {
+    
+    topbar.hide();
+  });
+</script>
+
+<script>
+  const cdnPath =
+    "https://cdn.jsdelivr.net/gh/Lingjia007/live2d-widget-v3@main";
+  const config = {
+    
+    path: {
+      homePath: "/",
+      modelPath: "https:\/\/lingsir007.netlify.app\/en\/live2d-moc3/",
+      cssPath: "https:\/\/lingsir007.netlify.app\/en\/js/waifu.css",
+      tipsJsonPath: "https:\/\/lingsir007.netlify.app\/en\/js/my-waifu-tips.json",
+      tipsJsPath: cdnPath + "/waifu-tips.js",
+      live2dCorePath: "https:\/\/lingsir007.netlify.app\/en\/js/live2dcubismcore.js",
+      live2dSdkPath: "https:\/\/lingsir007.netlify.app\/en\/js/live2d-sdk.js",
+    },
+    
+    tools: [
+      "hitokoto",
+      "asteroids",
+      "express",
+      "switch-model",
+      "switch-texture",
+      "photo",
+      "info",
+      "quit",
+    ],
+    
+    drag: {
+      enable: true,
+      direction: ["x", 0],
+    },
+    
+    switchType: "order",
+  };
+
+  
+  if (screen.width >= 10) {
+    Promise.all([
+      loadExternalResource(config.path.cssPath, "css"),
+      loadExternalResource(config.path.live2dCorePath, "js"),
+      loadExternalResource(config.path.live2dSdkPath, "js"),
+      loadExternalResource(config.path.tipsJsPath, "js"),
+    ]).then(() => {
+      initWidget({
+        homePath: config.path.homePath,
+        waifuPath: config.path.tipsJsonPath,
+        cdnPath: config.path.modelPath,
+        tools: config.tools,
+        dragEnable: config.drag.enable,
+        dragDirection: config.drag.direction,
+        switchType: config.switchType,
+      });
+    });
+    function waitForElement(selector, callback) {
+      new MutationObserver(function (mutations) {
+        if (document.querySelector(selector)) {
+          callback();
+          this.disconnect();
+        }
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    }
+  }
+
+  
+  function loadExternalResource(url, type) {
+    return new Promise((resolve, reject) => {
+      let tag;
+      if (type === "css") {
+        tag = document.createElement("link");
+        tag.rel = "stylesheet";
+        tag.href = url;
+      } else if (type === "js") {
+        tag = document.createElement("script");
+        tag.src = url;
+      }
+      if (tag) {
+        tag.onload = () => resolve(url);
+        tag.onerror = () => reject(url);
+        document.head.appendChild(tag);
+      }
+    });
+  }
+</script>
+
+<style>
+  .highlight {
+     
+    max-height: 400px;
+    overflow: hidden;
+  }
+
+  .code-show {
+    max-height: none !important;
+  }
+
+  .code-more-box {
+    width: 100%;
+    padding-top: 78px;
+    background-image: -webkit-gradient(
+      linear,
+      left top,
+      left bottom,
+      from(rgba(255, 255, 255, 0)),
+      to(#fff)
+    );
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+  }
+
+  .code-more-btn {
+    display: block;
+    margin: auto;
+    width: 44px;
+    height: 22px;
+    background: #f0f0f5;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding-top: 6px;
+    cursor: pointer;
+  }
+
+  .code-more-img {
+    cursor: pointer !important;
+    display: block;
+    margin: auto;
+    width: 22px;
+    height: 16px;
+  }
+</style>
+
+<script>
+  function initCodeMoreBox() {
+    let codeBlocks = document.querySelectorAll(".highlight");
+    if (!codeBlocks) {
+      return;
+    }
+    codeBlocks.forEach((codeBlock) => {
+      
+      if (codeBlock.scrollHeight <= codeBlock.clientHeight) {
+        return;
+      }
+      
+      
+      let codeMoreBox = document.createElement("div");
+      codeMoreBox.classList.add("code-more-box");
+      
+      let codeMoreBtn = document.createElement("span");
+      codeMoreBtn.classList.add("code-more-btn");
+      codeMoreBtn.addEventListener("click", () => {
+        codeBlock.classList.add("code-show");
+        codeMoreBox.style.display = "none";
+        
+        window.dispatchEvent(new Event("resize"));
+      });
+      
+      let img = document.createElement("img");
+      img.classList.add("code-more-img");
+      img.src = "https:\/\/lingsir007.netlify.app\/en\/icons/codeMore.png";
+      
+      codeMoreBtn.appendChild(img);
+      codeMoreBox.appendChild(codeMoreBtn);
+      codeBlock.appendChild(codeMoreBox);
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initCodeMoreBox();
+  });
+  initCodeMoreBox();
+</script>
+
+<div id="particles-js"></div>
+
+<script src="https://lingsir007.netlify.app/en/background/particles.min.js"></script>
+<script>
+  particlesJS.load(
+    "particles-js",
+    "https:\/\/lingsir007.netlify.app\/en\/background/particlesjs-config.json",
+    function () {
+      console.log("particles.js loaded - callback");
+    },
+  );
+</script>
+
+<style>
+  #particles-js {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: -1;
+  }
+</style>
+
+<style>
+  #TableOfContents > ul,
+  ol {
+    ul,
+    ol {
+      display: none;
+    }
+    .open {
+      display: block;
+    }
+  }
+</style>
+
+<script>
+  function initTocHide() {
+    
+    let toc = document.querySelector(".widget--toc");
+    if (!toc) {
+      return;
+    }
+    
+    window.addEventListener("scroll", function () {
+      
+      let openUl = document.querySelectorAll(".open");
+      if (openUl.length > 0) {
+        openUl.forEach((ul) => {
+          ul.classList.remove("open");
+        });
+      }
+      
+      let currentLi = document.querySelector(".active-class");
+      if (!currentLi) {
+        return;
+      }
+      
+      if (currentLi.children.length > 1) {
+        currentLi.children[1].classList.add("open");
+      }
+      
+      let ul = currentLi.parentElement;
+      do {
+        ul.classList.add("open");
+        ul = ul.parentElement.parentElement;
+      } while (
+        ul !== undefined &&
+        (ul.localName === "ul" || ul.localName === "ol")
+      );
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initTocHide();
+  });
+  initTocHide();
+</script>
+
+<style>
+  @font-face {
+    font-family: "AlibabaPuHuiTi-3-65-Medium";
+    src: url(https://lingsir007.netlify.app/font/AlibabaPuHuiTi-3-65-Medium.ttf)
+      format("truetype");
+  }
+
+  :root {
+    --base-font-family: "AlibabaPuHuiTi-3-65-Medium";
+    --code-font-family: "AlibabaPuHuiTi-3-65-Medium";
+  }
+</style>
+
+<style>
+  #backTopBtn {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    z-index: 99;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    background-image: url("https://lingsir007.netlify.app/en/icons/backTop.svg");
+  }
+</style>
+
+<script>
+  
+
+  function initScrollTop() {
+    let rightSideBar = document.querySelector(".right-sidebar");
+    if (!rightSideBar) {
+      return;
+    }
+    
+    let btn = document.createElement("div");
+    btn.id = "backTopBtn";
+    btn.onclick = backToTop;
+    rightSideBar.appendChild(btn);
+    
+    window.onscroll = function () {
+      
+      if (
+        document.body.scrollTop > 20 ||
+        document.documentElement.scrollTop > 20
+      ) {
+        btn.style.display = "block";
+      } else {
+        btn.style.display = "none";
+      }
+    };
+  }
+
+  
+
+  function backToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initScrollTop();
+  });
+  initScrollTop();
+</script>
+
+<div class="js-Pjax2">
+  
+  <script>
+    (function () {
+      
+      const verScript = document.createElement("script");
+      verScript.defer = true;
+      verScript.src = "https://cn.vercount.one/js";
+      document.body.appendChild(verScript);
+
+      
+      function showHideView() {
+        const viewCounts = document.querySelectorAll("#viewCount");
+        if (viewCounts) {
+          const isArticle = !!document.querySelector(".article-page");
+          viewCounts.forEach((ele) => {
+            ele.style.display = isArticle ? "" : "none";
+          });
+        }
+      }
+      
+      showHideView();
+      
+      document.addEventListener("pjax:complete", function () {
+        showHideView();
+      });
+    })();
+  </script>
+</div><script>
+  (function () {
+    var giscusConfig = {
+      repo: "Lingjia007\/Hugo_Web",
+      repoId: "R_kgDOTNf24g",
+      category: "Announcements",
+      categoryId: "DIC_kwDOTNf24s4DAe9e",
+      mapping: 'title',
+      strict: "0",
+      reactionsEnabled: "1",
+      emitMetadata: "0",
+      inputPosition: 'top',
+      theme: 'light',
+      loading: "lazy",
+    };
+    var giscusLightTheme = 'light';
+    var giscusDarkTheme = 'dark_dimmed';
+
+    function getGiscusLang() {
+      var path = window.location.pathname;
+      if (path.indexOf("/zh-hk") !== -1) return "zh-HK";
+      if (path.indexOf("/en") !== -1) return "en";
+      return "zh-CN";
+    }
+
+    function getGiscusTheme() {
+      if (document.documentElement.dataset.scheme === "light") {
+        return giscusLightTheme;
+      }
+      return giscusDarkTheme;
+    }
+
+    function setGiscusTheme(theme) {
+      var giscus = document.querySelector("iframe.giscus-frame");
+      if (giscus) {
+        giscus.contentWindow.postMessage(
+          { giscus: { setConfig: { theme: theme } } },
+          "https://giscus.app",
+        );
+      }
+    }
+
+    function loadGiscus() {
+      var comment = document.querySelector(".comment");
+      if (!comment) return;
+      comment.innerHTML = "";
+      var lang = getGiscusLang();
+      var script = document.createElement("script");
+      script.src = "https://giscus.app/client.js";
+      script.setAttribute("data-repo", giscusConfig.repo);
+      script.setAttribute("data-repo-id", giscusConfig.repoId);
+      script.setAttribute("data-category", giscusConfig.category);
+      script.setAttribute("data-category-id", giscusConfig.categoryId);
+      script.setAttribute("data-mapping", giscusConfig.mapping);
+      script.setAttribute("data-strict", giscusConfig.strict);
+      script.setAttribute(
+        "data-reactions-enabled",
+        giscusConfig.reactionsEnabled,
+      );
+      script.setAttribute("data-emit-metadata", giscusConfig.emitMetadata);
+      script.setAttribute("data-input-position", giscusConfig.inputPosition);
+      script.setAttribute("data-theme", giscusConfig.theme);
+      script.setAttribute("data-lang", lang);
+      script.setAttribute("data-loading", giscusConfig.loading);
+      script.setAttribute("crossorigin", "anonymous");
+      script.async = true;
+      comment.appendChild(script);
+    }
+
+    window.addEventListener("message", function (e) {
+      if (e.origin !== "https://giscus.app") return;
+      setGiscusTheme(getGiscusTheme());
+    });
+    window.addEventListener("onColorSchemeChange", function () {
+      setGiscusTheme(getGiscusTheme());
+    });
+
+    loadGiscus();
+    document.addEventListener("pjax:complete", loadGiscus);
+  })();
+</script>
+
+    </body>
+</html>

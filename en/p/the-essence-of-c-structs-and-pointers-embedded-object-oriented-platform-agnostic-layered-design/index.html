@@ -10,9 +10,10 @@
 <meta property='og:description' content="Starting from struct + me pointer, through data ownership, inheritance nesting, operation tables, virtual pointers, polymorphic dispatch, container_of, platform abstraction layer, to Linux kernel style — using a single LED to explain the full essence of embedded C object-oriented programming">
 <meta property='og:url' content='https://lingsir007.netlify.app/en/p/the-essence-of-c-structs-and-pointers-embedded-object-oriented-platform-agnostic-layered-design/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='C Language' /><meta property='article:tag' content='Object-Oriented' /><meta property='article:tag' content='OOP-in-C' /><meta property='article:tag' content='Embedded' /><meta property='article:tag' content='Platform Abstraction' /><meta property='article:tag' content='Linux Kernel' /><meta property='article:published_time' content='2026-07-03T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-04T21:33:35&#43;08:00'/>
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='C Language' /><meta property='article:tag' content='Object-Oriented' /><meta property='article:tag' content='OOP-in-C' /><meta property='article:tag' content='Embedded' /><meta property='article:tag' content='Platform Abstraction' /><meta property='article:tag' content='Linux Kernel' /><meta property='article:published_time' content='2026-07-03T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-05T19:22:21&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.png' />
 <meta name="twitter:title" content="The Essence of C: Structs and Pointers — Embedded Object-Oriented Platform-Agnostic Layered Design">
-<meta name="twitter:description" content="Starting from struct + me pointer, through data ownership, inheritance nesting, operation tables, virtual pointers, polymorphic dispatch, container_of, platform abstraction layer, to Linux kernel style — using a single LED to explain the full essence of embedded C object-oriented programming">
+<meta name="twitter:description" content="Starting from struct + me pointer, through data ownership, inheritance nesting, operation tables, virtual pointers, polymorphic dispatch, container_of, platform abstraction layer, to Linux kernel style — using a single LED to explain the full essence of embedded C object-oriented programming"><meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content='https://lingsir007.netlify.app/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.png' />
     <link rel="shortcut icon" href="/icons/favicon.ico" />
 
     </head>
@@ -296,6 +297,14 @@
             <nav id="TableOfContents">
   <ol>
     <li><a href="#preface">Preface</a></li>
+    <li><a href="#0-why-structs-and-pointers-are-the-essence-of-c">0. Why Structs and Pointers Are the Essence of C</a>
+      <ol>
+        <li><a href="#01-c-has-only-three-cornerstones">0.1 C Has Only Three Cornerstones</a></li>
+        <li><a href="#02-peripheral-address-mapping-the-natural-stage-for-struct-pointers">0.2 Peripheral Address Mapping: The Natural Stage for Struct Pointers</a></li>
+        <li><a href="#03-why-this-is-not-a-hack-but-a-natural-design">0.3 Why This Is Not a &ldquo;Hack&rdquo; but a Natural Design</a></li>
+        <li><a href="#04-unified-logic-from-hardware-mapping-to-software-oop">0.4 Unified Logic: From Hardware Mapping to Software OOP</a></li>
+      </ol>
+    </li>
     <li><a href="#1-the-starting-point-of-encapsulation-struct--me-pointer">1. The Starting Point of Encapsulation: struct + me Pointer</a>
       <ol>
         <li><a href="#11-the-most-primitive-form">1.1 The Most Primitive Form</a></li>
@@ -399,8 +408,20 @@
 
 
             <main class="main full-width">
-    <article class="main-article">
+    <article class="has-image main-article">
     <header class="article-header">
+        <div class="article-image">
+            <a href="/en/p/the-essence-of-c-structs-and-pointers-embedded-object-oriented-platform-agnostic-layered-design/">
+                <img src="/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2_hu_d9254e315b5709ed.png"
+                        srcset="/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2_hu_d9254e315b5709ed.png 800w, /p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2_hu_a3f662914944b659.png 1600w"
+                        width="800" 
+                        height="442" 
+                        loading="lazy"
+                        alt="Featured image of post The Essence of C: Structs and Pointers — Embedded Object-Oriented Platform-Agnostic Layered Design" />
+                
+            </a>
+        </div>
+    
 
     <div class="article-details">
     
@@ -446,12 +467,12 @@
         <div class="article-lastmod">
                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
                 <time>
-                    Jul 04, 2026 21:33 &#43;0800
+                    Jul 05, 2026 19:22 &#43;0800
                 </time>
             </div><div id="wordCount">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
             <time class="article-wordcount">
-                2881  words
+                3540  words
             </time>
         </div>
 
@@ -501,6 +522,123 @@
 </h2><p>C has no <code>class</code>, no <code>virtual</code>, no <code>interface</code>, yet large-scale projects like the Linux kernel, GObject, and Zephyr RTOS all build complete object-oriented systems in C. Their weapons are just two: <strong>structs</strong> and <strong>pointers</strong>.</p>
 <p>This article follows the progressive refactoring of an embedded LED driver as its main thread, starting from the most primitive <code>struct + me</code> and going all the way to Linux kernel-style <code>gpio_chip</code> + initcall auto-registration, using a single LED to explain the full essence of embedded C object-oriented programming.</p>
 <hr>
+<h2 id="0-why-structs-and-pointers-are-the-essence-of-c">0. Why Structs and Pointers Are the Essence of C
+</h2><h3 id="01-c-has-only-three-cornerstones">0.1 C Has Only Three Cornerstones
+</h3><p>C provides very few composite type tools: basic types, arrays, structs, unions, enums, and pointers. Among these, only two can truly carry design complexity: <strong>structs</strong> and <strong>pointers</strong>.</p>
+<ul>
+<li><strong>Structs</strong> are C&rsquo;s only data aggregation tool — binding multiple attributes together, forming the embryo of an &ldquo;object&rdquo;</li>
+<li><strong>Pointers</strong> are C&rsquo;s only indirection tool — operating on arbitrary objects through addresses, the foundation for implementing &ldquo;polymorphism&rdquo;</li>
+</ul>
+<p>Without structs, data can only be scattered as global variables; without pointers, functions can only operate on fixed objects, making multi-instance, polymorphism, and callbacks impossible. C++&rsquo;s <code>class</code>, <code>virtual</code>, and <code>interface</code> are essentially syntactic sugar over these two.</p>
+<h3 id="02-peripheral-address-mapping-the-natural-stage-for-struct-pointers">0.2 Peripheral Address Mapping: The Natural Stage for Struct Pointers
+</h3><p>Open the standard peripheral library or HAL library for any ARM Cortex-M chip, and you&rsquo;ll see code like this:</p>
+<p><strong>STM32 HAL (<code>stm32f407xx.h</code>):</strong></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">__IO</span> <span class="kt">uint32_t</span> <span class="n">SR</span><span class="p">;</span>         <span class="c1">// Status register, offset 0x00
+</span></span></span><span class="line"><span class="cl">    <span class="n">__IO</span> <span class="kt">uint32_t</span> <span class="n">DR</span><span class="p">;</span>         <span class="c1">// Data register, offset 0x04
+</span></span></span><span class="line"><span class="cl">    <span class="n">__IO</span> <span class="kt">uint32_t</span> <span class="n">BRR</span><span class="p">;</span>        <span class="c1">// Baud rate register, offset 0x08
+</span></span></span><span class="line"><span class="cl">    <span class="n">__IO</span> <span class="kt">uint32_t</span> <span class="n">CR1</span><span class="p">;</span>        <span class="c1">// Control register 1, offset 0x0C
+</span></span></span><span class="line"><span class="cl">    <span class="n">__IO</span> <span class="kt">uint32_t</span> <span class="n">CR2</span><span class="p">;</span>        <span class="c1">// Control register 2, offset 0x10
+</span></span></span><span class="line"><span class="cl">    <span class="n">__IO</span> <span class="kt">uint32_t</span> <span class="n">CR3</span><span class="p">;</span>        <span class="c1">// Control register 3, offset 0x14
+</span></span></span><span class="line"><span class="cl">    <span class="c1">// ... more registers
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="n">USART_TypeDef</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cp">#define USART1  ((USART_TypeDef *)0x40011000)  </span><span class="c1">// Forced cast!
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define USART2  ((USART_TypeDef *)0x40004400)
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define USART6  ((USART_TypeDef *)0x40011400)
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>What&rsquo;s happening here?</strong> Chip designers arrange peripheral registers at fixed offsets in a contiguous address space at the hardware level. C struct members are also arranged in declaration order by default, with the compiler calculating offsets based on member size and alignment rules — when the struct member declaration order and types match the hardware register layout, the struct&rsquo;s memory layout <strong>perfectly aligns</strong> with the hardware register layout.</p>
+<p>Then, by casting the peripheral base address to a pointer to that struct, you can directly read and write hardware registers using <code>USART1-&gt;CR1</code>.</p>
+<blockquote class="alert alert-note">
+    <p>Modern C/C++ editors or IDEs (VS Code + clangd, STM32CubeIDE, Keil MDK, etc.) provide <strong>intelligent autocompletion</strong> for struct members — typing <code>USART1-&gt;</code> automatically lists all members like <code>SR</code>, <code>DR</code>, <code>BRR</code>, <code>CR1</code>, while magic offset <code>0x0C</code> provides no hints at all. This means struct pointer mapping is not only compile-time safe, but also <strong>editing-time safe</strong> — typos are eliminated at the input stage, not exposed at runtime.</p></blockquote><h3 id="03-why-this-is-not-a-hack-but-a-natural-design">0.3 Why This Is Not a &ldquo;Hack&rdquo; but a Natural Design
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Advantage</th>
+					<th>Explanation</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>Zero overhead</strong></td>
+					<td><code>USART1-&gt;CR1</code> compiles to a single <code>LDR</code>/<code>STR</code> instruction plus a fixed offset, completely equivalent to <code>*(volatile uint32_t *)0x4001100C</code> — no extra overhead at all</td>
+			</tr>
+			<tr>
+					<td><strong>Type safety</strong></td>
+					<td><code>USART1</code> is of type <code>USART_TypeDef *</code>, so you can&rsquo;t accidentally write <code>GPIOA-&gt;CR1</code> — the compiler will error because <code>GPIO_TypeDef</code> has no <code>CR1</code> member</td>
+			</tr>
+			<tr>
+					<td><strong>Readability</strong></td>
+					<td><code>usart_baudrate_set(USART0, 115200)</code> is far more human-readable than <code>*(volatile uint32_t *)(0x40011000 + 0x08) = 0x1A0B</code></td>
+			</tr>
+			<tr>
+					<td><strong>Compile-time checking</strong></td>
+					<td>Wrong struct member name → compile error; wrong magic offset → runtime crash</td>
+			</tr>
+			<tr>
+					<td><strong>Natural multi-instance support</strong></td>
+					<td>Same <code>USART_TypeDef</code> struct, different base addresses = different peripheral instances. <code>usart_init(USART0)</code> and <code>usart_init(USART1)</code> share the same code — isn&rsquo;t this the <code>me</code> pointer?</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="04-unified-logic-from-hardware-mapping-to-software-oop">0.4 Unified Logic: From Hardware Mapping to Software OOP
+</h3><p>Chip vendors use struct pointers to map hardware registers, and we use struct pointers to implement object-oriented programming — <strong>the underlying logic is identical</strong>:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Hardware Mapping</th>
+					<th>Software OOP</th>
+					<th>Unified Logic</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>USART_TypeDef</code> struct</td>
+					<td><code>struct led</code> struct</td>
+					<td>Structs aggregate data, forming &ldquo;objects&rdquo;</td>
+			</tr>
+			<tr>
+					<td><code>USART1</code> base address cast</td>
+					<td><code>&amp;red_led</code> address-of</td>
+					<td>Pointer points to a specific instance</td>
+			</tr>
+			<tr>
+					<td><code>USART1-&gt;CR1 = val</code></td>
+					<td><code>me-&gt;pin = 5</code></td>
+					<td>Access instance members through pointer</td>
+			</tr>
+			<tr>
+					<td><code>usart_init(USART0)</code></td>
+					<td><code>led_init(&amp;red_led)</code></td>
+					<td>Function operates on different instances via pointer</td>
+			</tr>
+			<tr>
+					<td><code>USART_TypeDef</code> reused across all USARTs</td>
+					<td><code>led_on()</code> reused across all LEDs</td>
+					<td>Same code operates on different instances — the embryo of polymorphism</td>
+			</tr>
+	</tbody>
+</table></div>
+<blockquote class="alert alert-important">
+    <p>Struct + pointer is not a &ldquo;patch&rdquo; for C, but the <strong>native way</strong> C interacts with hardware. Chip vendors use it to map registers, kernel developers use it to implement polymorphism, we use it to build platform abstractions — all from the same lineage.</p></blockquote><hr>
 <h2 id="1-the-starting-point-of-encapsulation-struct--me-pointer">1. The Starting Point of Encapsulation: struct + me Pointer
 </h2><h3 id="11-the-most-primitive-form">1.1 The Most Primitive Form
 </h3><div class="highlight"><div class="chroma">
@@ -1559,7 +1697,7 @@
 
 
         <span>
-            Last updated on Jul 04, 2026 21:33 &#43;0800
+            Last updated on Jul 05, 2026 19:22 &#43;0800
         </span>
     </section></footer>
 
@@ -1610,13 +1748,13 @@
         
         
             <div class="article-image">
-                <img src="/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.bc913b6a996b7421fe3ea97f79ea25e3_hu_b1e5a0a00e8e56e1.png" 
+                <img src="/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop.845ad1bc14f6864ea3e8db6e61af4b4f_hu_7dfd5ddb3e7a77a7.png" 
                         width="250" 
                         height="150" 
                         loading="lazy"
                         alt="Featured image of post A Taste of Bootloader Five-Layer Architecture: OOP Object Design Model from Platform Abstraction to App Orchestration"
                         
-                        data-hash="md5-vJE7aplrdCH&#43;Pql/eeol4w==">
+                        data-hash="md5-hFrRvBT2hk6j6NtuYa9LTw==">
                 
             </div>
         
@@ -1647,6 +1785,30 @@
 
         <div class="article-details">
             <h2 class="article-title">GNU LD Linker Script in Depth: Dissecting Embedded Memory Layout and Section Relocation via an STM32F407 Example</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/">
+        
+        
+            <div class="article-image">
+                <img src="/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.aa17ac05ece23fe492616d826bed0cc3_hu_c370f2443c0623d6.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms"
+                        
+                        data-hash="md5-qhesBeziP&#43;SSYW2Ca&#43;0Mww==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms</h2>
         </div>
     </a>
 </article>
@@ -1700,30 +1862,6 @@
 </article>
 
             
-                
-<article class="has-image">
-    <a href="/en/p/stm32f407-secure-bootloader-design-a/b-dual-partition-encryption/signing-and-multi-channel-upgrade/">
-        
-        
-            <div class="article-image">
-                <img src="/p/stm32f407-%E5%AE%89%E5%85%A8-bootloader-%E8%AE%BE%E8%AE%A1a/b-%E5%8F%8C%E5%88%86%E5%8C%BA%E5%8A%A0%E5%AF%86%E7%AD%BE%E5%90%8D%E4%B8%8E%E5%A4%9A%E6%B8%A0%E9%81%93%E5%8D%87%E7%BA%A7/STM32F407%E5%AE%89%E5%85%A8Bootloader%E8%AE%BE%E8%AE%A1.7c8335e5345c22f2e144305e64572346_hu_246f581f8c773c70.png" 
-                        width="250" 
-                        height="150" 
-                        loading="lazy"
-                        alt="Featured image of post STM32F407 Secure Bootloader Design: A/B Dual Partition, Encryption/Signing, and Multi-Channel Upgrade"
-                        
-                        data-hash="md5-fIM15TRcIvLhRDBeZFcjRg==">
-                
-            </div>
-        
-
-        <div class="article-details">
-            <h2 class="article-title">STM32F407 Secure Bootloader Design: A/B Dual Partition, Encryption/Signing, and Multi-Channel Upgrade</h2>
-        </div>
-    </a>
-</article>
-
-            
         </div>
     </div>
 </aside>
@@ -1770,7 +1908,9 @@
             
                 
             
-        This website has been running stably<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 7 ></span> articles <span style="font-weight: bold;">·</span> Total <span id="articlewordCount">&lt; 23.36 k ></span> words
+                
+            
+        This website has been running stably<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 8 ></span> articles <span style="font-weight: bold;">·</span> Total <span id="articlewordCount">&lt; 27.00 k ></span> words
     </section>
     <section class="powerby">
         Built with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> <br />
