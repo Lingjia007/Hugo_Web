@@ -1,0 +1,2105 @@
+<!DOCTYPE html>
+<html lang="en-us" dir="ltr">
+    <head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="Windows Subsystem for Linux 2 配合 Docker 容器化 TensorFlow 开发环境，从安装 WSL、配置 Docker Desktop、拉取 NVIDIA TensorFlow 官方容器，到训练关键词检测模型、TensorBoard 可视化、模型量化，最终部署到 STM32F407VGT6 的完整流程">
+<title>WSL2 &#43; Docker &#43; TensorFlow：从环境搭建到 STM32F407 模型部署完整教程</title>
+
+<link rel='canonical' href='https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/'>
+
+<link rel="stylesheet" href="/Hugo_Web/scss/style.min.553d9fc5cc86a8c9deb4211c02fd07c2210fc13d76ef772a58388b83939349ab.css"><meta property='og:title' content="WSL2 + Docker + TensorFlow：从环境搭建到 STM32F407 模型部署完整教程">
+<meta property='og:description' content="Windows Subsystem for Linux 2 配合 Docker 容器化 TensorFlow 开发环境，从安装 WSL、配置 Docker Desktop、拉取 NVIDIA TensorFlow 官方容器，到训练关键词检测模型、TensorBoard 可视化、模型量化，最终部署到 STM32F407VGT6 的完整流程">
+<meta property='og:url' content='https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/'>
+<meta property='og:site_name' content='lingsir007'>
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='WSL2' /><meta property='article:tag' content='Docker' /><meta property='article:tag' content='TensorFlow' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='模型训练' /><meta property='article:tag' content='TensorBoard' /><meta property='article:published_time' content='2026-07-06T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-06T23:01:58&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/WSL2&#43;Docker&#43;TensorFlow%E6%95%99%E7%A8%8B%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.png' />
+<meta name="twitter:title" content="WSL2 + Docker + TensorFlow：从环境搭建到 STM32F407 模型部署完整教程">
+<meta name="twitter:description" content="Windows Subsystem for Linux 2 配合 Docker 容器化 TensorFlow 开发环境，从安装 WSL、配置 Docker Desktop、拉取 NVIDIA TensorFlow 官方容器，到训练关键词检测模型、TensorBoard 可视化、模型量化，最终部署到 STM32F407VGT6 的完整流程"><meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content='https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/WSL2&#43;Docker&#43;TensorFlow%E6%95%99%E7%A8%8B%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.png' />
+    <link rel="shortcut icon" href="/Hugo_Web/icons/favicon.ico" />
+
+    </head>
+    <body class="
+    article-page
+    ">
+    <script>
+        (function() {
+            const colorSchemeKey = 'StackColorScheme';
+            if(!localStorage.getItem(colorSchemeKey)){
+                localStorage.setItem(colorSchemeKey, "auto");
+            }
+        })();
+    </script><script>
+    (function() {
+        const colorSchemeKey = 'StackColorScheme';
+        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+
+        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
+            
+
+            document.documentElement.dataset.scheme = 'dark';
+        } else {
+            document.documentElement.dataset.scheme = 'light';
+        }
+    })();
+</script>
+<div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky ">
+    <button class="hamburger hamburger--spin" type="button" id="toggle-menu" aria-label="切换菜单">
+        <span class="hamburger-box">
+            <span class="hamburger-inner"></span>
+        </span>
+    </button>
+
+    <header>
+        
+            
+            <figure class="site-avatar">
+                <a href="/Hugo_Web/">
+                
+                    
+                    
+                    
+                        
+                        <img src="/Hugo_Web/img/avatar_hu_49d0a8f5a8c62cc5.png" width="300"
+                            height="300" class="site-logo" loading="lazy" alt="Avatar">
+                    
+                
+                </a>
+                
+                    <span class="emoji">🤔</span>
+                
+            </figure>
+            
+        
+        
+        <div class="site-meta">
+            <h1 class="site-name"><a href="/Hugo_Web">lingsir007</a></h1>
+            <h2 class="site-description">欢迎来到我的网站</h2>
+        </div>
+    </header><ol class="menu-social">
+            
+                <li>
+                    <a 
+                        href='https://github.com/Lingjia007?tab=repositories'
+                        target="_blank"
+                        title="GitHub"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+                <li>
+                    <a 
+                        href='https://twitter.com'
+                        target="_blank"
+                        title="Twitter"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M22 4.01c-1 .49 -1.98 .689 -3 .99c-1.121 -1.265 -2.783 -1.335 -4.38 -.737s-2.643 2.06 -2.62 3.737v1c-3.245 .083 -6.135 -1.395 -8 -4c0 0 -4.182 7.433 4 11c-1.872 1.247 -3.739 2.088 -6 2c3.308 1.803 6.913 2.423 10.034 1.517c3.58 -1.04 6.522 -3.723 7.651 -7.742a13.84 13.84 0 0 0 .497 -3.753c-.002 -.249 1.51 -2.772 1.818 -4.013z" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+        </ol><ol class="menu" id="main-menu">
+        
+        
+        
+        <li >
+            <a href='/Hugo_Web/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <polyline points="5 12 3 12 12 3 21 12 19 12" />
+  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+  <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+</svg>
+
+
+
+                
+                <span>主页</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/%E5%85%B3%E4%BA%8E/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="7" r="4" />
+  <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+</svg>
+
+
+
+                
+                <span>关于</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/archives/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <rect x="3" y="4" width="18" height="4" rx="2" />
+  <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10" />
+  <line x1="10" y1="12" x2="14" y2="12" />
+</svg>
+
+
+
+                
+                <span>归档</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/search/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="10" cy="10" r="7" />
+  <line x1="21" y1="21" x2="15" y2="15" />
+</svg>
+
+
+
+                
+                <span>搜索</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/%E5%8F%8B%E6%83%85%E9%93%BE%E6%8E%A5/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5" />
+  <path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5" />
+</svg>
+
+
+
+                
+                <span>友情链接</span>
+            </a>
+        </li>
+        
+        <li class="menu-bottom-section">
+            <ol class="menu">
+                    
+                        <li id="i18n-switch">  
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M4 5h7" />
+  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
+  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+</svg>
+
+
+
+                            <select name="language" title="language" onchange="window.location.href = this.selectedOptions[0].value">
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/" selected>简体中文</option>
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/zh-hk/" >繁體中文</option>
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/en/" >English</option>
+                                
+                            </select>
+                        </li>
+                    
+                
+
+                
+                    <li id="dark-mode-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="8" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="16" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <span>暗色模式</span>
+                    </li>
+                
+            </ol>
+        </li>
+    </ol>
+</aside>
+
+    <aside class="sidebar right-sidebar sticky">
+        
+        
+
+        
+            
+                
+    <section class="widget archives">
+        <div class="widget-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <line x1="5" y1="9" x2="19" y2="9" />
+  <line x1="5" y1="15" x2="19" y2="15" />
+  <line x1="11" y1="4" x2="7" y2="20" />
+  <line x1="17" y1="4" x2="13" y2="20" />
+</svg>
+
+
+
+        </div>
+        <h2 class="widget-title section-title">目录</h2>
+        
+        <div class="widget--toc">
+            <nav id="TableOfContents">
+  <ol>
+    <li><a href="#前言">前言</a></li>
+    <li><a href="#一安装-wsl-与-linux-子系统">一、安装 WSL 与 Linux 子系统</a>
+      <ol>
+        <li><a href="#11-启用-wsl-功能">1.1 启用 WSL 功能</a></li>
+        <li><a href="#12-设置-wsl2-为默认版本">1.2 设置 WSL2 为默认版本</a></li>
+        <li><a href="#13-验证-wsl-版本">1.3 验证 WSL 版本</a></li>
+      </ol>
+    </li>
+    <li><a href="#二安装-docker-desktop">二、安装 Docker Desktop</a>
+      <ol>
+        <li><a href="#21-下载-docker-desktop">2.1 下载 Docker Desktop</a></li>
+        <li><a href="#22-安装与配置">2.2 安装与配置</a></li>
+      </ol>
+    </li>
+    <li><a href="#三开启-docker-的-wsl-扩展">三、开启 Docker 的 WSL 扩展</a>
+      <ol>
+        <li><a href="#31-docker-desktop-设置">3.1 Docker Desktop 设置</a></li>
+        <li><a href="#32-验证-docker-集成">3.2 验证 Docker 集成</a></li>
+      </ol>
+    </li>
+    <li><a href="#四拉取-nvidia-tensorflow-官方容器">四、拉取 NVIDIA TensorFlow 官方容器</a>
+      <ol>
+        <li><a href="#41-容器地址">4.1 容器地址</a></li>
+        <li><a href="#42-拉取容器">4.2 拉取容器</a></li>
+        <li><a href="#43-验证容器安装">4.3 验证容器安装</a></li>
+      </ol>
+    </li>
+    <li><a href="#五启动-tensorflow-容器">五、启动 TensorFlow 容器</a>
+      <ol>
+        <li><a href="#51-容器启动命令">5.1 容器启动命令</a></li>
+        <li><a href="#52-容器运行状态">5.2 容器运行状态</a></li>
+      </ol>
+    </li>
+    <li><a href="#六准备训练项目">六、准备训练项目</a>
+      <ol>
+        <li><a href="#61-项目目录结构">6.1 项目目录结构</a></li>
+        <li><a href="#62-数据集准备">6.2 数据集准备</a></li>
+      </ol>
+    </li>
+    <li><a href="#七开始模型训练">七、开始模型训练</a>
+      <ol>
+        <li><a href="#71-训练命令">7.1 训练命令</a></li>
+        <li><a href="#72-观察训练状态">7.2 观察训练状态</a></li>
+      </ol>
+    </li>
+    <li><a href="#八tensorboard-可视化训练">八、TensorBoard 可视化训练</a>
+      <ol>
+        <li><a href="#81-启动-tensorboard">8.1 启动 TensorBoard</a></li>
+        <li><a href="#82-访问-tensorboard">8.2 访问 TensorBoard</a></li>
+      </ol>
+    </li>
+    <li><a href="#九训练结果与模型量化">九、训练结果与模型量化</a>
+      <ol>
+        <li><a href="#91-最终训练结果">9.1 最终训练结果</a></li>
+        <li><a href="#92-模型量化">9.2 模型量化</a></li>
+      </ol>
+    </li>
+    <li><a href="#十stm32f407-部署测试">十、STM32F407 部署测试</a>
+      <ol>
+        <li><a href="#101-模型集成">10.1 模型集成</a></li>
+        <li><a href="#102-stm32cubeai-导入">10.2 STM32CubeAI 导入</a></li>
+        <li><a href="#103-测试结果">10.3 测试结果</a></li>
+      </ol>
+    </li>
+    <li><a href="#十一环境清理与常见问题">十一、环境清理与常见问题</a>
+      <ol>
+        <li><a href="#111-容器清理">11.1 容器清理</a></li>
+        <li><a href="#112-常见问题">11.2 常见问题</a></li>
+      </ol>
+    </li>
+    <li><a href="#参考资料">参考资料</a></li>
+  </ol>
+</nav>
+        </div>
+    </section>
+
+            
+        
+    </aside>
+
+
+            <main class="main full-width">
+    <article class="has-image main-article">
+    <header class="article-header">
+        <div class="article-image">
+            <a href="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/">
+                <img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/WSL2&#43;Docker&#43;TensorFlow%E6%95%99%E7%A8%8B%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2_hu_ff39234343d9b148.png"
+                        srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/WSL2&#43;Docker&#43;TensorFlow%E6%95%99%E7%A8%8B%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2_hu_ff39234343d9b148.png 800w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/WSL2&#43;Docker&#43;TensorFlow%E6%95%99%E7%A8%8B%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2_hu_c3a48aa091ca7fee.png 1600w"
+                        width="800" 
+                        height="442" 
+                        loading="lazy"
+                        alt="Featured image of post WSL2 &#43; Docker &#43; TensorFlow：从环境搭建到 STM32F407 模型部署完整教程" />
+                
+            </a>
+        </div>
+    
+
+    <div class="article-details">
+    
+    <header class="article-category">
+        
+            <a href="/Hugo_Web/categories/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/" >
+                深度学习
+            </a>
+        
+    </header>
+    
+
+    <div class="article-title-wrapper">
+        <h2 class="article-title">
+            <a href="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/">WSL2 &#43; Docker &#43; TensorFlow：从环境搭建到 STM32F407 模型部署完整教程</a>
+        </h2>
+    
+        
+        <h3 class="article-subtitle">
+            Windows Subsystem for Linux 2 配合 Docker 容器化 TensorFlow 开发环境，从安装 WSL、配置 Docker Desktop、拉取 NVIDIA TensorFlow 官方容器，到训练关键词检测模型、TensorBoard 可视化、模型量化，最终部署到 STM32F407VGT6 的完整流程
+        </h3>
+        
+    </div>
+
+    
+    
+    
+    
+    <footer class="article-time">
+        
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4" />
+  <circle cx="18" cy="18" r="4" />
+  <path d="M15 3v4" />
+  <path d="M7 3v4" />
+  <path d="M3 11h16" />
+  <path d="M18 16.496v1.504l1 1" />
+</svg>
+                <time class="article-time--published">Jul 06, 2026</time>
+            </div>
+        <div class="article-lastmod">
+                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
+                <time>
+                    Jul 06, 2026 23:01 &#43;0800
+                </time>
+            </div><div id="wordCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
+            <time class="article-wordcount">
+                1864  字
+            </time>
+        </div>
+
+        
+
+        <div id="viewCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
+            <time class="article-time--reading">
+                
+                <span id="vercount_value_page_pv">loading... </span> 次
+            </time>
+        </div>
+
+    </footer>
+    
+
+    
+</div>
+
+</header>
+
+    <section class="article-content">
+    
+    
+    <h2 id="前言">前言
+</h2><p>在 Windows 上进行深度学习开发，传统方案是直接安装 CUDA + cuDNN + TensorFlow，但版本兼容性问题频发，环境配置耗时且容易出错。<strong>WSL2 + Docker</strong> 的组合提供了更优雅的解决方案：</p>
+<ul>
+<li><strong>WSL2</strong>：Windows 内核级 Linux 子系统，接近原生 Linux 性能</li>
+<li><strong>Docker</strong>：容器化隔离，环境一键拉取、版本锁定、跨平台复用</li>
+<li><strong>NVIDIA TensorFlow 官方容器</strong>：预装 CUDA、cuDNN、TensorFlow，版本严格匹配</li>
+</ul>
+<p>本文以<strong>关键词检测模型训练</strong>为例，完整演示从环境搭建到 STM32F407 部署的全流程。</p>
+<blockquote class="alert alert-note">
+    <p>本文<strong>并非保姆级教程</strong>，而是对整个流程的简单记录与方案尝试经验。部分步骤假设读者已具备基础的 Linux/Docker/TensorFlow 知识。如遇问题，请参考官方文档或搜索具体错误信息。</p></blockquote><hr>
+<h2 id="一安装-wsl-与-linux-子系统">一、安装 WSL 与 Linux 子系统
+</h2><h3 id="11-启用-wsl-功能">1.1 启用 WSL 功能
+</h3><p>以管理员身份打开 PowerShell，执行：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-powershell" data-lang="powershell"><span class="line"><span class="cl"><span class="n">wsl</span> <span class="p">-</span><span class="n">-install</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>这条命令会自动：</p>
+<ol>
+<li>启用 WSL 功能</li>
+<li>启用虚拟机平台</li>
+<li>下载并安装 Ubuntu（默认）</li>
+</ol>
+<p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85wsl%E4%B8%8Elinux%E5%AD%90%E7%B3%BB%E7%BB%9F.png"
+	width="1481"
+	height="934"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85wsl%E4%B8%8Elinux%E5%AD%90%E7%B3%BB%E7%BB%9F_hu_6262901fabce462f.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85wsl%E4%B8%8Elinux%E5%AD%90%E7%B3%BB%E7%BB%9F_hu_cd3aebbc8048382.png 1024w"
+	loading="lazy"
+	
+		alt="安装wsl与linux子系统"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="158"
+		data-flex-basis="380px"
+	
+></p>
+<p>安装完成后重启计算机。</p>
+<h3 id="12-设置-wsl2-为默认版本">1.2 设置 WSL2 为默认版本
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-powershell" data-lang="powershell"><span class="line"><span class="cl"><span class="n">wsl</span> <span class="p">-</span><span class="n">-set-default-version</span> <span class="mf">2</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="13-验证-wsl-版本">1.3 验证 WSL 版本
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-powershell" data-lang="powershell"><span class="line"><span class="cl"><span class="n">wsl</span> <span class="n">-l</span> <span class="n">-v</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>输出应显示 Ubuntu 运行在 WSL 2。</p>
+<hr>
+<h2 id="二安装-docker-desktop">二、安装 Docker Desktop
+</h2><h3 id="21-下载-docker-desktop">2.1 下载 Docker Desktop
+</h3><p>访问 Docker 官方下载页面：</p>
+<blockquote>
+<p><a class="link" href="https://docs.docker.com/desktop/setup/install/windows-install/"  target="_blank" rel="noopener"
+    >Docker Desktop for Windows 下载地址</a></p>
+</blockquote>
+<p>选择 Windows amd64 版本下载安装包。</p>
+<p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85docker%E6%A1%8C%E9%9D%A2%E7%89%88.png"
+	width="1752"
+	height="1223"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85docker%E6%A1%8C%E9%9D%A2%E7%89%88_hu_33e7220f976be45e.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85docker%E6%A1%8C%E9%9D%A2%E7%89%88_hu_51e19ac984f2d7ac.png 1024w"
+	loading="lazy"
+	
+		alt="安装docker桌面版"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="143"
+		data-flex-basis="343px"
+	
+></p>
+<h3 id="22-安装与配置">2.2 安装与配置
+</h3><p>安装时勾选 <strong>&ldquo;Use WSL 2 instead of Hyper-V&rdquo;</strong> 选项。安装完成后重启计算机。</p>
+<p>首次启动时，Docker Desktop 会提示是否启用 WSL 2 集成——选择 <strong>Yes</strong>。</p>
+<hr>
+<h2 id="三开启-docker-的-wsl-扩展">三、开启 Docker 的 WSL 扩展
+</h2><h3 id="31-docker-desktop-设置">3.1 Docker Desktop 设置
+</h3><p>打开 Docker Desktop → Settings → Resources → WSL Integration：</p>
+<p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFdocker%E7%9A%84wsl%E6%89%A9%E5%B1%95.png"
+	width="1832"
+	height="1139"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFdocker%E7%9A%84wsl%E6%89%A9%E5%B1%95_hu_5b81554f44c46f4d.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFdocker%E7%9A%84wsl%E6%89%A9%E5%B1%95_hu_4f9949e1a815fa9f.png 1024w"
+	loading="lazy"
+	
+		alt="开启docker的wsl扩展"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="160"
+		data-flex-basis="386px"
+	
+></p>
+<p>确保：</p>
+<ul>
+<li><strong>Enable integration with my default WSL distro</strong> 已勾选</li>
+<li>Ubuntu 选项已启用</li>
+</ul>
+<p>这样 Ubuntu 子系统内可以直接使用 <code>docker</code> 命令。</p>
+<h3 id="32-验证-docker-集成">3.2 验证 Docker 集成
+</h3><p>进入 Ubuntu 终端：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">docker --version
+</span></span><span class="line"><span class="cl">docker run hello-world
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81docker%E9%9B%86%E6%88%90.png"
+	width="1481"
+	height="934"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81docker%E9%9B%86%E6%88%90_hu_60b4edd930e4b573.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81docker%E9%9B%86%E6%88%90_hu_437c629dbd014948.png 1024w"
+	loading="lazy"
+	
+		alt="验证docker集成"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="158"
+		data-flex-basis="380px"
+	
+></p>
+<p>如果显示 Docker 版本并成功拉取运行 hello-world 容器，说明集成完成。</p>
+<hr>
+<h2 id="四拉取-nvidia-tensorflow-官方容器">四、拉取 NVIDIA TensorFlow 官方容器
+</h2><h3 id="41-容器地址">4.1 容器地址
+</h3><p>NVIDIA NGC 提供官方 TensorFlow 容器，预装完整 GPU 加速环境：</p>
+<blockquote>
+<p><a class="link" href="https://catalog.ngc.nvidia.com/orgs/nvidia/-/containers/tensorflow/25.02-tf2-py3"  target="_blank" rel="noopener"
+    >NVIDIA TensorFlow 25.02-tf2-py3 容器地址</a></p>
+</blockquote>
+<h3 id="42-拉取容器">4.2 拉取容器
+</h3><p>在 Ubuntu 终端执行：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">docker pull nvcr.io/nvidia/tensorflow:25.02-tf2-py3
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E4%B8%8B%E8%BD%BD%E5%AE%98%E6%96%B9tensorflow%E7%9A%84docker%E5%AE%B9%E5%99%A8.png"
+	width="2557"
+	height="1303"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E4%B8%8B%E8%BD%BD%E5%AE%98%E6%96%B9tensorflow%E7%9A%84docker%E5%AE%B9%E5%99%A8_hu_f9d7f9a478266e01.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E4%B8%8B%E8%BD%BD%E5%AE%98%E6%96%B9tensorflow%E7%9A%84docker%E5%AE%B9%E5%99%A8_hu_39729cf419d78968.png 1024w"
+	loading="lazy"
+	
+		alt="下载官方tensorflow的docker容器"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="196"
+		data-flex-basis="470px"
+	
+></p>
+<p>镜像大小约 5GB，包含：</p>
+<ul>
+<li>TensorFlow 2.x</li>
+<li>CUDA 12.x</li>
+<li>cuDNN 9.x</li>
+<li>Python 3.x</li>
+<li>Jupyter Notebook</li>
+<li>TensorBoard</li>
+</ul>
+<h3 id="43-验证容器安装">4.3 验证容器安装
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">docker images
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81%E5%AE%B9%E5%99%A8%E5%AE%89%E8%A3%85.png"
+	width="1833"
+	height="1140"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81%E5%AE%B9%E5%99%A8%E5%AE%89%E8%A3%85_hu_faffda70b408d8af.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81%E5%AE%B9%E5%99%A8%E5%AE%89%E8%A3%85_hu_2d1b65e6d64545c3.png 1024w"
+	loading="lazy"
+	
+		alt="验证容器安装"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="160"
+		data-flex-basis="385px"
+	
+></p>
+<p>确认 <code>nvcr.io/nvidia/tensorflow</code> 镜像已存在。</p>
+<hr>
+<h2 id="五启动-tensorflow-容器">五、启动 TensorFlow 容器
+</h2><h3 id="51-容器启动命令">5.1 容器启动命令
+</h3><p>在项目目录下执行（<code>${PWD}</code> 会挂载当前目录到容器 <code>/workspace</code>）：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">docker run --gpus all <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --ipc<span class="o">=</span>host <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --ulimit <span class="nv">memlock</span><span class="o">=</span>-1 <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --ulimit <span class="nv">stack</span><span class="o">=</span><span class="m">67108864</span> <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --rm <span class="se">\
+</span></span></span><span class="line"><span class="cl">  -it -p 8888:8888 <span class="se">\
+</span></span></span><span class="line"><span class="cl">  -p 6006:6006 <span class="se">\
+</span></span></span><span class="line"><span class="cl">  -v <span class="si">${</span><span class="nv">PWD</span><span class="si">}</span>:/workspace <span class="se">\
+</span></span></span><span class="line"><span class="cl">  nvcr.io/nvidia/tensorflow:25.02-tf2-py3
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>参数解析：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>参数</th>
+					<th>作用</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>--gpus all</code></td>
+					<td>允许容器访问所有 GPU</td>
+			</tr>
+			<tr>
+					<td><code>--ipc=host</code></td>
+					<td>使用主机 IPC namespace，共享内存通信更高效</td>
+			</tr>
+			<tr>
+					<td><code>--ulimit memlock=-1</code></td>
+					<td>无限锁定内存，适合大模型训练</td>
+			</tr>
+			<tr>
+					<td><code>--ulimit stack=67108864</code></td>
+					<td>64MB 栈大小</td>
+			</tr>
+			<tr>
+					<td><code>--rm</code></td>
+					<td>容器退出后自动删除</td>
+			</tr>
+			<tr>
+					<td><code>-it</code></td>
+					<td>交互模式 + 伪终端</td>
+			</tr>
+			<tr>
+					<td><code>-p 8888:8888</code></td>
+					<td>Jupyter Notebook 端口映射</td>
+			</tr>
+			<tr>
+					<td><code>-p 6006:6006</code></td>
+					<td>TensorBoard 端口映射</td>
+			</tr>
+			<tr>
+					<td><code>-v ${PWD}:/workspace</code></td>
+					<td>当前目录挂载到容器工作空间</td>
+			</tr>
+	</tbody>
+</table></div>
+<p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%BF%90%E8%A1%8Cdocker.png"
+	width="1481"
+	height="934"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%BF%90%E8%A1%8Cdocker_hu_42062913ad42e3c7.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%BF%90%E8%A1%8Cdocker_hu_96ff6488a087428f.png 1024w"
+	loading="lazy"
+	
+		alt="运行docker"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="158"
+		data-flex-basis="380px"
+	
+></p>
+<h3 id="52-容器运行状态">5.2 容器运行状态
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">docker ps
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%B9%E5%99%A8%E8%BF%90%E8%A1%8C%E7%8A%B6%E6%80%81.png"
+	width="1832"
+	height="1140"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%B9%E5%99%A8%E8%BF%90%E8%A1%8C%E7%8A%B6%E6%80%81_hu_e13bd263516af30a.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%B9%E5%99%A8%E8%BF%90%E8%A1%8C%E7%8A%B6%E6%80%81_hu_dd5ef0779ad21b3d.png 1024w"
+	loading="lazy"
+	
+		alt="容器运行状态"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="160"
+		data-flex-basis="385px"
+	
+></p>
+<p>容器运行后，可以直接在容器内执行 Python 脚本。</p>
+<hr>
+<h2 id="六准备训练项目">六、准备训练项目
+</h2><h3 id="61-项目目录结构">6.1 项目目录结构
+</h3><p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83%E6%96%87%E4%BB%B6%E7%9B%AE%E5%BD%95%E7%BB%93%E6%9E%84.png"
+	width="1833"
+	height="1140"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83%E6%96%87%E4%BB%B6%E7%9B%AE%E5%BD%95%E7%BB%93%E6%9E%84_hu_7f458f38908a9c79.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83%E6%96%87%E4%BB%B6%E7%9B%AE%E5%BD%95%E7%BB%93%E6%9E%84_hu_85a09b2f8d58df3.png 1024w"
+	loading="lazy"
+	
+		alt="开始训练文件目录结构"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="160"
+		data-flex-basis="385px"
+	
+></p>
+<p>典型 TensorFlow Lite Micro 训练项目结构：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">/workspace/Projects/tflm_train/
+</span></span><span class="line"><span class="cl">├── train_micro_speech_model.py   # 训练脚本
+</span></span><span class="line"><span class="cl">├── data/                          # 数据集目录
+</span></span><span class="line"><span class="cl">├── logs/                          # TensorBoard 日志
+</span></span><span class="line"><span class="cl">├── models/                        # 输出模型
+</span></span><span class="line"><span class="cl">└── train_log.txt                  # 训练日志
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="62-数据集准备">6.2 数据集准备
+</h3><p>关键词检测模型使用 Google Speech Commands 数据集，包含 30+ 关键词的数千条语音样本。</p>
+<hr>
+<h2 id="七开始模型训练">七、开始模型训练
+</h2><h3 id="71-训练命令">7.1 训练命令
+</h3><p>在容器内执行：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">python3 train_micro_speech_model.py <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --skip_clone --skip_download <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --clean <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --wanted_words<span class="o">=</span>yes,no,up,down,left,right,on,off,stop,go <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --model_architecture<span class="o">=</span>tiny_conv <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --training_steps<span class="o">=</span>8000,10000,7000 <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --learning_rate<span class="o">=</span>0.001,0.0005,0.0001 <span class="se">\
+</span></span></span><span class="line"><span class="cl">  2&gt;<span class="p">&amp;</span><span class="m">1</span> <span class="p">|</span> tee train_log.txt
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>参数解析：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>参数</th>
+					<th>作用</th>
+					<th></th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>--skip_clone --skip_download</code></td>
+					<td>跳过仓库克隆和数据下载（已准备好）</td>
+					<td></td>
+			</tr>
+			<tr>
+					<td><code>--clean</code></td>
+					<td>清理旧的训练输出</td>
+					<td></td>
+			</tr>
+			<tr>
+					<td><code>--wanted_words</code></td>
+					<td>目标关键词：yes/no/up/down/left/right/on/off/stop/go</td>
+					<td></td>
+			</tr>
+			<tr>
+					<td><code>--model_architecture=tiny_conv</code></td>
+					<td>使用 tiny_conv 架构（适合嵌入式）</td>
+					<td></td>
+			</tr>
+			<tr>
+					<td><code>--training_steps=8000,10000,7000</code></td>
+					<td>三阶段训练步数</td>
+					<td></td>
+			</tr>
+			<tr>
+					<td><code>--learning_rate=0.001,0.0005,0.0001</code></td>
+					<td>三阶段学习率衰减</td>
+					<td></td>
+			</tr>
+			<tr>
+					<td>`2&gt;&amp;1</td>
+					<td>tee train_log.txt`</td>
+					<td>输出同时打印和写入日志</td>
+			</tr>
+	</tbody>
+</table></div>
+<p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83.png"
+	width="1481"
+	height="934"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83_hu_ffec8830f61d4635.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83_hu_f3c7a393aa6e9299.png 1024w"
+	loading="lazy"
+	
+		alt="开始训练"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="158"
+		data-flex-basis="380px"
+	
+></p>
+<h3 id="72-观察训练状态">7.2 观察训练状态
+</h3><p>训练过程中会打印：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">Step 1000: loss=1.23, accuracy=0.78
+</span></span><span class="line"><span class="cl">Step 2000: loss=0.89, accuracy=0.85
+</span></span><span class="line"><span class="cl">...
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%A7%82%E5%AF%9F%E8%AE%AD%E7%BB%83%E7%8A%B6%E6%80%81.png"
+	width="2550"
+	height="1292"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%A7%82%E5%AF%9F%E8%AE%AD%E7%BB%83%E7%8A%B6%E6%80%81_hu_90ed17838745abca.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%A7%82%E5%AF%9F%E8%AE%AD%E7%BB%83%E7%8A%B6%E6%80%81_hu_a8e1b24e2bd7115.png 1024w"
+	loading="lazy"
+	
+		alt="观察训练状态"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="197"
+		data-flex-basis="473px"
+	
+></p>
+<hr>
+<h2 id="八tensorboard-可视化训练">八、TensorBoard 可视化训练
+</h2><h3 id="81-启动-tensorboard">8.1 启动 TensorBoard
+</h3><p>在容器内执行：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">tensorboard --logdir<span class="o">=</span>/workspace/Projects/tflm_train/logs --bind_all --port<span class="o">=</span><span class="m">6006</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFtensorboard.png"
+	width="1481"
+	height="934"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFtensorboard_hu_7b764a5d59cf0211.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFtensorboard_hu_486771b1e5e2374d.png 1024w"
+	loading="lazy"
+	
+		alt="开启tensorboard"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="158"
+		data-flex-basis="380px"
+	
+></p>
+<h3 id="82-访问-tensorboard">8.2 访问 TensorBoard
+</h3><p>浏览器打开：</p>
+<blockquote>
+<p><a class="link" href="http://localhost:6006"  target="_blank" rel="noopener"
+    >http://localhost:6006</a></p>
+</blockquote>
+<p>可以看到：</p>
+<ul>
+<li><strong>SCALARS</strong>：loss、accuracy 曲线</li>
+<li><strong>IMAGES</strong>：模型结构可视化</li>
+<li><strong>GRAPHS</strong>：计算图拓扑</li>
+<li><strong>DISTRIBUTIONS</strong>：权重分布</li>
+<li><strong>HISTOGRAMS</strong>：权重直方图</li>
+</ul>
+<hr>
+<h2 id="九训练结果与模型量化">九、训练结果与模型量化
+</h2><h3 id="91-最终训练结果">9.1 最终训练结果
+</h3><p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E6%9C%80%E7%BB%88%E8%AE%AD%E7%BB%83%E7%BB%93%E6%9E%9C.png"
+	width="2557"
+	height="1302"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E6%9C%80%E7%BB%88%E8%AE%AD%E7%BB%83%E7%BB%93%E6%9E%9C_hu_9dccb60eaf6caed6.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E6%9C%80%E7%BB%88%E8%AE%AD%E7%BB%83%E7%BB%93%E6%9E%9C_hu_1007a183d6b76a46.png 1024w"
+	loading="lazy"
+	
+		alt="最终训练结果"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="196"
+		data-flex-basis="471px"
+	
+></p>
+<p>训练完成后，输出：</p>
+<ul>
+<li><code>.tflite</code> 浮点模型（约 50KB）</li>
+<li>训练日志 <code>train_log.txt</code></li>
+<li>TensorBoard 日志目录</li>
+</ul>
+<h3 id="92-模型量化">9.2 模型量化
+</h3><p>TensorFlow Lite 支持 <strong>训练后量化</strong>：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">python3 quantize_model.py <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --input_model<span class="o">=</span>models/micro_speech.tflite <span class="se">\
+</span></span></span><span class="line"><span class="cl">  --output_model<span class="o">=</span>models/micro_speech_quantized.tflite
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>量化后模型：</p>
+<ul>
+<li>大小压缩至约 <strong>18KB</strong></li>
+<li>精度损失约 1-2%</li>
+<li>适合 MCU 运行</li>
+</ul>
+<p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%87%8F%E5%8C%96%E7%BB%93%E6%9E%9C.png"
+	width="1821"
+	height="1285"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%87%8F%E5%8C%96%E7%BB%93%E6%9E%9C_hu_7b76e157794704fa.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%87%8F%E5%8C%96%E7%BB%93%E6%9E%9C_hu_d5189fa2fe0a89bf.png 1024w"
+	loading="lazy"
+	
+		alt="量化结果"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="141"
+		data-flex-basis="340px"
+	
+></p>
+<hr>
+<h2 id="十stm32f407-部署测试">十、STM32F407 部署测试
+</h2><h3 id="101-模型集成">10.1 模型集成
+</h3><p>将量化后的 <code>.tflite</code> 模型转换为 C 数组：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl">xxd -i models/micro_speech_quantized.tflite &gt; micro_speech_model_data.cc
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="102-stm32cubeai-导入">10.2 STM32CubeAI 导入
+</h3><p>在 STM32CubeMX 中：</p>
+<ol>
+<li>添加 X-CUBE-AI 组件</li>
+<li>导入 <code>.tflite</code> 模型</li>
+<li>生成代码</li>
+</ol>
+<p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/cubemx%E5%AF%BC%E5%85%A5%E6%A8%A1%E5%9E%8B%E8%A7%A3%E6%9E%90.png"
+	width="2557"
+	height="1437"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/cubemx%E5%AF%BC%E5%85%A5%E6%A8%A1%E5%9E%8B%E8%A7%A3%E6%9E%90_hu_fc3dc738d35b01f4.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/cubemx%E5%AF%BC%E5%85%A5%E6%A8%A1%E5%9E%8B%E8%A7%A3%E6%9E%90_hu_c5818c3df365a77.png 1024w"
+	loading="lazy"
+	
+		alt="cubemx导入模型解析"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="177"
+		data-flex-basis="427px"
+	
+></p>
+<p>CubeMX 会自动解析模型结构并生成推理代码框架。</p>
+<h3 id="103-测试结果">10.3 测试结果
+</h3><p><img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/stm32f407%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C.png"
+	width="1363"
+	height="2499"
+	srcset="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/stm32f407%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C_hu_83776c2cc843ee7a.png 480w, /Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/stm32f407%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C_hu_ac27dd1be70d0ce2.png 1024w"
+	loading="lazy"
+	
+		alt="stm32f407测试结果"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="54"
+		data-flex-basis="130px"
+	
+></p>
+<p>在 STM32F407VGT6 上运行关键词检测：</p>
+<ul>
+<li><strong>推理时间</strong>：约 30ms（不含音频预处理）</li>
+<li><strong>内存占用</strong>：约 50KB RAM</li>
+<li><strong>准确率</strong>：实测 85%+</li>
+</ul>
+<hr>
+<h2 id="十一环境清理与常见问题">十一、环境清理与常见问题
+</h2><h3 id="111-容器清理">11.1 容器清理
+</h3><p>训练完成后，容器会因 <code>--rm</code> 参数自动删除。镜像保留：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-bash" data-lang="bash"><span class="line"><span class="cl"><span class="c1"># 查看镜像</span>
+</span></span><span class="line"><span class="cl">docker images
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1"># 删除镜像（如不再需要）</span>
+</span></span><span class="line"><span class="cl">docker rmi nvcr.io/nvidia/tensorflow:25.02-tf2-py3
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="112-常见问题">11.2 常见问题
+</h3><p><strong>Q: WSL2 无法识别 GPU？</strong></p>
+<p>确保：</p>
+<ul>
+<li>Windows 已安装 NVIDIA 驱动（最新版）</li>
+<li>Docker Desktop 的 WSL 集成已开启</li>
+<li>容器启动时添加 <code>--gpus all</code></li>
+</ul>
+<p><strong>Q: TensorBoard 无法访问？</strong></p>
+<p>检查：</p>
+<ul>
+<li>容器是否正确映射 <code>-p 6006:6006</code></li>
+<li>TensorBoard 是否使用 <code>--bind_all</code></li>
+<li>Windows 防火墙是否允许端口</li>
+</ul>
+<p><strong>Q: 训练速度很慢？</strong></p>
+<p>排查：</p>
+<ul>
+<li>GPU 是否被正确识别（<code>nvidia-smi</code>）</li>
+<li>数据集是否在容器内（避免跨挂载读写）</li>
+<li><code>--ipc=host</code> 参数是否添加</li>
+</ul>
+<hr>
+<h2 id="参考资料">参考资料
+</h2><ul>
+<li><a class="link" href="https://docs.microsoft.com/en-us/windows/wsl/"  target="_blank" rel="noopener"
+    >WSL2 官方文档</a></li>
+<li><a class="link" href="https://docs.docker.com/desktop/setup/install/windows-install/"  target="_blank" rel="noopener"
+    >Docker Desktop for Windows</a></li>
+<li><a class="link" href="https://catalog.ngc.nvidia.com/orgs/nvidia/-/containers/tensorflow/25.02-tf2-py3"  target="_blank" rel="noopener"
+    >NVIDIA TensorFlow 容器</a></li>
+<li><a class="link" href="https://www.tensorflow.org/lite/microcontrollers"  target="_blank" rel="noopener"
+    >TensorFlow Lite Micro</a></li>
+<li><a class="link" href="https://www.st.com/en/embedded-software/x-cube-ai.html"  target="_blank" rel="noopener"
+    >STM32CubeAI</a></li>
+</ul>
+
+</section>
+
+
+    <footer class="article-footer">
+    
+    <section class="article-tags">
+        
+            <a href="/Hugo_Web/tags/wsl2/">WSL2</a>
+        
+            <a href="/Hugo_Web/tags/docker/">Docker</a>
+        
+            <a href="/Hugo_Web/tags/tensorflow/">TensorFlow</a>
+        
+            <a href="/Hugo_Web/tags/stm32/">STM32</a>
+        
+            <a href="/Hugo_Web/tags/%E6%A8%A1%E5%9E%8B%E8%AE%AD%E7%BB%83/">模型训练</a>
+        
+            <a href="/Hugo_Web/tags/tensorboard/">TensorBoard</a>
+        
+    </section>
+
+
+    
+    <section class="article-copyright">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <path d="M14.5 9a3.5 4 0 1 0 0 6" />
+</svg>
+
+
+
+        <span>Licensed under CC BY-NC-SA 4.0</span>
+    </section>
+    <section class="article-lastmod">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <polyline points="12 7 12 12 15 15" />
+</svg>
+
+
+
+        <span>
+            最后更新于 Jul 06, 2026 23:01 &#43;0800
+        </span>
+    </section></footer>
+
+
+    
+        <link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI&#43;WdtXRGWt2kTvGFasHpSy3SV"crossorigin="anonymous"
+            ><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG&#43;vnGctmUb0ZY0l8"crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"integrity="sha384-&#43;VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4&#43;/RRE05"crossorigin="anonymous"
+                defer
+                >
+            </script><script>
+  window.addEventListener("DOMContentLoaded", () => {
+    const mainArticleElement = document.querySelector(".main-article");
+    renderMathInElement(mainArticleElement, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  });
+</script>
+<div class="math-katex"></div>
+
+    
+</article>
+
+    
+
+    
+
+     
+    
+        
+    
+    <div class="comment"></div>
+
+    
+
+    <footer class="site-footer">
+    <section class="copyright">
+        &copy; 
+        
+            2025 - 
+        
+        2026 lingsir007
+    </section>
+    
+    <section class="running-time">
+        
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+        本网站已稳定运行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;总计<span id="articleCount">&lt; 10 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 47.81 k ></span>字
+    </section>
+    <section class="powerby">
+        使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 构建 <br />
+        主题 <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.30.0">Stack</a></b> 由 <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a> 设计
+    </section>
+</footer>
+
+
+    
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    
+    <div class="pswp__bg"></div>
+
+    
+    <div class="pswp__scroll-wrap">
+
+        
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                
+                
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo="crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU="crossorigin="anonymous"
+                defer
+                >
+            </script><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css"crossorigin="anonymous"
+            ><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css"crossorigin="anonymous"
+            >
+
+            </main>
+        </div>
+        <script 
+                src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z&#43;KMkF24hUW8WePSA9HM="crossorigin="anonymous"
+                
+                >
+            </script><script type="text/javascript" src="/Hugo_Web/ts/main.99ce1801c4bad426a42fc436add4721e149159dbb598636e9578fd59cf778c83.js" defer></script> <script>
+    (function () {
+        const customFont = document.createElement('link');
+        customFont.href = "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap";
+
+        customFont.type = "text/css";
+        customFont.rel = "stylesheet";
+
+        document.head.appendChild(customFont);
+    }());
+</script> <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css"
+/>
+
+<script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
+<script>
+  var pjax = new Pjax({
+    selectors: ["title", ".main-container", ".js-Pjax1", ".js-Pjax2"],
+  });
+</script>
+
+<div id="aplayer"></div>
+<script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
+
+<script>
+  const staticDir = "https://lingjia007.github.io/Hugo_Web/";
+  const ap = new APlayer({
+    container: document.getElementById("aplayer"),
+    audio: [
+      {
+        name: "Keil Generic Key",
+        artist: "EDGE",
+        url: staticDir + "music/Keil Generic Key-EDGE/song.mp3",
+        cover: staticDir + "music/Keil Generic Key-EDGE/cover.png",
+        lrc: staticDir + "music/Keil Generic Key-EDGE/lyric.lrc",
+      },
+      {
+        name: "查无此字",
+        artist: "林奕匡",
+        url: staticDir + "music/查无此字-林奕匡/song.mp3",
+        cover: staticDir + "music/查无此字-林奕匡/cover.jpg",
+        lrc: staticDir + "music/查无此字-林奕匡/lyric.lrc",
+      },
+      {
+        name: "爱别等",
+        artist: "洪卓立",
+        url: staticDir + "music/爱别等-洪卓立/song.mp3",
+        cover: staticDir + "music/爱别等-洪卓立/cover.jpg",
+        lrc: staticDir + "music/爱别等-洪卓立/lyric.lrc",
+      },
+      {
+        name: "乖乖报到",
+        artist: "MC 张天赋",
+        url: staticDir + "music/乖乖报到-MC 张天赋/song.mp3",
+        cover: staticDir + "music/乖乖报到-MC 张天赋/cover.jpg",
+        lrc: staticDir + "music/乖乖报到-MC 张天赋/lyric.lrc",
+      },
+      {
+        name: "指纹",
+        artist: "胡歌",
+        url: staticDir + "music/指纹-胡歌/song.mp3",
+        cover: staticDir + "music/指纹-胡歌/cover.jpg",
+        lrc: staticDir + "music/指纹-胡歌/lyric.lrc",
+      },
+      {
+        name: "还记得",
+        artist: "周柏豪",
+        url: staticDir + "music/还记得-周柏豪/song.mp3",
+        cover: staticDir + "music/还记得-周柏豪/cover.jpg",
+        lrc: staticDir + "music/还记得-周柏豪/lyric.lrc",
+      },
+      {
+        name: "摄氏零度",
+        artist: "张敬轩",
+        url: staticDir + "music/摄氏零度-张敬轩/song.mp3",
+        cover: staticDir + "music/摄氏零度-张敬轩/cover.jpg",
+        lrc: staticDir + "music/摄氏零度-张敬轩/lyric.lrc",
+      },
+      {
+        name: "下一位前度",
+        artist: "林家谦",
+        url: staticDir + "music/下一位前度-林家谦/song.mp3",
+        cover: staticDir + "music/下一位前度-林家谦/cover.jpg",
+        lrc: staticDir + "music/下一位前度-林家谦/lyric.lrc",
+      },
+      {
+        name: "初初",
+        artist: "古巨基",
+        url: staticDir + "music/初初-古巨基/song.mp3",
+        cover: staticDir + "music/初初-古巨基/cover.jpg",
+        lrc: staticDir + "music/初初-古巨基/lyric.lrc",
+      },
+      {
+        name: "这个故事教训我们",
+        artist: "李克勤",
+        url: staticDir + "music/这个故事教训我们-李克勤/song.mp3",
+        cover: staticDir + "music/这个故事教训我们-李克勤/cover.jpg",
+        lrc: staticDir + "music/这个故事教训我们-李克勤/lyric.lrc",
+      },
+      {
+        name: "最后祝福",
+        artist: "黄宗泽",
+        url: staticDir + "music/最后祝福-黄宗泽/song.mp3",
+        cover: staticDir + "music/最后祝福-黄宗泽/cover.jpg",
+        lrc: staticDir + "music/最后祝福-黄宗泽/lyric.lrc",
+      }
+    ],
+    lrcType: 3,
+    fixed: true
+  });
+</script>
+
+<script>
+  
+  function calculateRunningDays(startDateStr, elementId) {
+    let s1 = new Date(startDateStr.replace(/-/g, "/"));
+    let s2 = new Date();
+    let timeDifference = s2.getTime() - s1.getTime();
+
+    let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+    let hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    let minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+
+    
+    let dayText = "天"; 
+    let hourText = "小时";
+    let minuteText = "分钟";
+
+    let result = `<span>< ${days} ${dayText} ${hours} ${hourText} ${minutes} ${minuteText} ></span>`;
+    document.getElementById(elementId).innerHTML = result;
+    }
+
+    document.addEventListener("pjax:complete", () => {
+        calculateRunningDays('2025-3-14', 'runningdays');
+    });
+    calculateRunningDays('2025-3-14', 'runningdays');
+</script>
+
+<script>
+  pjax._handleResponse = pjax.handleResponse;
+  pjax.handleResponse = function (responseText, request, href, options) {
+    if (request.responseText.match("<html")) {
+      if (responseText) {
+        
+        let newDom = new DOMParser().parseFromString(responseText, "text/html");
+        
+        let bodyClass = newDom.body.className;
+        document.body.setAttribute("class", bodyClass);
+      }
+      
+      pjax._handleResponse(responseText, request, href, options);
+    } else {
+      
+    }
+  };
+</script>
+
+<script>
+  
+  function initClock() {
+    
+    var hr = document.getElementById("hr"); 
+    var mn = document.getElementById("mn"); 
+    var sc = document.getElementById("sc"); 
+    if (!hr || !mn || !sc) return;
+
+    
+    var date = new Date();
+    var HH = date.getHours();
+    var MM = date.getMinutes();
+    var SS = date.getSeconds();
+
+    
+    var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+    var minuteAngle = MM * 6 + (SS / 60) * 6;
+    var secondAngle = SS * 6;
+
+    
+    hr.style.transition = "none";
+    mn.style.transition = "none";
+    sc.style.transition = "none";
+
+    
+    hr.style.transform = "rotate(0deg)";
+    mn.style.transform = "rotate(0deg)";
+    sc.style.transform = "rotate(0deg)";
+
+    
+    setTimeout(() => {
+      hr.style.transition = "";
+      mn.style.transition = "";
+      sc.style.transition = "";
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 0);
+
+    
+    setInterval(function () {
+      var date = new Date();
+      var HH = date.getHours();
+      var MM = date.getMinutes();
+      var SS = date.getSeconds();
+
+      
+      var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+      var minuteAngle = MM * 6 + (SS / 60) * 6;
+      var secondAngle = SS * 6;
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 1000);
+  }
+
+  
+  window.onload = function () {
+    initClock();
+  };
+
+  
+  document.addEventListener("pjax:complete", () => {
+    initClock();
+  });
+</script>
+
+<script>
+  document.addEventListener("pjax:complete", () => {
+    
+    window.Stack.init();
+  });
+</script>
+
+<script>
+  async function renderKaTeX() {
+    
+    let katex = document.querySelector(".math-katex");
+    if (!katex) {
+      return;
+    }
+    
+    while (typeof renderMathInElement !== "function") {
+      await delay(500);
+    }
+    
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  }
+
+  
+
+  function delay(time) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, time);
+    });
+  }
+
+  document.addEventListener("pjax:complete", () => {
+    renderKaTeX();
+  });
+</script>
+
+<script src="https://lingjia007.github.io/Hugo_Web/js/topbar.min.js"></script>
+
+<script>
+  
+  topbar.config({
+    barColors: {
+      0: "rgba(255,  255, 255, 1)", 
+      "1.0": "rgba(0, 149, 234,  1)", 
+    },
+  });
+
+  document.addEventListener("pjax:send", () => {
+    
+    topbar.show();
+  });
+
+  document.addEventListener("pjax:complete", () => {
+    
+    topbar.hide();
+  });
+</script>
+
+<script>
+  const cdnPath =
+    "https://cdn.jsdelivr.net/gh/Lingjia007/live2d-widget-v3@main";
+  const config = {
+    
+    path: {
+      homePath: "/",
+      modelPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/live2d-moc3/",
+      cssPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/js/waifu.css",
+      tipsJsonPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/js/my-waifu-tips.json",
+      tipsJsPath: cdnPath + "/waifu-tips.js",
+      live2dCorePath: "https:\/\/lingjia007.github.io\/Hugo_Web\/js/live2dcubismcore.js",
+      live2dSdkPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/js/live2d-sdk.js",
+    },
+    
+    tools: [
+      "hitokoto",
+      "asteroids",
+      "express",
+      "switch-model",
+      "switch-texture",
+      "photo",
+      "info",
+      "quit",
+    ],
+    
+    drag: {
+      enable: true,
+      direction: ["x", 0],
+    },
+    
+    switchType: "order",
+  };
+
+  
+  if (screen.width >= 10) {
+    Promise.all([
+      loadExternalResource(config.path.cssPath, "css"),
+      loadExternalResource(config.path.live2dCorePath, "js"),
+      loadExternalResource(config.path.live2dSdkPath, "js"),
+      loadExternalResource(config.path.tipsJsPath, "js"),
+    ]).then(() => {
+      initWidget({
+        homePath: config.path.homePath,
+        waifuPath: config.path.tipsJsonPath,
+        cdnPath: config.path.modelPath,
+        tools: config.tools,
+        dragEnable: config.drag.enable,
+        dragDirection: config.drag.direction,
+        switchType: config.switchType,
+      });
+      
+      if (window.innerWidth <= 768) {
+        setTimeout(function () {
+          var waifu = document.getElementById("waifu");
+          var toggle = document.getElementById("waifu-toggle");
+          if (waifu) waifu.style.display = "none";
+          if (toggle) toggle.classList.add("waifu-toggle-active");
+        }, 100);
+      }
+    });
+    function waitForElement(selector, callback) {
+      new MutationObserver(function (mutations) {
+        if (document.querySelector(selector)) {
+          callback();
+          this.disconnect();
+        }
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    }
+  }
+
+  
+  function loadExternalResource(url, type) {
+    return new Promise((resolve, reject) => {
+      let tag;
+      if (type === "css") {
+        tag = document.createElement("link");
+        tag.rel = "stylesheet";
+        tag.href = url;
+      } else if (type === "js") {
+        tag = document.createElement("script");
+        tag.src = url;
+      }
+      if (tag) {
+        tag.onload = () => resolve(url);
+        tag.onerror = () => reject(url);
+        document.head.appendChild(tag);
+      }
+    });
+  }
+</script>
+
+<style>
+  .highlight {
+     
+    max-height: 400px;
+    overflow: hidden;
+  }
+
+  .code-show {
+    max-height: none !important;
+  }
+
+  .code-more-box {
+    width: 100%;
+    padding-top: 78px;
+    background-image: -webkit-gradient(
+      linear,
+      left top,
+      left bottom,
+      from(rgba(255, 255, 255, 0)),
+      to(#fff)
+    );
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+  }
+
+  .code-more-btn {
+    display: block;
+    margin: auto;
+    width: 44px;
+    height: 22px;
+    background: #f0f0f5;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding-top: 6px;
+    cursor: pointer;
+  }
+
+  .code-more-img {
+    cursor: pointer !important;
+    display: block;
+    margin: auto;
+    width: 22px;
+    height: 16px;
+  }
+</style>
+
+<script>
+  function initCodeMoreBox() {
+    let codeBlocks = document.querySelectorAll(".highlight");
+    if (!codeBlocks) {
+      return;
+    }
+    codeBlocks.forEach((codeBlock) => {
+      
+      if (codeBlock.scrollHeight <= codeBlock.clientHeight) {
+        return;
+      }
+      
+      
+      let codeMoreBox = document.createElement("div");
+      codeMoreBox.classList.add("code-more-box");
+      
+      let codeMoreBtn = document.createElement("span");
+      codeMoreBtn.classList.add("code-more-btn");
+      codeMoreBtn.addEventListener("click", () => {
+        codeBlock.classList.add("code-show");
+        codeMoreBox.style.display = "none";
+        
+        window.dispatchEvent(new Event("resize"));
+      });
+      
+      let img = document.createElement("img");
+      img.classList.add("code-more-img");
+      img.src = "https:\/\/lingjia007.github.io\/Hugo_Web\/icons/codeMore.png";
+      
+      codeMoreBtn.appendChild(img);
+      codeMoreBox.appendChild(codeMoreBtn);
+      codeBlock.appendChild(codeMoreBox);
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initCodeMoreBox();
+  });
+  initCodeMoreBox();
+</script>
+
+<div id="particles-js"></div>
+
+<script src="https://lingjia007.github.io/Hugo_Web/background/particles.min.js"></script>
+<script>
+  particlesJS.load(
+    "particles-js",
+    "https:\/\/lingjia007.github.io\/Hugo_Web\/background/particlesjs-config.json",
+    function () {
+      console.log("particles.js loaded - callback");
+    },
+  );
+</script>
+
+<style>
+  #particles-js {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: -1;
+  }
+</style>
+
+<style>
+  #TableOfContents > ul,
+  ol {
+    ul,
+    ol {
+      display: none;
+    }
+    .open {
+      display: block;
+    }
+  }
+</style>
+
+<script>
+  function initTocHide() {
+    
+    let toc = document.querySelector(".widget--toc");
+    if (!toc) {
+      return;
+    }
+    
+    window.addEventListener("scroll", function () {
+      
+      let openUl = document.querySelectorAll(".open");
+      if (openUl.length > 0) {
+        openUl.forEach((ul) => {
+          ul.classList.remove("open");
+        });
+      }
+      
+      let currentLi = document.querySelector(".active-class");
+      if (!currentLi) {
+        return;
+      }
+      
+      if (currentLi.children.length > 1) {
+        currentLi.children[1].classList.add("open");
+      }
+      
+      let ul = currentLi.parentElement;
+      do {
+        ul.classList.add("open");
+        ul = ul.parentElement.parentElement;
+      } while (
+        ul !== undefined &&
+        (ul.localName === "ul" || ul.localName === "ol")
+      );
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initTocHide();
+  });
+  initTocHide();
+</script>
+
+<style>
+  @font-face {
+    font-family: "AlibabaPuHuiTi-3-65-Medium";
+    src: url(https://lingjia007.github.io/Hugo_Web/font/AlibabaPuHuiTi-3-65-Medium.ttf)
+      format("truetype");
+  }
+
+  :root {
+    --base-font-family: "AlibabaPuHuiTi-3-65-Medium";
+    --code-font-family: "AlibabaPuHuiTi-3-65-Medium";
+  }
+</style>
+
+<style>
+  #backTopBtn {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    z-index: 99;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    background-image: url("https://lingjia007.github.io/Hugo_Web/icons/backTop.svg");
+  }
+</style>
+
+<script>
+  
+
+  function initScrollTop() {
+    let rightSideBar = document.querySelector(".right-sidebar");
+    if (!rightSideBar) {
+      return;
+    }
+    
+    let btn = document.createElement("div");
+    btn.id = "backTopBtn";
+    btn.onclick = backToTop;
+    rightSideBar.appendChild(btn);
+    
+    window.onscroll = function () {
+      
+      if (
+        document.body.scrollTop > 20 ||
+        document.documentElement.scrollTop > 20
+      ) {
+        btn.style.display = "block";
+      } else {
+        btn.style.display = "none";
+      }
+    };
+  }
+
+  
+
+  function backToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initScrollTop();
+  });
+  initScrollTop();
+</script>
+
+<div class="js-Pjax2">
+  
+  <script>
+    (function () {
+      
+      const verScript = document.createElement("script");
+      verScript.defer = true;
+      verScript.src = "https://cn.vercount.one/js";
+      document.body.appendChild(verScript);
+
+      
+      function showHideView() {
+        const viewCounts = document.querySelectorAll("#viewCount");
+        if (viewCounts) {
+          const isArticle = !!document.querySelector(".article-page");
+          viewCounts.forEach((ele) => {
+            ele.style.display = isArticle ? "" : "none";
+          });
+        }
+      }
+      
+      showHideView();
+      
+      document.addEventListener("pjax:complete", function () {
+        showHideView();
+      });
+    })();
+  </script>
+</div><script>
+  (function () {
+    var giscusConfig = {
+      repo: "Lingjia007\/Hugo_Web",
+      repoId: "R_kgDOTNf24g",
+      category: "Announcements",
+      categoryId: "DIC_kwDOTNf24s4DAe9e",
+      mapping: 'title',
+      strict: "0",
+      reactionsEnabled: "1",
+      emitMetadata: "0",
+      inputPosition: 'top',
+      theme: 'light',
+      loading: "lazy",
+    };
+    var giscusLightTheme = 'light';
+    var giscusDarkTheme = 'dark_dimmed';
+
+    function getGiscusLang() {
+      var path = window.location.pathname;
+      if (path.indexOf("/zh-hk") !== -1) return "zh-HK";
+      if (path.indexOf("/en") !== -1) return "en";
+      return "zh-CN";
+    }
+
+    function getGiscusTheme() {
+      if (document.documentElement.dataset.scheme === "light") {
+        return giscusLightTheme;
+      }
+      return giscusDarkTheme;
+    }
+
+    function setGiscusTheme(theme) {
+      var giscus = document.querySelector("iframe.giscus-frame");
+      if (giscus) {
+        giscus.contentWindow.postMessage(
+          { giscus: { setConfig: { theme: theme } } },
+          "https://giscus.app",
+        );
+      }
+    }
+
+    function loadGiscus() {
+      var comment = document.querySelector(".comment");
+      if (!comment) return;
+      comment.innerHTML = "";
+      var lang = getGiscusLang();
+      var script = document.createElement("script");
+      script.src = "https://giscus.app/client.js";
+      script.setAttribute("data-repo", giscusConfig.repo);
+      script.setAttribute("data-repo-id", giscusConfig.repoId);
+      script.setAttribute("data-category", giscusConfig.category);
+      script.setAttribute("data-category-id", giscusConfig.categoryId);
+      script.setAttribute("data-mapping", giscusConfig.mapping);
+      script.setAttribute("data-strict", giscusConfig.strict);
+      script.setAttribute(
+        "data-reactions-enabled",
+        giscusConfig.reactionsEnabled,
+      );
+      script.setAttribute("data-emit-metadata", giscusConfig.emitMetadata);
+      script.setAttribute("data-input-position", giscusConfig.inputPosition);
+      script.setAttribute("data-theme", giscusConfig.theme);
+      script.setAttribute("data-lang", lang);
+      script.setAttribute("data-loading", giscusConfig.loading);
+      script.setAttribute("crossorigin", "anonymous");
+      script.async = true;
+      comment.appendChild(script);
+    }
+
+    window.addEventListener("message", function (e) {
+      if (e.origin !== "https://giscus.app") return;
+      setGiscusTheme(getGiscusTheme());
+    });
+    window.addEventListener("onColorSchemeChange", function () {
+      setGiscusTheme(getGiscusTheme());
+    });
+
+    loadGiscus();
+    document.addEventListener("pjax:complete", loadGiscus);
+  })();
+</script>
+
+    </body>
+</html>

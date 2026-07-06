@@ -1,0 +1,697 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>WSL2 on lingsir007</title>
+        <link>https://lingjia007.github.io/Hugo_Web/tags/wsl2/</link>
+        <description>Recent content in WSL2 on lingsir007</description>
+        <generator>Hugo -- gohugo.io</generator>
+        <language>en-us</language>
+        <copyright>lingsir007</copyright>
+        <lastBuildDate>Mon, 06 Jul 2026 23:01:58 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/tags/wsl2/index.xml" rel="self" type="application/rss+xml" /><item>
+        <title>WSL2 &#43; Docker &#43; TensorFlow：从环境搭建到 STM32F407 模型部署完整教程</title>
+        <link>https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/</link>
+        <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/</guid>
+        <description>&lt;img src="https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/WSL2&#43;Docker&#43;TensorFlow%E6%95%99%E7%A8%8B%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.png" alt="Featured image of post WSL2 &#43; Docker &#43; TensorFlow：从环境搭建到 STM32F407 模型部署完整教程" /&gt;&lt;h2 id=&#34;前言&#34;&gt;前言
+&lt;/h2&gt;&lt;p&gt;在 Windows 上进行深度学习开发，传统方案是直接安装 CUDA + cuDNN + TensorFlow，但版本兼容性问题频发，环境配置耗时且容易出错。&lt;strong&gt;WSL2 + Docker&lt;/strong&gt; 的组合提供了更优雅的解决方案：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;WSL2&lt;/strong&gt;：Windows 内核级 Linux 子系统，接近原生 Linux 性能&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Docker&lt;/strong&gt;：容器化隔离，环境一键拉取、版本锁定、跨平台复用&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;NVIDIA TensorFlow 官方容器&lt;/strong&gt;：预装 CUDA、cuDNN、TensorFlow，版本严格匹配&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;本文以&lt;strong&gt;关键词检测模型训练&lt;/strong&gt;为例，完整演示从环境搭建到 STM32F407 部署的全流程。&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;本文&lt;strong&gt;并非保姆级教程&lt;/strong&gt;，而是对整个流程的简单记录与方案尝试经验。部分步骤假设读者已具备基础的 Linux/Docker/TensorFlow 知识。如遇问题，请参考官方文档或搜索具体错误信息。&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;一安装-wsl-与-linux-子系统&#34;&gt;一、安装 WSL 与 Linux 子系统
+&lt;/h2&gt;&lt;h3 id=&#34;11-启用-wsl-功能&#34;&gt;1.1 启用 WSL 功能
+&lt;/h3&gt;&lt;p&gt;以管理员身份打开 PowerShell，执行：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-powershell&#34; data-lang=&#34;powershell&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;wsl&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;-install&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;这条命令会自动：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;启用 WSL 功能&lt;/li&gt;
+&lt;li&gt;启用虚拟机平台&lt;/li&gt;
+&lt;li&gt;下载并安装 Ubuntu（默认）&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85wsl%E4%B8%8Elinux%E5%AD%90%E7%B3%BB%E7%BB%9F.png&#34;
+	width=&#34;1481&#34;
+	height=&#34;934&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85wsl%E4%B8%8Elinux%E5%AD%90%E7%B3%BB%E7%BB%9F_hu_6262901fabce462f.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85wsl%E4%B8%8Elinux%E5%AD%90%E7%B3%BB%E7%BB%9F_hu_cd3aebbc8048382.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;安装wsl与linux子系统&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;158&#34;
+		data-flex-basis=&#34;380px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;安装完成后重启计算机。&lt;/p&gt;
+&lt;h3 id=&#34;12-设置-wsl2-为默认版本&#34;&gt;1.2 设置 WSL2 为默认版本
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-powershell&#34; data-lang=&#34;powershell&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;wsl&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;-set-default-version&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;2&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;h3 id=&#34;13-验证-wsl-版本&#34;&gt;1.3 验证 WSL 版本
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-powershell&#34; data-lang=&#34;powershell&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;wsl&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;-l&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;-v&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;输出应显示 Ubuntu 运行在 WSL 2。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;二安装-docker-desktop&#34;&gt;二、安装 Docker Desktop
+&lt;/h2&gt;&lt;h3 id=&#34;21-下载-docker-desktop&#34;&gt;2.1 下载 Docker Desktop
+&lt;/h3&gt;&lt;p&gt;访问 Docker 官方下载页面：&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a class=&#34;link&#34; href=&#34;https://docs.docker.com/desktop/setup/install/windows-install/&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;Docker Desktop for Windows 下载地址&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;选择 Windows amd64 版本下载安装包。&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85docker%E6%A1%8C%E9%9D%A2%E7%89%88.png&#34;
+	width=&#34;1752&#34;
+	height=&#34;1223&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85docker%E6%A1%8C%E9%9D%A2%E7%89%88_hu_33e7220f976be45e.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%89%E8%A3%85docker%E6%A1%8C%E9%9D%A2%E7%89%88_hu_51e19ac984f2d7ac.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;安装docker桌面版&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;143&#34;
+		data-flex-basis=&#34;343px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;h3 id=&#34;22-安装与配置&#34;&gt;2.2 安装与配置
+&lt;/h3&gt;&lt;p&gt;安装时勾选 &lt;strong&gt;&amp;ldquo;Use WSL 2 instead of Hyper-V&amp;rdquo;&lt;/strong&gt; 选项。安装完成后重启计算机。&lt;/p&gt;
+&lt;p&gt;首次启动时，Docker Desktop 会提示是否启用 WSL 2 集成——选择 &lt;strong&gt;Yes&lt;/strong&gt;。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;三开启-docker-的-wsl-扩展&#34;&gt;三、开启 Docker 的 WSL 扩展
+&lt;/h2&gt;&lt;h3 id=&#34;31-docker-desktop-设置&#34;&gt;3.1 Docker Desktop 设置
+&lt;/h3&gt;&lt;p&gt;打开 Docker Desktop → Settings → Resources → WSL Integration：&lt;/p&gt;
+&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFdocker%E7%9A%84wsl%E6%89%A9%E5%B1%95.png&#34;
+	width=&#34;1832&#34;
+	height=&#34;1139&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFdocker%E7%9A%84wsl%E6%89%A9%E5%B1%95_hu_5b81554f44c46f4d.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFdocker%E7%9A%84wsl%E6%89%A9%E5%B1%95_hu_4f9949e1a815fa9f.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;开启docker的wsl扩展&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;160&#34;
+		data-flex-basis=&#34;386px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;确保：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Enable integration with my default WSL distro&lt;/strong&gt; 已勾选&lt;/li&gt;
+&lt;li&gt;Ubuntu 选项已启用&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;这样 Ubuntu 子系统内可以直接使用 &lt;code&gt;docker&lt;/code&gt; 命令。&lt;/p&gt;
+&lt;h3 id=&#34;32-验证-docker-集成&#34;&gt;3.2 验证 Docker 集成
+&lt;/h3&gt;&lt;p&gt;进入 Ubuntu 终端：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;docker --version
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;docker run hello-world
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81docker%E9%9B%86%E6%88%90.png&#34;
+	width=&#34;1481&#34;
+	height=&#34;934&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81docker%E9%9B%86%E6%88%90_hu_60b4edd930e4b573.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81docker%E9%9B%86%E6%88%90_hu_437c629dbd014948.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;验证docker集成&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;158&#34;
+		data-flex-basis=&#34;380px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;如果显示 Docker 版本并成功拉取运行 hello-world 容器，说明集成完成。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;四拉取-nvidia-tensorflow-官方容器&#34;&gt;四、拉取 NVIDIA TensorFlow 官方容器
+&lt;/h2&gt;&lt;h3 id=&#34;41-容器地址&#34;&gt;4.1 容器地址
+&lt;/h3&gt;&lt;p&gt;NVIDIA NGC 提供官方 TensorFlow 容器，预装完整 GPU 加速环境：&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a class=&#34;link&#34; href=&#34;https://catalog.ngc.nvidia.com/orgs/nvidia/-/containers/tensorflow/25.02-tf2-py3&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;NVIDIA TensorFlow 25.02-tf2-py3 容器地址&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;h3 id=&#34;42-拉取容器&#34;&gt;4.2 拉取容器
+&lt;/h3&gt;&lt;p&gt;在 Ubuntu 终端执行：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;docker pull nvcr.io/nvidia/tensorflow:25.02-tf2-py3
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E4%B8%8B%E8%BD%BD%E5%AE%98%E6%96%B9tensorflow%E7%9A%84docker%E5%AE%B9%E5%99%A8.png&#34;
+	width=&#34;2557&#34;
+	height=&#34;1303&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E4%B8%8B%E8%BD%BD%E5%AE%98%E6%96%B9tensorflow%E7%9A%84docker%E5%AE%B9%E5%99%A8_hu_f9d7f9a478266e01.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E4%B8%8B%E8%BD%BD%E5%AE%98%E6%96%B9tensorflow%E7%9A%84docker%E5%AE%B9%E5%99%A8_hu_39729cf419d78968.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;下载官方tensorflow的docker容器&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;196&#34;
+		data-flex-basis=&#34;470px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;镜像大小约 5GB，包含：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;TensorFlow 2.x&lt;/li&gt;
+&lt;li&gt;CUDA 12.x&lt;/li&gt;
+&lt;li&gt;cuDNN 9.x&lt;/li&gt;
+&lt;li&gt;Python 3.x&lt;/li&gt;
+&lt;li&gt;Jupyter Notebook&lt;/li&gt;
+&lt;li&gt;TensorBoard&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;43-验证容器安装&#34;&gt;4.3 验证容器安装
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;docker images
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81%E5%AE%B9%E5%99%A8%E5%AE%89%E8%A3%85.png&#34;
+	width=&#34;1833&#34;
+	height=&#34;1140&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81%E5%AE%B9%E5%99%A8%E5%AE%89%E8%A3%85_hu_faffda70b408d8af.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%AA%8C%E8%AF%81%E5%AE%B9%E5%99%A8%E5%AE%89%E8%A3%85_hu_2d1b65e6d64545c3.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;验证容器安装&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;160&#34;
+		data-flex-basis=&#34;385px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;确认 &lt;code&gt;nvcr.io/nvidia/tensorflow&lt;/code&gt; 镜像已存在。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;五启动-tensorflow-容器&#34;&gt;五、启动 TensorFlow 容器
+&lt;/h2&gt;&lt;h3 id=&#34;51-容器启动命令&#34;&gt;5.1 容器启动命令
+&lt;/h3&gt;&lt;p&gt;在项目目录下执行（&lt;code&gt;${PWD}&lt;/code&gt; 会挂载当前目录到容器 &lt;code&gt;/workspace&lt;/code&gt;）：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;9
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;docker run --gpus all &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --ipc&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;host &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --ulimit &lt;span class=&#34;nv&#34;&gt;memlock&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;-1 &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --ulimit &lt;span class=&#34;nv&#34;&gt;stack&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;67108864&lt;/span&gt; &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --rm &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  -it -p 8888:8888 &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  -p 6006:6006 &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  -v &lt;span class=&#34;si&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;PWD&lt;/span&gt;&lt;span class=&#34;si&#34;&gt;}&lt;/span&gt;:/workspace &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  nvcr.io/nvidia/tensorflow:25.02-tf2-py3
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;参数解析：&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;参数&lt;/th&gt;
+					&lt;th&gt;作用&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;--gpus all&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;允许容器访问所有 GPU&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;--ipc=host&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;使用主机 IPC namespace，共享内存通信更高效&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;--ulimit memlock=-1&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;无限锁定内存，适合大模型训练&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;--ulimit stack=67108864&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;64MB 栈大小&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;--rm&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;容器退出后自动删除&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;-it&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;交互模式 + 伪终端&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;-p 8888:8888&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Jupyter Notebook 端口映射&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;-p 6006:6006&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;TensorBoard 端口映射&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;-v ${PWD}:/workspace&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;当前目录挂载到容器工作空间&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%BF%90%E8%A1%8Cdocker.png&#34;
+	width=&#34;1481&#34;
+	height=&#34;934&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%BF%90%E8%A1%8Cdocker_hu_42062913ad42e3c7.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%BF%90%E8%A1%8Cdocker_hu_96ff6488a087428f.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;运行docker&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;158&#34;
+		data-flex-basis=&#34;380px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;h3 id=&#34;52-容器运行状态&#34;&gt;5.2 容器运行状态
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;docker ps
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%B9%E5%99%A8%E8%BF%90%E8%A1%8C%E7%8A%B6%E6%80%81.png&#34;
+	width=&#34;1832&#34;
+	height=&#34;1140&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%B9%E5%99%A8%E8%BF%90%E8%A1%8C%E7%8A%B6%E6%80%81_hu_e13bd263516af30a.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%AE%B9%E5%99%A8%E8%BF%90%E8%A1%8C%E7%8A%B6%E6%80%81_hu_dd5ef0779ad21b3d.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;容器运行状态&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;160&#34;
+		data-flex-basis=&#34;385px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;容器运行后，可以直接在容器内执行 Python 脚本。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;六准备训练项目&#34;&gt;六、准备训练项目
+&lt;/h2&gt;&lt;h3 id=&#34;61-项目目录结构&#34;&gt;6.1 项目目录结构
+&lt;/h3&gt;&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83%E6%96%87%E4%BB%B6%E7%9B%AE%E5%BD%95%E7%BB%93%E6%9E%84.png&#34;
+	width=&#34;1833&#34;
+	height=&#34;1140&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83%E6%96%87%E4%BB%B6%E7%9B%AE%E5%BD%95%E7%BB%93%E6%9E%84_hu_7f458f38908a9c79.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83%E6%96%87%E4%BB%B6%E7%9B%AE%E5%BD%95%E7%BB%93%E6%9E%84_hu_85a09b2f8d58df3.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;开始训练文件目录结构&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;160&#34;
+		data-flex-basis=&#34;385px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;典型 TensorFlow Lite Micro 训练项目结构：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;/workspace/Projects/tflm_train/
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;├── train_micro_speech_model.py   # 训练脚本
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;├── data/                          # 数据集目录
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;├── logs/                          # TensorBoard 日志
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;├── models/                        # 输出模型
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;└── train_log.txt                  # 训练日志
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;h3 id=&#34;62-数据集准备&#34;&gt;6.2 数据集准备
+&lt;/h3&gt;&lt;p&gt;关键词检测模型使用 Google Speech Commands 数据集，包含 30+ 关键词的数千条语音样本。&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;七开始模型训练&#34;&gt;七、开始模型训练
+&lt;/h2&gt;&lt;h3 id=&#34;71-训练命令&#34;&gt;7.1 训练命令
+&lt;/h3&gt;&lt;p&gt;在容器内执行：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;python3 train_micro_speech_model.py &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --skip_clone --skip_download &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --clean &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --wanted_words&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;yes,no,up,down,left,right,on,off,stop,go &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --model_architecture&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;tiny_conv &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --training_steps&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;8000,10000,7000 &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --learning_rate&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;0.001,0.0005,0.0001 &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  2&amp;gt;&lt;span class=&#34;p&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;1&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;|&lt;/span&gt; tee train_log.txt
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;参数解析：&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;参数&lt;/th&gt;
+					&lt;th&gt;作用&lt;/th&gt;
+					&lt;th&gt;&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;--skip_clone --skip_download&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;跳过仓库克隆和数据下载（已准备好）&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;--clean&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;清理旧的训练输出&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;--wanted_words&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;目标关键词：yes/no/up/down/left/right/on/off/stop/go&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;--model_architecture=tiny_conv&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;使用 tiny_conv 架构（适合嵌入式）&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;--training_steps=8000,10000,7000&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;三阶段训练步数&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;--learning_rate=0.001,0.0005,0.0001&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;三阶段学习率衰减&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;`2&amp;gt;&amp;amp;1&lt;/td&gt;
+					&lt;td&gt;tee train_log.txt`&lt;/td&gt;
+					&lt;td&gt;输出同时打印和写入日志&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83.png&#34;
+	width=&#34;1481&#34;
+	height=&#34;934&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83_hu_ffec8830f61d4635.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%A7%8B%E8%AE%AD%E7%BB%83_hu_f3c7a393aa6e9299.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;开始训练&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;158&#34;
+		data-flex-basis=&#34;380px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;h3 id=&#34;72-观察训练状态&#34;&gt;7.2 观察训练状态
+&lt;/h3&gt;&lt;p&gt;训练过程中会打印：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Step 1000: loss=1.23, accuracy=0.78
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Step 2000: loss=0.89, accuracy=0.85
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;...
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%A7%82%E5%AF%9F%E8%AE%AD%E7%BB%83%E7%8A%B6%E6%80%81.png&#34;
+	width=&#34;2550&#34;
+	height=&#34;1292&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%A7%82%E5%AF%9F%E8%AE%AD%E7%BB%83%E7%8A%B6%E6%80%81_hu_90ed17838745abca.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E8%A7%82%E5%AF%9F%E8%AE%AD%E7%BB%83%E7%8A%B6%E6%80%81_hu_a8e1b24e2bd7115.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;观察训练状态&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;197&#34;
+		data-flex-basis=&#34;473px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;八tensorboard-可视化训练&#34;&gt;八、TensorBoard 可视化训练
+&lt;/h2&gt;&lt;h3 id=&#34;81-启动-tensorboard&#34;&gt;8.1 启动 TensorBoard
+&lt;/h3&gt;&lt;p&gt;在容器内执行：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;tensorboard --logdir&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;/workspace/Projects/tflm_train/logs --bind_all --port&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;m&#34;&gt;6006&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFtensorboard.png&#34;
+	width=&#34;1481&#34;
+	height=&#34;934&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFtensorboard_hu_7b764a5d59cf0211.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E5%BC%80%E5%90%AFtensorboard_hu_486771b1e5e2374d.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;开启tensorboard&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;158&#34;
+		data-flex-basis=&#34;380px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;h3 id=&#34;82-访问-tensorboard&#34;&gt;8.2 访问 TensorBoard
+&lt;/h3&gt;&lt;p&gt;浏览器打开：&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&lt;a class=&#34;link&#34; href=&#34;http://localhost:6006&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;http://localhost:6006&lt;/a&gt;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;p&gt;可以看到：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;SCALARS&lt;/strong&gt;：loss、accuracy 曲线&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;IMAGES&lt;/strong&gt;：模型结构可视化&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;GRAPHS&lt;/strong&gt;：计算图拓扑&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;DISTRIBUTIONS&lt;/strong&gt;：权重分布&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;HISTOGRAMS&lt;/strong&gt;：权重直方图&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;九训练结果与模型量化&#34;&gt;九、训练结果与模型量化
+&lt;/h2&gt;&lt;h3 id=&#34;91-最终训练结果&#34;&gt;9.1 最终训练结果
+&lt;/h3&gt;&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E6%9C%80%E7%BB%88%E8%AE%AD%E7%BB%83%E7%BB%93%E6%9E%9C.png&#34;
+	width=&#34;2557&#34;
+	height=&#34;1302&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E6%9C%80%E7%BB%88%E8%AE%AD%E7%BB%83%E7%BB%93%E6%9E%9C_hu_9dccb60eaf6caed6.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E6%9C%80%E7%BB%88%E8%AE%AD%E7%BB%83%E7%BB%93%E6%9E%9C_hu_1007a183d6b76a46.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;最终训练结果&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;196&#34;
+		data-flex-basis=&#34;471px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;训练完成后，输出：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;.tflite&lt;/code&gt; 浮点模型（约 50KB）&lt;/li&gt;
+&lt;li&gt;训练日志 &lt;code&gt;train_log.txt&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;TensorBoard 日志目录&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;92-模型量化&#34;&gt;9.2 模型量化
+&lt;/h3&gt;&lt;p&gt;TensorFlow Lite 支持 &lt;strong&gt;训练后量化&lt;/strong&gt;：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;python3 quantize_model.py &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --input_model&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;models/micro_speech.tflite &lt;span class=&#34;se&#34;&gt;\
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  --output_model&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;models/micro_speech_quantized.tflite
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;量化后模型：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;大小压缩至约 &lt;strong&gt;18KB&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;精度损失约 1-2%&lt;/li&gt;
+&lt;li&gt;适合 MCU 运行&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%87%8F%E5%8C%96%E7%BB%93%E6%9E%9C.png&#34;
+	width=&#34;1821&#34;
+	height=&#34;1285&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%87%8F%E5%8C%96%E7%BB%93%E6%9E%9C_hu_7b76e157794704fa.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/%E9%87%8F%E5%8C%96%E7%BB%93%E6%9E%9C_hu_d5189fa2fe0a89bf.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;量化结果&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;141&#34;
+		data-flex-basis=&#34;340px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;十stm32f407-部署测试&#34;&gt;十、STM32F407 部署测试
+&lt;/h2&gt;&lt;h3 id=&#34;101-模型集成&#34;&gt;10.1 模型集成
+&lt;/h3&gt;&lt;p&gt;将量化后的 &lt;code&gt;.tflite&lt;/code&gt; 模型转换为 C 数组：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;xxd -i models/micro_speech_quantized.tflite &amp;gt; micro_speech_model_data.cc
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;h3 id=&#34;102-stm32cubeai-导入&#34;&gt;10.2 STM32CubeAI 导入
+&lt;/h3&gt;&lt;p&gt;在 STM32CubeMX 中：&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;添加 X-CUBE-AI 组件&lt;/li&gt;
+&lt;li&gt;导入 &lt;code&gt;.tflite&lt;/code&gt; 模型&lt;/li&gt;
+&lt;li&gt;生成代码&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/cubemx%E5%AF%BC%E5%85%A5%E6%A8%A1%E5%9E%8B%E8%A7%A3%E6%9E%90.png&#34;
+	width=&#34;2557&#34;
+	height=&#34;1437&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/cubemx%E5%AF%BC%E5%85%A5%E6%A8%A1%E5%9E%8B%E8%A7%A3%E6%9E%90_hu_fc3dc738d35b01f4.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/cubemx%E5%AF%BC%E5%85%A5%E6%A8%A1%E5%9E%8B%E8%A7%A3%E6%9E%90_hu_c5818c3df365a77.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;cubemx导入模型解析&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;177&#34;
+		data-flex-basis=&#34;427px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;CubeMX 会自动解析模型结构并生成推理代码框架。&lt;/p&gt;
+&lt;h3 id=&#34;103-测试结果&#34;&gt;10.3 测试结果
+&lt;/h3&gt;&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/stm32f407%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C.png&#34;
+	width=&#34;1363&#34;
+	height=&#34;2499&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/stm32f407%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C_hu_83776c2cc843ee7a.png 480w, https://lingjia007.github.io/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/stm32f407%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C_hu_ac27dd1be70d0ce2.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;stm32f407测试结果&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;54&#34;
+		data-flex-basis=&#34;130px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;在 STM32F407VGT6 上运行关键词检测：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;推理时间&lt;/strong&gt;：约 30ms（不含音频预处理）&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;内存占用&lt;/strong&gt;：约 50KB RAM&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;准确率&lt;/strong&gt;：实测 85%+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;十一环境清理与常见问题&#34;&gt;十一、环境清理与常见问题
+&lt;/h2&gt;&lt;h3 id=&#34;111-容器清理&#34;&gt;11.1 容器清理
+&lt;/h3&gt;&lt;p&gt;训练完成后，容器会因 &lt;code&gt;--rm&lt;/code&gt; 参数自动删除。镜像保留：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-bash&#34; data-lang=&#34;bash&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# 查看镜像&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;docker images
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;# 删除镜像（如不再需要）&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;docker rmi nvcr.io/nvidia/tensorflow:25.02-tf2-py3
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;h3 id=&#34;112-常见问题&#34;&gt;11.2 常见问题
+&lt;/h3&gt;&lt;p&gt;&lt;strong&gt;Q: WSL2 无法识别 GPU？&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;确保：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Windows 已安装 NVIDIA 驱动（最新版）&lt;/li&gt;
+&lt;li&gt;Docker Desktop 的 WSL 集成已开启&lt;/li&gt;
+&lt;li&gt;容器启动时添加 &lt;code&gt;--gpus all&lt;/code&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Q: TensorBoard 无法访问？&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;检查：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;容器是否正确映射 &lt;code&gt;-p 6006:6006&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;TensorBoard 是否使用 &lt;code&gt;--bind_all&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Windows 防火墙是否允许端口&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Q: 训练速度很慢？&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;排查：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;GPU 是否被正确识别（&lt;code&gt;nvidia-smi&lt;/code&gt;）&lt;/li&gt;
+&lt;li&gt;数据集是否在容器内（避免跨挂载读写）&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;--ipc=host&lt;/code&gt; 参数是否添加&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;参考资料&#34;&gt;参考资料
+&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;&lt;a class=&#34;link&#34; href=&#34;https://docs.microsoft.com/en-us/windows/wsl/&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;WSL2 官方文档&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&#34;link&#34; href=&#34;https://docs.docker.com/desktop/setup/install/windows-install/&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;Docker Desktop for Windows&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&#34;link&#34; href=&#34;https://catalog.ngc.nvidia.com/orgs/nvidia/-/containers/tensorflow/25.02-tf2-py3&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;NVIDIA TensorFlow 容器&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&#34;link&#34; href=&#34;https://www.tensorflow.org/lite/microcontrollers&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;TensorFlow Lite Micro&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&#34;link&#34; href=&#34;https://www.st.com/en/embedded-software/x-cube-ai.html&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;STM32CubeAI&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+        </item>
+        
+    </channel>
+</rss>
