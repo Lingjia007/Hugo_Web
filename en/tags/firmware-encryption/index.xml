@@ -7,7 +7,7 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>en</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Sun, 05 Jul 2026 21:43:41 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/en/tags/firmware-encryption/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Mon, 06 Jul 2026 23:01:58 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/en/tags/firmware-encryption/index.xml" rel="self" type="application/rss+xml" /><item>
         <title>STM32F407 Secure Bootloader Design: A/B Dual Partition, Encryption/Signing, and Multi-Channel Upgrade</title>
         <link>https://lingsir007.netlify.app/en/p/stm32f407-secure-bootloader-design-a/b-dual-partition-encryption/signing-and-multi-channel-upgrade/</link>
         <pubDate>Sat, 20 Jun 2026 00:00:00 +0000</pubDate>
