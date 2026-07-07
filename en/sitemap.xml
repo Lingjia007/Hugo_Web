@@ -3,7 +3,7 @@
   xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://lingsir007.netlify.app/en/categories/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -21,7 +21,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/dma/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -39,7 +39,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -57,10 +57,10 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/categories/embedded/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/gd32/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -78,7 +78,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/lwrb/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -96,7 +96,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/post/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -114,10 +114,10 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/ring-buffer/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/stm32/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -135,7 +135,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -153,7 +153,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/uart/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -171,10 +171,10 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/zero-copy/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/p/a-taste-of-bootloader-five-layer-architecture-oop-object-design-model-from-platform-abstraction-to-app-orchestration/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -192,7 +192,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/bootloader/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -210,22 +210,22 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/c-language/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/embedded/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/layered-architecture/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/linux-kernel/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/object-oriented/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/oop-in-c/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -243,10 +243,10 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/platform-abstraction/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/p/the-essence-of-c-structs-and-pointers-embedded-object-oriented-platform-agnostic-layered-design/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -264,7 +264,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/artinchip/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -282,13 +282,13 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/design-patterns/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/embedded-ui/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/gcc/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -306,7 +306,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/p/gnu-ld-linker-script-in-depth-dissecting-embedded-memory-layout-and-section-relocation-via-an-stm32f407-example/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -324,7 +324,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/gnu-ld/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -342,10 +342,10 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/linker-script/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/lvgl/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -363,7 +363,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/p/lvgl-dynamic-loading-and-render-tree-management-application-tree-architecture-practices-for-smart-vending-terminal/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -381,7 +381,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/rt-thread/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -399,13 +399,13 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/vending-machine/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/a/b-partition/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/aes-256/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -423,10 +423,10 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/differential-update/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/ed25519/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -444,10 +444,10 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/firmware-encryption/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/iap/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -465,7 +465,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/ota/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -483,7 +483,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/p/pyiaptoolkit-design-and-implementation-of-an-stm32-iap-host-tool-suite/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -501,7 +501,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/pyqt6/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -519,7 +519,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/p/stm32f407-secure-bootloader-design-a/b-dual-partition-encryption/signing-and-multi-channel-upgrade/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -537,7 +537,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/ymodem/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -555,7 +555,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/archives/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -573,7 +573,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/page/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -591,7 +591,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/css/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -609,7 +609,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/html/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -627,7 +627,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/markdown/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -645,7 +645,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/p/markdown-syntax-guide/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -663,16 +663,16 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/categories/syntax/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/categories/themes/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/tags/themes/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
   </url><url>
     <loc>https://lingsir007.netlify.app/en/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -690,7 +690,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/about/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -708,7 +708,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/links/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
@@ -726,7 +726,7 @@
                 />
   </url><url>
     <loc>https://lingsir007.netlify.app/en/search/</loc>
-    <lastmod>2026-07-07T19:33:35+08:00</lastmod>
+    <lastmod>2026-07-07T19:41:28+08:00</lastmod>
     <xhtml:link
                 rel="alternate"
                 hreflang="en-us"
