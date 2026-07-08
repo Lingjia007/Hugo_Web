@@ -10,7 +10,7 @@
 <meta property='og:description' content="基于 ArtInChip + LVGL v9 + RT-Thread 的智能售货机终端，深入剖析应用树（layout_node）如何管理 LVGL 渲染树，涵盖组合模式双树映射、Wrap 桥接机制、策略驱动的 Flex/Grid 布局、控件工厂动态创建、事件驱动热更新、静态骨架到动态组件的替换流程等核心技术详解">
 <meta property='og:url' content='https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='售货机' /><meta property='article:tag' content='嵌入式UI' /><meta property='article:tag' content='设计模式' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-02T22:52:44&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='售货机' /><meta property='article:tag' content='嵌入式UI' /><meta property='article:tag' content='设计模式' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-08T23:37:53&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
 <meta name="twitter:title" content="LVGL 动态加载与渲染树管理：智能售货机终端的应用树架构实践">
 <meta name="twitter:description" content="基于 ArtInChip + LVGL v9 + RT-Thread 的智能售货机终端，深入剖析应用树（layout_node）如何管理 LVGL 渲染树，涵盖组合模式双树映射、Wrap 桥接机制、策略驱动的 Flex/Grid 布局、控件工厂动态创建、事件驱动热更新、静态骨架到动态组件的替换流程等核心技术详解"><meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content='https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
@@ -299,15 +299,28 @@
     <li><a href="#前言">前言</a></li>
     <li><a href="#一双树架构渲染树-vs-应用树">一、双树架构：渲染树 vs 应用树</a>
       <ol>
-        <li><a href="#11-问题背景">1.1 问题背景</a></li>
+        <li><a href="#11-问题背景">1.1 问题背景</a>
+          <ol>
+            <li><a href="#111-lvgl-原生的四大局限">1.1.1 LVGL 原生的四大局限</a></li>
+            <li><a href="#112-一个通俗的比喻">1.1.2 一个通俗的比喻</a></li>
+            <li><a href="#113-应用树填补的空白">1.1.3 应用树填补的空白</a></li>
+          </ol>
+        </li>
         <li><a href="#12-解决方案应用树">1.2 解决方案：应用树</a></li>
       </ol>
     </li>
     <li><a href="#二组合模式layout_node-核心设计">二、组合模式：layout_node 核心设计</a>
       <ol>
         <li><a href="#21-三层类型体系">2.1 三层类型体系</a></li>
-        <li><a href="#22-深度优先销毁">2.2 深度优先销毁</a></li>
-        <li><a href="#23-子节点动态数组">2.3 子节点动态数组</a></li>
+        <li><a href="#22-面向组合组件块的颗粒度">2.2 面向组合组件块的颗粒度</a>
+          <ol>
+            <li><a href="#什么是组合组件块">什么是组合组件块？</a></li>
+            <li><a href="#块级销毁与安全回收">块级销毁与安全回收</a></li>
+            <li><a href="#挂起激活机制业务状态保留与肉体重建">挂起/激活机制：业务状态保留与肉体重建</a></li>
+          </ol>
+        </li>
+        <li><a href="#24-深度优先销毁">2.4 深度优先销毁</a></li>
+        <li><a href="#25-子节点动态数组">2.5 子节点动态数组</a></li>
       </ol>
     </li>
     <li><a href="#三wrap-桥接从静态骨架到动态容器">三、Wrap 桥接：从静态骨架到动态容器</a>
@@ -321,7 +334,8 @@
       <ol>
         <li><a href="#41-策略配置结构">4.1 策略配置结构</a></li>
         <li><a href="#42-策略应用">4.2 策略应用</a></li>
-        <li><a href="#43-四大组件的布局策略">4.3 四大组件的布局策略</a></li>
+        <li><a href="#43-子节点尺寸应用">4.3 子节点尺寸应用</a></li>
+        <li><a href="#44-四大组件的布局策略">4.4 四大组件的布局策略</a></li>
       </ol>
     </li>
     <li><a href="#五工厂模式widget_factory-动态创建">五、工厂模式：widget_factory 动态创建</a>
@@ -333,7 +347,13 @@
     <li><a href="#六组件工厂应用树的组装单元">六、组件工厂：应用树的组装单元</a>
       <ol>
         <li><a href="#61-组件--容器--子控件--控制器">6.1 组件 = 容器 + 子控件 + 控制器</a></li>
-        <li><a href="#62-控制器-容器分离">6.2 控制器-容器分离</a></li>
+        <li><a href="#62-控制器-容器分离">6.2 控制器-容器分离</a>
+          <ol>
+            <li><a href="#621-自动轮播定时器">6.2.1 自动轮播定时器</a></li>
+            <li><a href="#622-手势检测与用户交互暂停">6.2.2 手势检测与用户交互暂停</a></li>
+            <li><a href="#623-指示器圆点同步">6.2.3 指示器圆点同步</a></li>
+          </ol>
+        </li>
         <li><a href="#63-数据热更新">6.3 数据热更新</a></li>
       </ol>
     </li>
@@ -342,9 +362,22 @@
         <li><a href="#71-事件总线">7.1 事件总线</a></li>
         <li><a href="#72-配置热更新的完整链路">7.2 配置热更新的完整链路</a></li>
         <li><a href="#73-跨组件联动">7.3 跨组件联动</a></li>
+        <li><a href="#74-rt-thread-线程安全引用与隔离">7.4 RT-Thread 线程安全：引用与隔离</a>
+          <ol>
+            <li><a href="#741-线程物理隔离">7.4.1 线程物理隔离</a></li>
+            <li><a href="#742-rt-thread-消息队列桥梁">7.4.2 RT-Thread 消息队列桥梁</a></li>
+            <li><a href="#743-引用与隔离的精髓">7.4.3 引用与隔离的精髓</a></li>
+          </ol>
+        </li>
       </ol>
     </li>
-    <li><a href="#八从静态到动态custom_init-的替换流程">八、从静态到动态：custom_init() 的替换流程</a></li>
+    <li><a href="#八从静态到动态custom_init-的替换流程">八、从静态到动态：custom_init() 的替换流程</a>
+      <ol>
+        <li><a href="#81-sd卡挂载与资源路径管理">8.1 SD卡挂载与资源路径管理</a></li>
+        <li><a href="#82-完整初始化流程">8.2 完整初始化流程</a></li>
+        <li><a href="#83-购物车开合动画">8.3 购物车开合动画</a></li>
+      </ol>
+    </li>
     <li><a href="#九内存管理策略">九、内存管理策略</a>
       <ol>
         <li><a href="#91-对象池-vs-堆分配">9.1 对象池 vs 堆分配</a></li>
@@ -451,12 +484,12 @@
         <div class="article-lastmod">
                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
                 <time>
-                    Jul 02, 2026 22:52 &#43;0800
+                    Jul 08, 2026 23:37 &#43;0800
                 </time>
             </div><div id="wordCount">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
             <time class="article-wordcount">
-                6599  字
+                9894  字
             </time>
         </div>
 
@@ -544,6 +577,56 @@
 <li>布局参数硬编码，无法统一调整</li>
 <li>组件间直接调用，紧耦合</li>
 </ul>
+<h4 id="111-lvgl-原生的四大局限">1.1.1 LVGL 原生的四大局限
+</h4><p>LVGL 是一个优秀的轻量级嵌入式图形库，但其原生设计在应对复杂、动态、多层级的 UI 应用时会显现以下局限：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>局限维度</th>
+					<th>具体表现</th>
+					<th>原生做法痛点</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>渲染状态 vs 业务状态</strong></td>
+					<td><code>lv_obj_t</code> 保存的是渲染状态（坐标、尺寸、颜色），但不知道业务含义（如购物车数量是&quot;3件商品&quot;还是&quot;3元总价&quot;）</td>
+					<td><code>lv_label_set_text(cart_label, &quot;3&quot;)</code> 把业务逻辑和 UI 渲染死绑在一起，一旦对象销毁就野指针</td>
+			</tr>
+			<tr>
+					<td><strong>静态配置 vs 动态生命周期</strong></td>
+					<td>LVGL 鼓励启动时静态配置，但现代嵌入式 UI 高度动态（商品列表从网络下发，数量随时变）</td>
+					<td>手动循环 <code>lv_obj_create</code>，手动计算坐标，大量 <code>lv_obj_del</code> 导致内存碎片，频繁创建销毁卡顿</td>
+			</tr>
+			<tr>
+					<td><strong>硬编码布局 vs 策略化布局</strong></td>
+					<td>Flex/Grid 仅是基础排版，复杂业务规则（缺货变灰、横屏每行从3变5）难以配置</td>
+					<td>业务代码里写满 <code>if (stock==0) lv_obj_add_state(card, LV_STATE_DISABLED)</code>，散落各处极难维护</td>
+			</tr>
+			<tr>
+					<td><strong>单页面思维 vs 页面栈状态机</strong></td>
+					<td>没有路由/页面栈概念，切换页面就是 <code>lv_obj_clean</code> 重建，无法保存状态（返回列表页滑动位置丢失）</td>
+					<td>每次重建从头渲染，用户交互状态全部丢失</td>
+			</tr>
+	</tbody>
+</table></div>
+<h4 id="112-一个通俗的比喻">1.1.2 一个通俗的比喻
+</h4><p>把开发嵌入式 UI 比作盖房子：</p>
+<ul>
+<li><strong>LVGL 是砖头、水泥和涂料</strong>。直接 <code>lv_obj_create</code> 就是一块一块垒砖头。</li>
+<li><strong>简单界面（狗窝）</strong>：几个按钮几个文本，直接垒砖头最快最合适，不需要架构。</li>
+<li><strong>复杂界面（三十层商业大厦）</strong>：智能终端多页面、网络数据动态刷新、多种交互状态，还坚持一块一块垒砖头，最后一定会塌方。你需要<strong>建筑图纸和施工框架</strong>（应用树），图纸定义了哪里是卫生间、哪里是承重墙（业务结构），具体怎么砌砖由施工队（LVGL 渲染引擎）按图纸执行。</li>
+</ul>
+<h4 id="113-应用树填补的空白">1.1.3 应用树填补的空白
+</h4><p>LVGL 本身不提供完整应用框架来管理复杂 UI 状态和业务逻辑。应用树（<code>layout_node</code> + <code>layout_strategy</code>）填补这一空白：</p>
+<ul>
+<li><strong>结构化</strong>：用树形组织 UI，清晰表达界面层级</li>
+<li><strong>策略化</strong>：将布局算法抽象为可替换的策略</li>
+<li><strong>组件化</strong>：通过工厂和对象池高效管理组件</li>
+<li><strong>异步化</strong>：后台加载资源，保证流畅度</li>
+<li><strong>解耦化</strong>：用事件总线实现业务逻辑与 UI 的松耦合通信</li>
+</ul>
+<p>从而将 LVGL 从一个单纯的&quot;画图工具&quot;提升为能够支撑大型、复杂、可维护嵌入式 UI 应用的开发框架。</p>
 <h3 id="12-解决方案应用树">1.2 解决方案：应用树
 </h3><p>在 LVGL 渲染树之上构建一棵<strong>应用树</strong>，每个应用树节点持有对应的 <code>lv_obj_t*</code>，并附加生命周期和布局管理能力：</p>
 <div class="highlight"><div class="chroma">
@@ -679,7 +762,81 @@
 </span></span><span class="line"><span class="cl"><span class="p">};</span>
 </span></span></code></pre></td></tr></table>
 </div>
-</div><h3 id="22-深度优先销毁">2.2 深度优先销毁
+</div><h3 id="22-面向组合组件块的颗粒度">2.2 面向组合组件块的颗粒度
+</h3><p>应用树节点的颗粒度是<strong>业务级的组合组件块</strong>，极少对应 LVGL 的原生基础对象（如单个 <code>lv_label</code>、<code>lv_btn</code>）。</p>
+<h4 id="什么是组合组件块">什么是组合组件块？
+</h4><p>以售货机的&quot;商品卡片&quot;为例，在原生 LVGL 中它由以下 5 个对象组成：</p>
+<ul>
+<li>1 个 <code>lv_obj</code>（最外层 container）</li>
+<li>1 个 <code>lv_img</code>（商品图片）</li>
+<li>2 个 <code>lv_label</code>（名称、价格）</li>
+<li>1 个 <code>lv_btn</code>（购买按钮）</li>
+</ul>
+<p>应用树的做法：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// 应用树节点（组合组件）
+</span></span></span><span class="line"><span class="cl"><span class="kt">widget_unit_t</span> <span class="o">*</span><span class="n">card</span> <span class="o">=</span> <span class="nf">widget_factory_create</span><span class="p">(</span><span class="s">&#34;commodity_card&#34;</span><span class="p">,</span> <span class="n">parent</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">card</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">.</span><span class="n">obj</span> <span class="o">=</span> <span class="n">container</span><span class="p">;</span>  <span class="c1">// 指向组合组件最外层 container
+</span></span></span><span class="line"><span class="cl"><span class="n">card</span><span class="o">-&gt;</span><span class="n">priv</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">card_data</span><span class="p">;</span>     <span class="c1">// 业务数据（商品ID、价格、库存）
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>一个 <code>widget_unit_t</code> 节点，<code>obj</code> 指针指向最外层 container，组件工厂内部一口气把这 5 个 <code>lv_obj_t</code> 都创建出来并组合好。</p>
+<h4 id="块级销毁与安全回收">块级销毁与安全回收
+</h4><p>当页面切换或列表滑动导致某个商品卡片移出屏幕时：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>原生做法</th>
+					<th>应用树做法</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>手动找到 img, label1, label2, btn 分别 <code>lv_obj_del()</code>，极易漏删</td>
+					<td>直接销毁 <code>layout_node</code>，框架执行 <code>lv_obj_del(node-&gt;obj)</code>，LVGL 自动递归删除所有子对象</td>
+			</tr>
+			<tr>
+					<td>业务代码可能还在引用已删除对象，导致野指针崩溃</td>
+					<td>应用树清空 <code>node-&gt;obj</code>，业务层不会再误触底层 UI</td>
+			</tr>
+	</tbody>
+</table></div>
+<h4 id="挂起激活机制业务状态保留与肉体重建">挂起/激活机制：业务状态保留与肉体重建
+</h4><p>在内存受限的 MCU 上，长列表有 100 个商品时不能创建 100 个 <code>lv_obj</code> 块（内存会爆）。应用树配合异步加载器实现：</p>
+<ul>
+<li><strong>保留 100 个 <code>layout_node</code></strong>（仅存几个字节的业务数据，内存占用极小）</li>
+<li><strong>仅创建屏幕可见的 5 个 <code>lv_obj</code> 块</strong></li>
+</ul>
+<p>当用户滑动屏幕时：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">滑出屏幕的块：
+</span></span><span class="line"><span class="cl">  应用树执行 lv_obj_del() 销毁 LVGL 肉体 → 释放显存
+</span></span><span class="line"><span class="cl">  但 layout_node 的业务数据（滑动偏移、选中状态）保留
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">滑入屏幕的块：
+</span></span><span class="line"><span class="cl">  应用树根据已有 layout_node → 调用工厂重新 lv_obj_create 造出肉体
+</span></span><span class="line"><span class="cl">  利用保留的业务数据恢复界面状态
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>这种&quot;面向组合组件块&quot;的管理方式，使得几百 KB 内存的 MCU 能流畅运行无限滚动列表、多页面嵌套的复杂 GUI。</p>
+<h3 id="24-深度优先销毁">2.4 深度优先销毁
 </h3><p><code>destroy()</code> 虚函数实现了<strong>深度优先</strong>的子树销毁，保证所有子节点先于父节点被回收：</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -735,7 +892,7 @@
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>这意味着调用者无需关心节点的具体类型，一个 <code>layout_node_destroy()</code> 即可销毁整棵子树。</p>
-<h3 id="23-子节点动态数组">2.3 子节点动态数组
+<h3 id="25-子节点动态数组">2.5 子节点动态数组
 </h3><p>容器使用动态数组管理子节点，初始容量 8，倍增扩容：</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -1054,7 +1211,51 @@
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></td></tr></table>
 </div>
-</div><h3 id="43-四大组件的布局策略">4.3 四大组件的布局策略
+</div><h3 id="43-子节点尺寸应用">4.3 子节点尺寸应用
+</h3><p>策略中的 <code>cell_w</code> 和 <code>cell_h</code> 定义了子节点的固定尺寸。当子节点被添加到容器时，<code>layout_strategy_apply_child_size()</code> 自动应用这些尺寸：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">layout_strategy_apply_child_size</span><span class="p">(</span><span class="kt">lv_obj_t</span> <span class="o">*</span><span class="n">child_obj</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                                       <span class="k">const</span> <span class="kt">layout_strategy_t</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">cell_w</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_obj_set_width</span><span class="p">(</span><span class="n">child_obj</span><span class="p">,</span> <span class="n">s</span><span class="o">-&gt;</span><span class="n">cell_w</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">cell_h</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_obj_set_height</span><span class="p">(</span><span class="n">child_obj</span><span class="p">,</span> <span class="n">s</span><span class="o">-&gt;</span><span class="n">cell_h</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>这个函数在 <code>layout_container_add_child()</code> 中被调用：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">layout_container_add_child</span><span class="p">(</span><span class="kt">layout_container_t</span> <span class="o">*</span><span class="n">self</span><span class="p">,</span> <span class="kt">layout_node_t</span> <span class="o">*</span><span class="n">child</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">children_ensure_capacity</span><span class="p">(</span><span class="n">self</span><span class="p">,</span> <span class="n">self</span><span class="o">-&gt;</span><span class="n">child_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">child</span><span class="o">-&gt;</span><span class="n">parent</span> <span class="o">=</span> <span class="n">self</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">self</span><span class="o">-&gt;</span><span class="n">children</span><span class="p">[</span><span class="n">self</span><span class="o">-&gt;</span><span class="n">child_count</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="n">child</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 关键：添加子节点时自动应用策略尺寸
+</span></span></span><span class="line"><span class="cl">    <span class="nf">layout_strategy_apply_child_size</span><span class="p">(</span><span class="n">child</span><span class="o">-&gt;</span><span class="n">obj</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">self</span><span class="o">-&gt;</span><span class="n">strategy</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>设计意义</strong>：布局参数从分散的 API 调用（各组件文件里的 <code>lv_obj_set_size</code>）收拢到策略结构体，组件创建时只需关注&quot;我是什么类型&quot;，尺寸由父容器的策略统一控制。</p>
+<h3 id="44-四大组件的布局策略">4.4 四大组件的布局策略
 </h3><p>在 <code>custom_init()</code> 中，四大组件各自使用不同的策略创建：</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -1270,7 +1471,137 @@
 <li>控制器可以在运行时切换到不同的容器实例</li>
 <li>数据热更新时，控制器暂停 → 容器 clear → 重建子控件 → 控制器恢复</li>
 </ul>
-<h3 id="63-数据热更新">6.3 数据热更新
+<h4 id="621-自动轮播定时器">6.2.1 自动轮播定时器
+</h4><p><code>banner_carousel</code> 创建一个 LVGL 定时器实现 5 秒间隔的自动滚动：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">auto_scroll_timer</span> <span class="o">=</span> <span class="nf">lv_timer_create</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="n">auto_scroll_cb</span><span class="p">,</span> <span class="mi">5000</span><span class="p">,</span> <span class="n">carousel</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">auto_scroll_cb</span><span class="p">(</span><span class="kt">lv_timer_t</span> <span class="o">*</span><span class="n">timer</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">banner_carousel_t</span> <span class="o">*</span><span class="n">carousel</span> <span class="o">=</span> <span class="n">timer</span><span class="o">-&gt;</span><span class="n">user_data</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">is_animating</span><span class="p">)</span> <span class="k">return</span><span class="p">;</span>  <span class="c1">// 动画中不触发
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// 计算下一个索引（循环）
+</span></span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">next_idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">current_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">child_count</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// 滚动到目标位置
+</span></span></span><span class="line"><span class="cl">    <span class="nf">lv_obj_scroll_to_x</span><span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">.</span><span class="n">obj</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                        <span class="n">next_idx</span> <span class="o">*</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">strategy</span><span class="p">.</span><span class="n">cell_w</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                        <span class="n">LV_ANIM_ON</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">current_idx</span> <span class="o">=</span> <span class="n">next_idx</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">update_dots_highlight</span><span class="p">(</span><span class="n">carousel</span><span class="p">);</span>  <span class="c1">// 同步指示器
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h4 id="622-手势检测与用户交互暂停">6.2.2 手势检测与用户交互暂停
+</h4><p>当用户手指滑动横幅时，自动轮播暂停 10 秒，避免干扰：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">gesture_detect_cb</span><span class="p">(</span><span class="kt">lv_event_t</span> <span class="o">*</span><span class="n">e</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">banner_carousel_t</span> <span class="o">*</span><span class="n">carousel</span> <span class="o">=</span> <span class="nf">lv_event_get_user_data</span><span class="p">(</span><span class="n">e</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int32_t</span> <span class="n">scroll_x</span> <span class="o">=</span> <span class="nf">lv_obj_get_scroll_x</span><span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">.</span><span class="n">obj</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">abs</span><span class="p">(</span><span class="n">scroll_x</span> <span class="o">-</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">last_scroll_x</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 检测到滑动：暂停自动滚动 10 秒
+</span></span></span><span class="line"><span class="cl">        <span class="nf">lv_timer_pause</span><span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">auto_scroll_timer</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_timer_reset</span><span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">resume_timer</span><span class="p">);</span>  <span class="c1">// 10 秒后恢复
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">last_scroll_x</span> <span class="o">=</span> <span class="n">scroll_x</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h4 id="623-指示器圆点同步">6.2.3 指示器圆点同步
+</h4><p>指示器是一组小圆点（<code>lv_obj</code>），数量与横幅图片一致，当前页高亮：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">create_dots</span><span class="p">(</span><span class="kt">banner_carousel_t</span> <span class="o">*</span><span class="n">carousel</span><span class="p">,</span> <span class="kt">lv_obj_t</span> <span class="o">*</span><span class="n">parent</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">count</span> <span class="o">=</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">child_count</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">dots</span> <span class="o">=</span> <span class="nf">rt_malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">lv_obj_t</span> <span class="o">*</span><span class="p">)</span> <span class="o">*</span> <span class="n">count</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">lv_obj_t</span> <span class="o">*</span><span class="n">dot</span> <span class="o">=</span> <span class="nf">lv_obj_create</span><span class="p">(</span><span class="n">parent</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_obj_set_size</span><span class="p">(</span><span class="n">dot</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_obj_set_style_bg_color</span><span class="p">(</span><span class="n">dot</span><span class="p">,</span> <span class="nf">lv_color_hex</span><span class="p">(</span><span class="mh">0xCCCCCC</span><span class="p">),</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// 第一个默认高亮
+</span></span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">lv_obj_set_style_bg_color</span><span class="p">(</span><span class="n">dot</span><span class="p">,</span> <span class="nf">lv_color_hex</span><span class="p">(</span><span class="mh">0xFFFFFF</span><span class="p">),</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">dots</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">dot</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">update_dots_highlight</span><span class="p">(</span><span class="kt">banner_carousel_t</span> <span class="o">*</span><span class="n">carousel</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">child_count</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_obj_set_style_bg_color</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">            <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">dots</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">            <span class="n">i</span> <span class="o">==</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">current_idx</span> <span class="o">?</span> <span class="nf">lv_color_hex</span><span class="p">(</span><span class="mh">0xFFFFFF</span><span class="p">)</span> <span class="o">:</span> <span class="nf">lv_color_hex</span><span class="p">(</span><span class="mh">0xCCCCCC</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">            <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="63-数据热更新">6.3 数据热更新
 </h3><p><code>banner_carousel_update_data()</code> 展示了应用树的热更新流程：</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -1421,10 +1752,203 @@
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>三个模块零直接依赖，完全通过事件总线通信。</p>
+<h3 id="74-rt-thread-线程安全引用与隔离">7.4 RT-Thread 线程安全：引用与隔离
+</h3><p>LVGL 有一个铁律：<strong>所有对 <code>lv_obj_t</code> 的操作必须在同一个线程（LVGL 线程）中进行</strong>。如果业务线程（网络、传感器）直接调用 <code>lv_label_set_text()</code>，系统大概率崩溃。</p>
+<h4 id="741-线程物理隔离">7.4.1 线程物理隔离
+</h4><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">LVGL 渲染线程                业务工作线程
+</span></span><span class="line"><span class="cl">lv_timer_handler()           网络通信/数据处理
+</span></span><span class="line"><span class="cl">lv_tick_inc()                硬件读写
+</span></span><span class="line"><span class="cl">只负责渲染                    不触碰 lv_obj_t
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>业务线程绝对拿不到 <code>lv_obj_t</code> 指针，只能操作纯业务数据（C 结构体）。</p>
+<h4 id="742-rt-thread-消息队列桥梁">7.4.2 RT-Thread 消息队列桥梁
+</h4><p>业务线程通过 RT-Thread 消息队列通知 UI 线程刷新：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// 定义跨线程消息
+</span></span></span><span class="line"><span class="cl"><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">event_type_t</span> <span class="n">type</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">layout_node_t</span> <span class="o">*</span><span class="n">target_node</span><span class="p">;</span>  <span class="c1">// 引用应用树节点（不碰 lv_obj）
+</span></span></span><span class="line"><span class="cl">    <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="kt">app_msg_t</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// RT-Thread 消息队列初始化
+</span></span></span><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">rt_messagequeue</span> <span class="n">ui_mq</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nf">rt_mq_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ui_mq</span><span class="p">,</span> <span class="s">&#34;ui_mq&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">           <span class="nf">rt_malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">app_msg_t</span><span class="p">)</span> <span class="o">*</span> <span class="mi">16</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">           <span class="k">sizeof</span><span class="p">(</span><span class="kt">app_msg_t</span><span class="p">),</span> <span class="mi">16</span><span class="p">,</span> <span class="n">RT_IPC_FLAG_FIFO</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 业务线程发送更新请求（隔离且安全）
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">network_thread_handle_new_price</span><span class="p">(</span><span class="kt">uint8_t</span> <span class="n">price</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">app_msg_t</span> <span class="n">msg</span> <span class="o">=</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="p">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">EVT_CART_PRICE_CHANGED</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="p">.</span><span class="n">target_node</span> <span class="o">=</span> <span class="n">g_cart_node</span><span class="p">,</span>  <span class="c1">// 引用节点，不碰 lv_obj
+</span></span></span><span class="line"><span class="cl">        <span class="p">.</span><span class="n">data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">price</span>
+</span></span><span class="line"><span class="cl">    <span class="p">};</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">rt_mq_send</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ui_mq</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">msg</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">app_msg_t</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// 业务线程工作完成，绝不阻塞 UI 线程
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// LVGL 线程接收并驱动渲染
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">lvgl_thread_entry</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">param</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">app_msg_t</span> <span class="n">recv_msg</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="nf">rt_mq_recv</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ui_mq</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">recv_msg</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">app_msg_t</span><span class="p">),</span> <span class="n">RT_WAITING_FOREVER</span><span class="p">)</span> <span class="o">==</span> <span class="n">RT_EOK</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="c1">// 在 LVGL 线程安全地更新 UI
+</span></span></span><span class="line"><span class="cl">            <span class="k">switch</span> <span class="p">(</span><span class="n">recv_msg</span><span class="p">.</span><span class="n">type</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="k">case</span> <span class="nl">EVT_CART_PRICE_CHANGED</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                    <span class="nf">cart_node_set_price</span><span class="p">(</span><span class="n">recv_msg</span><span class="p">.</span><span class="n">target_node</span><span class="p">,</span> <span class="o">*</span><span class="p">(</span><span class="kt">uint8_t</span><span class="o">*</span><span class="p">)</span><span class="n">recv_msg</span><span class="p">.</span><span class="n">data</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_timer_handler</span><span class="p">();</span>  <span class="c1">// 渲染
+</span></span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h4 id="743-引用与隔离的精髓">7.4.3 引用与隔离的精髓
+</h4><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>机制</th>
+					<th>作用</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>线程隔离</strong></td>
+					<td>业务跑独立线程，看不到 <code>lv_obj_t</code>；UI 跑独立线程，不关心业务协议</td>
+			</tr>
+			<tr>
+					<td><strong>消息队列</strong></td>
+					<td>业务线程引用应用树节点指针，把数据丢进队列后转身就走</td>
+			</tr>
+			<tr>
+					<td><strong>安全渲染</strong></td>
+					<td>UI 线程拿到指针后，在 LVGL 线程上下文安全操作底层 <code>lv_obj</code></td>
+			</tr>
+	</tbody>
+</table></div>
+<p>在这套架构下，即使网络线程疯狂发消息，LVGL 渲染线程仍能以自己节奏从队列取消息并平滑刷新，绝不死机或卡顿。</p>
 <hr>
 <h2 id="八从静态到动态custom_init-的替换流程">八、从静态到动态：custom_init() 的替换流程
 </h2><p><code>custom_init()</code> 是系统组装入口，完整展示了从 AiUIBuilder 静态骨架到动态应用树的替换过程：</p>
+<h3 id="81-sd卡挂载与资源路径管理">8.1 SD卡挂载与资源路径管理
+</h3><p>动态组件的图片资源存放在 SD 卡，启动时必须先挂载：</p>
 <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">int</span> <span class="nf">ensure_sdcard_mounted</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">dfs_mount</span><span class="p">(</span><span class="s">&#34;sd0&#34;</span><span class="p">,</span> <span class="s">&#34;/sdcard&#34;</span><span class="p">,</span> <span class="s">&#34;elm&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>  <span class="c1">// 已挂载
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// 重试最多 5 次
+</span></span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">rt_thread_mdelay</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="nf">dfs_mount</span><span class="p">(</span><span class="s">&#34;sd0&#34;</span><span class="p">,</span> <span class="s">&#34;/sdcard&#34;</span><span class="p">,</span> <span class="s">&#34;elm&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">rt_kprintf</span><span class="p">(</span><span class="s">&#34;SD card mount failed, use default paths</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>挂载成功后，资源路径标准化：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>资源类型</th>
+					<th>SD卡路径</th>
+					<th>用途</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Banner 图片</td>
+					<td><code>/sdcard/banner/xxx.png</code></td>
+					<td>轮播横幅</td>
+			</tr>
+			<tr>
+					<td>商品图片</td>
+					<td><code>/sdcard/commodity/xxx.png</code></td>
+					<td>商品卡片</td>
+			</tr>
+			<tr>
+					<td>配置文件</td>
+					<td><code>/sdcard/config/banner.json</code></td>
+					<td>Web配置持久化</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>所有路径在 <code>web_config.c</code> 中统一管理，避免硬编码散落各处。</p>
+<h3 id="82-完整初始化流程">8.2 完整初始化流程
+</h3><div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
 <pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
@@ -1475,12 +1999,18 @@
 </span><span class="lnt">47
 </span><span class="lnt">48
 </span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="n">Step</span> <span class="mi">1</span><span class="p">:</span> <span class="err">初始化基础设施</span>
 </span></span><span class="line"><span class="cl">  <span class="n">event_bus_init</span><span class="p">()</span> <span class="o">+</span> <span class="n">async_loader_init</span><span class="p">()</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="n">Step</span> <span class="mi">2</span><span class="p">:</span> <span class="err">初始化对象池</span>
+</span></span><span class="line"><span class="cl"><span class="n">Step</span> <span class="mi">2</span><span class="p">:</span> <span class="err">挂载</span> <span class="n">SD</span> <span class="err">卡（资源路径准备）</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ensure_sdcard_mounted</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">Step</span> <span class="mi">3</span><span class="p">:</span> <span class="err">初始化对象池</span>
 </span></span><span class="line"><span class="cl">  <span class="n">banner_item_module_init</span><span class="p">()</span>    <span class="o">//</span> <span class="n">rt_mp_create</span><span class="p">,</span> <span class="err">容量</span><span class="o">=</span><span class="mi">10</span>
 </span></span><span class="line"><span class="cl">  <span class="n">commodity_module_init</span><span class="p">()</span>      <span class="o">//</span> <span class="n">rt_mp_create</span><span class="p">,</span> <span class="err">容量</span><span class="o">=</span><span class="mi">30</span>
 </span></span><span class="line"><span class="cl">  <span class="n">cart_module_init</span><span class="p">()</span>           <span class="o">//</span> <span class="n">rt_mp_create</span><span class="p">,</span> <span class="err">容量</span><span class="o">=</span><span class="mi">20</span>
@@ -1529,6 +2059,104 @@
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>核心思路</strong>：保留 AiUIBuilder 创建的<strong>容器对象</strong>（如 <code>container_banner</code>），删除其<strong>静态子控件</strong>，然后通过 Wrap 机制将容器纳入应用树管理，再通过控件工厂动态填充可数据驱动的子节点。</p>
+<h3 id="83-购物车开合动画">8.3 购物车开合动画
+</h3><p>购物车列表默认隐藏，点击结算按钮时展开，通过 LVGL 动画 API 实现：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// 展开动画：高度从 0 → 400，透明度从 0 → 255
+</span></span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">cart_list_open_anim</span><span class="p">(</span><span class="kt">lv_obj_t</span> <span class="o">*</span><span class="n">cart_container</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">lv_anim_t</span> <span class="n">a</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_var</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">cart_container</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_exec_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_obj_set_height</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_values</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">400</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_time</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="mi">300</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_path_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_anim_path_ease_out</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_start</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// 同步透明度动画
+</span></span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_exec_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_obj_set_style_opa</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_values</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">LV_OPA_TRANSP</span><span class="p">,</span> <span class="n">LV_OPA_COVER</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_start</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// 收起动画：反向过程
+</span></span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">cart_list_close_anim</span><span class="p">(</span><span class="kt">lv_obj_t</span> <span class="o">*</span><span class="n">cart_container</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">lv_anim_t</span> <span class="n">a</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_var</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">cart_container</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_exec_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_obj_set_height</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_values</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_time</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="mi">300</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_path_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_anim_path_ease_in</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_start</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_exec_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_obj_set_style_opa</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_values</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">LV_OPA_COVER</span><span class="p">,</span> <span class="n">LV_OPA_TRANSP</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_start</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>动画触发由结算按钮点击事件驱动，配合应用树的购物车容器：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">settlement_btn_click_cb</span><span class="p">(</span><span class="kt">lv_event_t</span> <span class="o">*</span><span class="n">e</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">g_cart_list_visible</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">cart_list_close_anim</span><span class="p">(</span><span class="n">s_cart_comp</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">.</span><span class="n">obj</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">g_cart_list_visible</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">cart_list_open_anim</span><span class="p">(</span><span class="n">s_cart_comp</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">.</span><span class="n">obj</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">g_cart_list_visible</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>设计要点</strong>：动画操作的是应用树容器对应的 <code>lv_obj_t</code>，但控制逻辑在业务层（<code>g_cart_list_visible</code> 标志），体现了数据与渲染的分离。</p>
 <hr>
 <h2 id="九内存管理策略">九、内存管理策略
 </h2><h3 id="91-对象池-vs-堆分配">9.1 对象池 vs 堆分配
@@ -1924,7 +2552,7 @@
 
 
         <span>
-            最后更新于 Jul 02, 2026 22:52 &#43;0800
+            最后更新于 Jul 08, 2026 23:37 &#43;0800
         </span>
     </section></footer>
 
@@ -2141,7 +2769,7 @@
             
                 
             
-        本网站已稳定运行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;总计<span id="articleCount">&lt; 10 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 47.81 k ></span>字
+        本网站已稳定运行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;总计<span id="articleCount">&lt; 10 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 51.10 k ></span>字
     </section>
     <section class="powerby">
         使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 构建 <br />
