@@ -10,7 +10,7 @@
 <meta property='og:description' content="Based on ArtInChip + LVGL v9 + RT-Thread smart vending terminal, an in-depth analysis of how the application tree (layout_node) manages the LVGL render tree, covering Composite pattern dual-tree mapping, Wrap bridging mechanism, strategy-driven Flex/Grid layout, widget factory dynamic creation, event-driven hot updates, and the replacement flow from static skeleton to dynamic components">
 <meta property='og:url' content='https://lingsir007.netlify.app/en/p/lvgl-dynamic-loading-and-render-tree-management-application-tree-architecture-practices-for-smart-vending-terminal/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='Vending Machine' /><meta property='article:tag' content='Embedded UI' /><meta property='article:tag' content='Design Patterns' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-07T19:57:38&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='Vending Machine' /><meta property='article:tag' content='Embedded UI' /><meta property='article:tag' content='Design Patterns' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-08T23:37:53&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
 <meta name="twitter:title" content="LVGL Dynamic Loading and Render Tree Management: Application Tree Architecture Practices for Smart Vending Terminal">
 <meta name="twitter:description" content="Based on ArtInChip + LVGL v9 + RT-Thread smart vending terminal, an in-depth analysis of how the application tree (layout_node) manages the LVGL render tree, covering Composite pattern dual-tree mapping, Wrap bridging mechanism, strategy-driven Flex/Grid layout, widget factory dynamic creation, event-driven hot updates, and the replacement flow from static skeleton to dynamic components"><meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content='https://lingsir007.netlify.app/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
@@ -299,15 +299,28 @@
     <li><a href="#preface">Preface</a></li>
     <li><a href="#1-dual-tree-architecture-render-tree-vs-application-tree">1. Dual-Tree Architecture: Render Tree vs Application Tree</a>
       <ol>
-        <li><a href="#11-problem-background">1.1 Problem Background</a></li>
+        <li><a href="#11-problem-background">1.1 Problem Background</a>
+          <ol>
+            <li><a href="#111-four-limitations-of-native-lvgl">1.1.1 Four Limitations of Native LVGL</a></li>
+            <li><a href="#112-an-intuitive-analogy">1.1.2 An Intuitive Analogy</a></li>
+            <li><a href="#113-the-gap-filled-by-the-application-tree">1.1.3 The Gap Filled by the Application Tree</a></li>
+          </ol>
+        </li>
         <li><a href="#12-solution-application-tree">1.2 Solution: Application Tree</a></li>
       </ol>
     </li>
     <li><a href="#2-composite-pattern-layout_node-core-design">2. Composite Pattern: layout_node Core Design</a>
       <ol>
         <li><a href="#21-three-layer-type-system">2.1 Three-Layer Type System</a></li>
-        <li><a href="#22-depth-first-destruction">2.2 Depth-First Destruction</a></li>
-        <li><a href="#23-child-node-dynamic-array">2.3 Child Node Dynamic Array</a></li>
+        <li><a href="#22-composite-component-block-granularity">2.2 Composite Component Block Granularity</a>
+          <ol>
+            <li><a href="#what-is-a-composite-component-block">What Is a Composite Component Block?</a></li>
+            <li><a href="#block-level-destruction-and-safe-reclamation">Block-Level Destruction and Safe Reclamation</a></li>
+            <li><a href="#suspendactivate-mechanism-business-state-preservation-and-body-rebuilding">Suspend/Activate Mechanism: Business State Preservation and Body Rebuilding</a></li>
+          </ol>
+        </li>
+        <li><a href="#24-depth-first-destruction">2.4 Depth-First Destruction</a></li>
+        <li><a href="#25-child-node-dynamic-array">2.5 Child Node Dynamic Array</a></li>
       </ol>
     </li>
     <li><a href="#3-wrap-bridging-from-static-skeleton-to-dynamic-container">3. Wrap Bridging: From Static Skeleton to Dynamic Container</a>
@@ -321,7 +334,8 @@
       <ol>
         <li><a href="#41-strategy-configuration-structure">4.1 Strategy Configuration Structure</a></li>
         <li><a href="#42-strategy-application">4.2 Strategy Application</a></li>
-        <li><a href="#43-layout-strategies-for-the-four-major-components">4.3 Layout Strategies for the Four Major Components</a></li>
+        <li><a href="#43-child-node-size-application">4.3 Child Node Size Application</a></li>
+        <li><a href="#44-layout-strategies-for-the-four-major-components">4.4 Layout Strategies for the Four Major Components</a></li>
       </ol>
     </li>
     <li><a href="#5-factory-pattern-widget_factory-dynamic-creation">5. Factory Pattern: widget_factory Dynamic Creation</a>
@@ -333,7 +347,13 @@
     <li><a href="#6-component-factory-assembly-units-of-the-application-tree">6. Component Factory: Assembly Units of the Application Tree</a>
       <ol>
         <li><a href="#61-component--container--child-widgets--controller">6.1 Component = Container + Child Widgets + Controller</a></li>
-        <li><a href="#62-controller-container-separation">6.2 Controller-Container Separation</a></li>
+        <li><a href="#62-controller-container-separation">6.2 Controller-Container Separation</a>
+          <ol>
+            <li><a href="#621-auto-scroll-timer">6.2.1 Auto-Scroll Timer</a></li>
+            <li><a href="#622-gesture-detection-and-user-interaction-pause">6.2.2 Gesture Detection and User Interaction Pause</a></li>
+            <li><a href="#623-indicator-dot-synchronization">6.2.3 Indicator Dot Synchronization</a></li>
+          </ol>
+        </li>
         <li><a href="#63-data-hot-update">6.3 Data Hot-Update</a></li>
       </ol>
     </li>
@@ -342,9 +362,22 @@
         <li><a href="#71-event-bus">7.1 Event Bus</a></li>
         <li><a href="#72-complete-config-hot-update-chain">7.2 Complete Config Hot-Update Chain</a></li>
         <li><a href="#73-cross-component-coordination">7.3 Cross-Component Coordination</a></li>
+        <li><a href="#74-rt-thread-thread-safety-reference-and-isolation">7.4 RT-Thread Thread Safety: Reference and Isolation</a>
+          <ol>
+            <li><a href="#741-physical-thread-isolation">7.4.1 Physical Thread Isolation</a></li>
+            <li><a href="#742-rt-thread-message-queue-bridge">7.4.2 RT-Thread Message Queue Bridge</a></li>
+            <li><a href="#743-the-essence-of-reference-and-isolation">7.4.3 The Essence of Reference and Isolation</a></li>
+          </ol>
+        </li>
       </ol>
     </li>
-    <li><a href="#8-from-static-to-dynamic-the-custom_init-replacement-flow">8. From Static to Dynamic: The custom_init() Replacement Flow</a></li>
+    <li><a href="#8-from-static-to-dynamic-the-custom_init-replacement-flow">8. From Static to Dynamic: The custom_init() Replacement Flow</a>
+      <ol>
+        <li><a href="#81-sd-card-mounting-and-resource-path-management">8.1 SD Card Mounting and Resource Path Management</a></li>
+        <li><a href="#82-complete-initialization-flow">8.2 Complete Initialization Flow</a></li>
+        <li><a href="#83-cart-openclose-animation">8.3 Cart Open/Close Animation</a></li>
+      </ol>
+    </li>
     <li><a href="#9-memory-management-strategy">9. Memory Management Strategy</a>
       <ol>
         <li><a href="#91-object-pool-vs-heap-allocation">9.1 Object Pool vs Heap Allocation</a></li>
@@ -451,12 +484,12 @@
         <div class="article-lastmod">
                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
                 <time>
-                    Jul 07, 2026 19:57 &#43;0800
+                    Jul 08, 2026 23:37 &#43;0800
                 </time>
             </div><div id="wordCount">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
             <time class="article-wordcount">
-                3974  words
+                5999  words
             </time>
         </div>
 
@@ -508,7 +541,7 @@
 <hr>
 <h2 id="1-dual-tree-architecture-render-tree-vs-application-tree">1. Dual-Tree Architecture: Render Tree vs Application Tree
 </h2><h3 id="11-problem-background">1.1 Problem Background
-</h3><p>The project uses AiUIBuilder v2.0.2 to generate a static UI skeleton (<code>ui_builder/screen.c</code>), creating widgets such as banner images, commodity cards, cart rows, and navigation buttons on an 800×480 screen. However, these widgets are <strong>hard-coded static objects</strong>:</p>
+</h3><p>The project uses AiUIBuilder v2.0.2 to generate a static UI skeleton (<code>ui_builder/screen.c</code>), creating widgets such as banner images, commodity cards, cart rows, and navigation buttons on an 800x480 screen. However, these widgets are <strong>hard-coded static objects</strong>:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
 <pre tabindex="0" class="chroma"><code><span class="lnt">1
@@ -544,6 +577,56 @@
 <li>Layout parameters hard-coded, no unified adjustment</li>
 <li>Direct calls between components, tight coupling</li>
 </ul>
+<h4 id="111-four-limitations-of-native-lvgl">1.1.1 Four Limitations of Native LVGL
+</h4><p>LVGL is an excellent lightweight embedded graphics library, but its native design reveals the following limitations when dealing with complex, dynamic, multi-layered UI applications:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Limitation Dimension</th>
+					<th>Manifestation</th>
+					<th>Pain Point of Native Approach</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>Render State vs Business State</strong></td>
+					<td><code>lv_obj_t</code> stores render state (coordinates, size, color) but has no knowledge of business semantics (e.g., whether a cart count of &ldquo;3&rdquo; means &ldquo;3 items&rdquo; or &ldquo;3 yuan total&rdquo;)</td>
+					<td><code>lv_label_set_text(cart_label, &quot;3&quot;)</code> tightly couples business logic with UI rendering; once the object is destroyed, dangling pointers result</td>
+			</tr>
+			<tr>
+					<td><strong>Static Configuration vs Dynamic Lifecycle</strong></td>
+					<td>LVGL encourages static configuration at startup, but modern embedded UIs are highly dynamic (product lists come from the network, quantities change at any time)</td>
+					<td>Manually looping <code>lv_obj_create</code>, manually calculating coordinates, numerous <code>lv_obj_del</code> calls causing memory fragmentation and stuttering from frequent creation/destruction</td>
+			</tr>
+			<tr>
+					<td><strong>Hard-Coded Layout vs Strategy-Driven Layout</strong></td>
+					<td>Flex/Grid are only basic typesetting; complex business rules (grey out when out of stock, change from 3 to 5 items per row in landscape) are difficult to configure</td>
+					<td>Business code filled with <code>if (stock==0) lv_obj_add_state(card, LV_STATE_DISABLED)</code>, scattered everywhere and extremely hard to maintain</td>
+			</tr>
+			<tr>
+					<td><strong>Single-Page Thinking vs Page Stack State Machine</strong></td>
+					<td>No routing/page stack concept; switching pages means <code>lv_obj_clean</code> and rebuild, with no way to preserve state (scroll position lost when returning to a list page)</td>
+					<td>Rebuilding from scratch every time; all user interaction state is completely lost</td>
+			</tr>
+	</tbody>
+</table></div>
+<h4 id="112-an-intuitive-analogy">1.1.2 An Intuitive Analogy
+</h4><p>Think of developing an embedded UI like building a house:</p>
+<ul>
+<li><strong>LVGL is the bricks, cement, and paint</strong>. Directly calling <code>lv_obj_create</code> is laying bricks one by one.</li>
+<li><strong>Simple UI (a doghouse)</strong>: A few buttons and labels — laying bricks directly is the fastest and most appropriate approach; no architecture needed.</li>
+<li><strong>Complex UI (a 30-story commercial building)</strong>: A smart terminal with multiple pages, dynamic network data refresh, and various interaction states — if you insist on laying bricks one by one, it will eventually collapse. You need <strong>architectural blueprints and a construction framework</strong> (the application tree). The blueprint defines where the restrooms are, where the load-bearing walls go (business structure), and exactly how to lay the bricks is carried out by the construction crew (LVGL rendering engine) according to the blueprint.</li>
+</ul>
+<h4 id="113-the-gap-filled-by-the-application-tree">1.1.3 The Gap Filled by the Application Tree
+</h4><p>LVGL itself does not provide a complete application framework for managing complex UI states and business logic. The application tree (<code>layout_node</code> + <code>layout_strategy</code>) fills this gap:</p>
+<ul>
+<li><strong>Structural</strong>: Organizes the UI in a tree form, clearly expressing interface hierarchy</li>
+<li><strong>Strategy-Driven</strong>: Abstracts layout algorithms into replaceable strategies</li>
+<li><strong>Component-Based</strong>: Efficiently manages components through factories and object pools</li>
+<li><strong>Asynchronous</strong>: Loads resources in the background, ensuring smoothness</li>
+<li><strong>Decoupled</strong>: Uses an event bus for loose coupling between business logic and UI communication</li>
+</ul>
+<p>Thus, LVGL is elevated from a mere &ldquo;drawing tool&rdquo; into a development framework capable of supporting large, complex, and maintainable embedded UI applications.</p>
 <h3 id="12-solution-application-tree">1.2 Solution: Application Tree
 </h3><p>Build an <strong>application tree</strong> on top of the LVGL render tree, where each application tree node holds a corresponding <code>lv_obj_t*</code> and adds lifecycle and layout management capabilities:</p>
 <div class="highlight"><div class="chroma">
@@ -679,7 +762,81 @@
 </span></span><span class="line"><span class="cl"><span class="p">};</span>
 </span></span></code></pre></td></tr></table>
 </div>
-</div><h3 id="22-depth-first-destruction">2.2 Depth-First Destruction
+</div><h3 id="22-composite-component-block-granularity">2.2 Composite Component Block Granularity
+</h3><p>The granularity of application tree nodes is <strong>business-level composite component blocks</strong>, rarely corresponding to LVGL&rsquo;s native base objects (such as a single <code>lv_label</code> or <code>lv_btn</code>).</p>
+<h4 id="what-is-a-composite-component-block">What Is a Composite Component Block?
+</h4><p>Take the vending machine&rsquo;s &ldquo;commodity card&rdquo; as an example. In native LVGL, it consists of the following 5 objects:</p>
+<ul>
+<li>1 <code>lv_obj</code> (outermost container)</li>
+<li>1 <code>lv_img</code> (product image)</li>
+<li>2 <code>lv_label</code> (name, price)</li>
+<li>1 <code>lv_btn</code> (purchase button)</li>
+</ul>
+<p>The application tree approach:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// Application tree node (composite component)
+</span></span></span><span class="line"><span class="cl"><span class="kt">widget_unit_t</span> <span class="o">*</span><span class="n">card</span> <span class="o">=</span> <span class="nf">widget_factory_create</span><span class="p">(</span><span class="s">&#34;commodity_card&#34;</span><span class="p">,</span> <span class="n">parent</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="n">card</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">.</span><span class="n">obj</span> <span class="o">=</span> <span class="n">container</span><span class="p">;</span>  <span class="c1">// Points to the outermost container of the composite component
+</span></span></span><span class="line"><span class="cl"><span class="n">card</span><span class="o">-&gt;</span><span class="n">priv</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">card_data</span><span class="p">;</span>     <span class="c1">// Business data (product ID, price, stock)
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>A single <code>widget_unit_t</code> node, with its <code>obj</code> pointer pointing to the outermost container — the component factory internally creates all 5 <code>lv_obj_t</code> objects and assembles them in one go.</p>
+<h4 id="block-level-destruction-and-safe-reclamation">Block-Level Destruction and Safe Reclamation
+</h4><p>When a page switch or list scroll causes a product card to move off screen:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Native Approach</th>
+					<th>Application Tree Approach</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Manually find img, label1, label2, btn and call <code>lv_obj_del()</code> on each; extremely easy to miss one</td>
+					<td>Simply destroy the <code>layout_node</code>; the framework calls <code>lv_obj_del(node-&gt;obj)</code>, and LVGL automatically recursively deletes all child objects</td>
+			</tr>
+			<tr>
+					<td>Business code may still reference deleted objects, causing dangling pointer crashes</td>
+					<td>The application tree clears <code>node-&gt;obj</code>; the business layer can no longer accidentally touch the underlying UI</td>
+			</tr>
+	</tbody>
+</table></div>
+<h4 id="suspendactivate-mechanism-business-state-preservation-and-body-rebuilding">Suspend/Activate Mechanism: Business State Preservation and Body Rebuilding
+</h4><p>On memory-constrained MCUs, a long list with 100 products cannot create 100 <code>lv_obj</code> blocks (memory would overflow). The application tree works with an async loader to achieve:</p>
+<ul>
+<li><strong>Preserve 100 <code>layout_node</code> instances</strong> (storing only a few bytes of business data, minimal memory usage)</li>
+<li><strong>Only create 5 <code>lv_obj</code> blocks visible on screen</strong></li>
+</ul>
+<p>When the user scrolls the screen:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">Block scrolled off screen:
+</span></span><span class="line"><span class="cl">  Application tree calls lv_obj_del() to destroy the LVGL body → frees display memory
+</span></span><span class="line"><span class="cl">  But the layout_node&#39;s business data (scroll offset, selection state) is preserved
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">Block scrolled onto screen:
+</span></span><span class="line"><span class="cl">  Application tree uses the existing layout_node → calls factory to lv_obj_create a new body
+</span></span><span class="line"><span class="cl">  Uses the preserved business data to restore the interface state
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>This &ldquo;composite component block-oriented&rdquo; management approach enables an MCU with only a few hundred KB of memory to smoothly run infinite scrolling lists and multi-page nested complex GUIs.</p>
+<h3 id="24-depth-first-destruction">2.4 Depth-First Destruction
 </h3><p>The <code>destroy()</code> virtual function implements <strong>depth-first</strong> subtree destruction, ensuring all child nodes are reclaimed before their parent:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -735,7 +892,7 @@
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>This means the caller does not need to know the concrete type of the node; a single <code>layout_node_destroy()</code> call can destroy the entire subtree.</p>
-<h3 id="23-child-node-dynamic-array">2.3 Child Node Dynamic Array
+<h3 id="25-child-node-dynamic-array">2.5 Child Node Dynamic Array
 </h3><p>Containers use a dynamic array to manage child nodes, with an initial capacity of 8 and doubling expansion:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -1054,7 +1211,51 @@
 </span></span><span class="line"><span class="cl"><span class="p">}</span>
 </span></span></code></pre></td></tr></table>
 </div>
-</div><h3 id="43-layout-strategies-for-the-four-major-components">4.3 Layout Strategies for the Four Major Components
+</div><h3 id="43-child-node-size-application">4.3 Child Node Size Application
+</h3><p>The <code>cell_w</code> and <code>cell_h</code> fields in the strategy define fixed sizes for child nodes. When a child node is added to a container, <code>layout_strategy_apply_child_size()</code> automatically applies these sizes:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">layout_strategy_apply_child_size</span><span class="p">(</span><span class="kt">lv_obj_t</span> <span class="o">*</span><span class="n">child_obj</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                                       <span class="k">const</span> <span class="kt">layout_strategy_t</span> <span class="o">*</span><span class="n">s</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">cell_w</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_obj_set_width</span><span class="p">(</span><span class="n">child_obj</span><span class="p">,</span> <span class="n">s</span><span class="o">-&gt;</span><span class="n">cell_w</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">cell_h</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_obj_set_height</span><span class="p">(</span><span class="n">child_obj</span><span class="p">,</span> <span class="n">s</span><span class="o">-&gt;</span><span class="n">cell_h</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>This function is called within <code>layout_container_add_child()</code>:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">layout_container_add_child</span><span class="p">(</span><span class="kt">layout_container_t</span> <span class="o">*</span><span class="n">self</span><span class="p">,</span> <span class="kt">layout_node_t</span> <span class="o">*</span><span class="n">child</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">children_ensure_capacity</span><span class="p">(</span><span class="n">self</span><span class="p">,</span> <span class="n">self</span><span class="o">-&gt;</span><span class="n">child_count</span> <span class="o">+</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">child</span><span class="o">-&gt;</span><span class="n">parent</span> <span class="o">=</span> <span class="n">self</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">self</span><span class="o">-&gt;</span><span class="n">children</span><span class="p">[</span><span class="n">self</span><span class="o">-&gt;</span><span class="n">child_count</span><span class="o">++</span><span class="p">]</span> <span class="o">=</span> <span class="n">child</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Key: automatically apply strategy sizes when adding a child node
+</span></span></span><span class="line"><span class="cl">    <span class="nf">layout_strategy_apply_child_size</span><span class="p">(</span><span class="n">child</span><span class="o">-&gt;</span><span class="n">obj</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">self</span><span class="o">-&gt;</span><span class="n">strategy</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Design significance</strong>: Layout parameters are consolidated from scattered API calls (<code>lv_obj_set_size</code> in various component files) into a single strategy struct. When creating a component, you only need to focus on &ldquo;what type am I&rdquo; — the size is uniformly controlled by the parent container&rsquo;s strategy.</p>
+<h3 id="44-layout-strategies-for-the-four-major-components">4.4 Layout Strategies for the Four Major Components
 </h3><p>In <code>custom_init()</code>, the four major components each use different strategies:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -1270,7 +1471,137 @@
 <li>The controller can switch to a different container instance at runtime</li>
 <li>During data hot-updates: controller pauses → container clears → child widgets rebuilt → controller resumes</li>
 </ul>
-<h3 id="63-data-hot-update">6.3 Data Hot-Update
+<h4 id="621-auto-scroll-timer">6.2.1 Auto-Scroll Timer
+</h4><p><code>banner_carousel</code> creates an LVGL timer to implement 5-second interval auto-scrolling:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">auto_scroll_timer</span> <span class="o">=</span> <span class="nf">lv_timer_create</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="n">auto_scroll_cb</span><span class="p">,</span> <span class="mi">5000</span><span class="p">,</span> <span class="n">carousel</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">auto_scroll_cb</span><span class="p">(</span><span class="kt">lv_timer_t</span> <span class="o">*</span><span class="n">timer</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">banner_carousel_t</span> <span class="o">*</span><span class="n">carousel</span> <span class="o">=</span> <span class="n">timer</span><span class="o">-&gt;</span><span class="n">user_data</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">is_animating</span><span class="p">)</span> <span class="k">return</span><span class="p">;</span>  <span class="c1">// Do not trigger during animation
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Calculate next index (circular)
+</span></span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">next_idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">current_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">child_count</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Scroll to target position
+</span></span></span><span class="line"><span class="cl">    <span class="nf">lv_obj_scroll_to_x</span><span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">.</span><span class="n">obj</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                        <span class="n">next_idx</span> <span class="o">*</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">strategy</span><span class="p">.</span><span class="n">cell_w</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                        <span class="n">LV_ANIM_ON</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">current_idx</span> <span class="o">=</span> <span class="n">next_idx</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">update_dots_highlight</span><span class="p">(</span><span class="n">carousel</span><span class="p">);</span>  <span class="c1">// Sync indicators
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h4 id="622-gesture-detection-and-user-interaction-pause">6.2.2 Gesture Detection and User Interaction Pause
+</h4><p>When the user swipes the banner with a finger, auto-scrolling pauses for 10 seconds to avoid interference:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">gesture_detect_cb</span><span class="p">(</span><span class="kt">lv_event_t</span> <span class="o">*</span><span class="n">e</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">banner_carousel_t</span> <span class="o">*</span><span class="n">carousel</span> <span class="o">=</span> <span class="nf">lv_event_get_user_data</span><span class="p">(</span><span class="n">e</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int32_t</span> <span class="n">scroll_x</span> <span class="o">=</span> <span class="nf">lv_obj_get_scroll_x</span><span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">.</span><span class="n">obj</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">abs</span><span class="p">(</span><span class="n">scroll_x</span> <span class="o">-</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">last_scroll_x</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// Swipe detected: pause auto-scroll for 10 seconds
+</span></span></span><span class="line"><span class="cl">        <span class="nf">lv_timer_pause</span><span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">auto_scroll_timer</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_timer_reset</span><span class="p">(</span><span class="n">carousel</span><span class="o">-&gt;</span><span class="n">resume_timer</span><span class="p">);</span>  <span class="c1">// Resume after 10 seconds
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">        <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">last_scroll_x</span> <span class="o">=</span> <span class="n">scroll_x</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h4 id="623-indicator-dot-synchronization">6.2.3 Indicator Dot Synchronization
+</h4><p>The indicators are a set of small dots (<code>lv_obj</code>), matching the number of banner images, with the current page highlighted:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">create_dots</span><span class="p">(</span><span class="kt">banner_carousel_t</span> <span class="o">*</span><span class="n">carousel</span><span class="p">,</span> <span class="kt">lv_obj_t</span> <span class="o">*</span><span class="n">parent</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int</span> <span class="n">count</span> <span class="o">=</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">child_count</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">dots</span> <span class="o">=</span> <span class="nf">rt_malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">lv_obj_t</span> <span class="o">*</span><span class="p">)</span> <span class="o">*</span> <span class="n">count</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="kt">lv_obj_t</span> <span class="o">*</span><span class="n">dot</span> <span class="o">=</span> <span class="nf">lv_obj_create</span><span class="p">(</span><span class="n">parent</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_obj_set_size</span><span class="p">(</span><span class="n">dot</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_obj_set_style_bg_color</span><span class="p">(</span><span class="n">dot</span><span class="p">,</span> <span class="nf">lv_color_hex</span><span class="p">(</span><span class="mh">0xCCCCCC</span><span class="p">),</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="c1">// First dot highlighted by default
+</span></span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="nf">lv_obj_set_style_bg_color</span><span class="p">(</span><span class="n">dot</span><span class="p">,</span> <span class="nf">lv_color_hex</span><span class="p">(</span><span class="mh">0xFFFFFF</span><span class="p">),</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">dots</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">dot</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">update_dots_highlight</span><span class="p">(</span><span class="kt">banner_carousel_t</span> <span class="o">*</span><span class="n">carousel</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">child_count</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_obj_set_style_bg_color</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">            <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">dots</span><span class="p">[</span><span class="n">i</span><span class="p">],</span>
+</span></span><span class="line"><span class="cl">            <span class="n">i</span> <span class="o">==</span> <span class="n">carousel</span><span class="o">-&gt;</span><span class="n">current_idx</span> <span class="o">?</span> <span class="nf">lv_color_hex</span><span class="p">(</span><span class="mh">0xFFFFFF</span><span class="p">)</span> <span class="o">:</span> <span class="nf">lv_color_hex</span><span class="p">(</span><span class="mh">0xCCCCCC</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">            <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="63-data-hot-update">6.3 Data Hot-Update
 </h3><p><code>banner_carousel_update_data()</code> demonstrates the application tree&rsquo;s hot-update flow:</p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
@@ -1421,10 +1752,203 @@
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p>Three modules with zero direct dependencies, communicating entirely through the event bus.</p>
+<h3 id="74-rt-thread-thread-safety-reference-and-isolation">7.4 RT-Thread Thread Safety: Reference and Isolation
+</h3><p>LVGL has an iron rule: <strong>all operations on <code>lv_obj_t</code> must be performed in the same thread (the LVGL thread)</strong>. If a business thread (network, sensor) directly calls <code>lv_label_set_text()</code>, the system will most likely crash.</p>
+<h4 id="741-physical-thread-isolation">7.4.1 Physical Thread Isolation
+</h4><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">LVGL Render Thread              Business Worker Thread
+</span></span><span class="line"><span class="cl">lv_timer_handler()              Network communication / data processing
+</span></span><span class="line"><span class="cl">lv_tick_inc()                   Hardware I/O
+</span></span><span class="line"><span class="cl">Only responsible for rendering  Never touches lv_obj_t
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Business threads absolutely cannot obtain <code>lv_obj_t</code> pointers; they can only operate on pure business data (C structs).</p>
+<h4 id="742-rt-thread-message-queue-bridge">7.4.2 RT-Thread Message Queue Bridge
+</h4><p>Business threads notify the UI thread to refresh through RT-Thread message queues:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// Define cross-thread message
+</span></span></span><span class="line"><span class="cl"><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">event_type_t</span> <span class="n">type</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">layout_node_t</span> <span class="o">*</span><span class="n">target_node</span><span class="p">;</span>  <span class="c1">// Reference application tree node (not touching lv_obj)
+</span></span></span><span class="line"><span class="cl">    <span class="kt">void</span> <span class="o">*</span><span class="n">data</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="kt">app_msg_t</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// RT-Thread message queue initialization
+</span></span></span><span class="line"><span class="cl"><span class="k">struct</span> <span class="n">rt_messagequeue</span> <span class="n">ui_mq</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="nf">rt_mq_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ui_mq</span><span class="p">,</span> <span class="s">&#34;ui_mq&#34;</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">           <span class="nf">rt_malloc</span><span class="p">(</span><span class="k">sizeof</span><span class="p">(</span><span class="kt">app_msg_t</span><span class="p">)</span> <span class="o">*</span> <span class="mi">16</span><span class="p">),</span>
+</span></span><span class="line"><span class="cl">           <span class="k">sizeof</span><span class="p">(</span><span class="kt">app_msg_t</span><span class="p">),</span> <span class="mi">16</span><span class="p">,</span> <span class="n">RT_IPC_FLAG_FIFO</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Business thread sends update request (isolated and safe)
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">network_thread_handle_new_price</span><span class="p">(</span><span class="kt">uint8_t</span> <span class="n">price</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">app_msg_t</span> <span class="n">msg</span> <span class="o">=</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="p">.</span><span class="n">type</span> <span class="o">=</span> <span class="n">EVT_CART_PRICE_CHANGED</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">        <span class="p">.</span><span class="n">target_node</span> <span class="o">=</span> <span class="n">g_cart_node</span><span class="p">,</span>  <span class="c1">// Reference node, not touching lv_obj
+</span></span></span><span class="line"><span class="cl">        <span class="p">.</span><span class="n">data</span> <span class="o">=</span> <span class="o">&amp;</span><span class="n">price</span>
+</span></span><span class="line"><span class="cl">    <span class="p">};</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">rt_mq_send</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ui_mq</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">msg</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">app_msg_t</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// Business thread work complete, never blocks UI thread
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// LVGL thread receives and drives rendering
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">lvgl_thread_entry</span><span class="p">(</span><span class="kt">void</span> <span class="o">*</span><span class="n">param</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">app_msg_t</span> <span class="n">recv_msg</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">while</span> <span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="nf">rt_mq_recv</span><span class="p">(</span><span class="o">&amp;</span><span class="n">ui_mq</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">recv_msg</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">app_msg_t</span><span class="p">),</span> <span class="n">RT_WAITING_FOREVER</span><span class="p">)</span> <span class="o">==</span> <span class="n">RT_EOK</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">            <span class="c1">// Safely update UI in LVGL thread
+</span></span></span><span class="line"><span class="cl">            <span class="k">switch</span> <span class="p">(</span><span class="n">recv_msg</span><span class="p">.</span><span class="n">type</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">                <span class="k">case</span> <span class="nl">EVT_CART_PRICE_CHANGED</span><span class="p">:</span>
+</span></span><span class="line"><span class="cl">                    <span class="nf">cart_node_set_price</span><span class="p">(</span><span class="n">recv_msg</span><span class="p">.</span><span class="n">target_node</span><span class="p">,</span> <span class="o">*</span><span class="p">(</span><span class="kt">uint8_t</span><span class="o">*</span><span class="p">)</span><span class="n">recv_msg</span><span class="p">.</span><span class="n">data</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">                    <span class="k">break</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">            <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="p">}</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">lv_timer_handler</span><span class="p">();</span>  <span class="c1">// Render
+</span></span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h4 id="743-the-essence-of-reference-and-isolation">7.4.3 The Essence of Reference and Isolation
+</h4><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Mechanism</th>
+					<th>Purpose</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>Thread Isolation</strong></td>
+					<td>Business runs on an independent thread with no visibility into <code>lv_obj_t</code>; UI runs on an independent thread with no concern for business protocols</td>
+			</tr>
+			<tr>
+					<td><strong>Message Queue</strong></td>
+					<td>Business thread references application tree node pointers, drops data into the queue, and moves on</td>
+			</tr>
+			<tr>
+					<td><strong>Safe Rendering</strong></td>
+					<td>UI thread obtains pointers and safely operates underlying <code>lv_obj</code> within the LVGL thread context</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>Under this architecture, even if the network thread sends messages frantically, the LVGL render thread can still dequeue messages and refresh smoothly at its own pace — never crashing or stuttering.</p>
 <hr>
 <h2 id="8-from-static-to-dynamic-the-custom_init-replacement-flow">8. From Static to Dynamic: The custom_init() Replacement Flow
 </h2><p><code>custom_init()</code> is the system assembly entry point, fully demonstrating the replacement process from AiUIBuilder static skeleton to dynamic application tree:</p>
+<h3 id="81-sd-card-mounting-and-resource-path-management">8.1 SD Card Mounting and Resource Path Management
+</h3><p>Image resources for dynamic components are stored on the SD card, which must be mounted at startup:</p>
 <div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">int</span> <span class="nf">ensure_sdcard_mounted</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">dfs_mount</span><span class="p">(</span><span class="s">&#34;sd0&#34;</span><span class="p">,</span> <span class="s">&#34;/sdcard&#34;</span><span class="p">,</span> <span class="s">&#34;elm&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>  <span class="c1">// Already mounted
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Retry up to 5 times
+</span></span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">5</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">rt_thread_mdelay</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="p">(</span><span class="nf">dfs_mount</span><span class="p">(</span><span class="s">&#34;sd0&#34;</span><span class="p">,</span> <span class="s">&#34;/sdcard&#34;</span><span class="p">,</span> <span class="s">&#34;elm&#34;</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">            <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">rt_kprintf</span><span class="p">(</span><span class="s">&#34;SD card mount failed, use default paths</span><span class="se">\n</span><span class="s">&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>After successful mounting, resource paths are standardized:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Resource Type</th>
+					<th>SD Card Path</th>
+					<th>Usage</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Banner images</td>
+					<td><code>/sdcard/banner/xxx.png</code></td>
+					<td>Carousel banners</td>
+			</tr>
+			<tr>
+					<td>Product images</td>
+					<td><code>/sdcard/commodity/xxx.png</code></td>
+					<td>Product cards</td>
+			</tr>
+			<tr>
+					<td>Config files</td>
+					<td><code>/sdcard/config/banner.json</code></td>
+					<td>Web config persistence</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>All paths are centrally managed in <code>web_config.c</code>, avoiding hard-coded paths scattered across the codebase.</p>
+<h3 id="82-complete-initialization-flow">8.2 Complete Initialization Flow
+</h3><div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
 <pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
@@ -1475,12 +1999,18 @@
 </span><span class="lnt">47
 </span><span class="lnt">48
 </span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
 </span></code></pre></td>
 <td class="lntd">
 <pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="n">Step</span> <span class="mi">1</span><span class="p">:</span> <span class="n">Initialize</span> <span class="n">infrastructure</span>
 </span></span><span class="line"><span class="cl">  <span class="n">event_bus_init</span><span class="p">()</span> <span class="o">+</span> <span class="n">async_loader_init</span><span class="p">()</span>
 </span></span><span class="line"><span class="cl">
-</span></span><span class="line"><span class="cl"><span class="n">Step</span> <span class="mi">2</span><span class="p">:</span> <span class="n">Initialize</span> <span class="n">object</span> <span class="n">pools</span>
+</span></span><span class="line"><span class="cl"><span class="n">Step</span> <span class="mi">2</span><span class="p">:</span> <span class="n">Mount</span> <span class="n">SD</span> <span class="n">card</span> <span class="p">(</span><span class="n">prepare</span> <span class="n">resource</span> <span class="n">paths</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="n">ensure_sdcard_mounted</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">Step</span> <span class="mi">3</span><span class="p">:</span> <span class="n">Initialize</span> <span class="n">object</span> <span class="n">pools</span>
 </span></span><span class="line"><span class="cl">  <span class="n">banner_item_module_init</span><span class="p">()</span>    <span class="o">//</span> <span class="n">rt_mp_create</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="mi">10</span>
 </span></span><span class="line"><span class="cl">  <span class="n">commodity_module_init</span><span class="p">()</span>      <span class="o">//</span> <span class="n">rt_mp_create</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="mi">30</span>
 </span></span><span class="line"><span class="cl">  <span class="n">cart_module_init</span><span class="p">()</span>           <span class="o">//</span> <span class="n">rt_mp_create</span><span class="p">,</span> <span class="n">capacity</span><span class="o">=</span><span class="mi">20</span>
@@ -1529,6 +2059,104 @@
 </span></span></code></pre></td></tr></table>
 </div>
 </div><p><strong>Core idea</strong>: Preserve the <strong>container objects</strong> created by AiUIBuilder (e.g., <code>container_banner</code>), delete their <strong>static child widgets</strong>, then use the Wrap mechanism to bring the containers under application tree management, and finally use the widget factory to dynamically fill them with data-driven child nodes.</p>
+<h3 id="83-cart-openclose-animation">8.3 Cart Open/Close Animation
+</h3><p>The cart list is hidden by default and expands when the checkout button is clicked, implemented via the LVGL animation API:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// Open animation: height from 0 → 400, opacity from 0 → 255
+</span></span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">cart_list_open_anim</span><span class="p">(</span><span class="kt">lv_obj_t</span> <span class="o">*</span><span class="n">cart_container</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">lv_anim_t</span> <span class="n">a</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_var</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">cart_container</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_exec_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_obj_set_height</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_values</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">400</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_time</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="mi">300</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_path_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_anim_path_ease_out</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_start</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="c1">// Synchronized opacity animation
+</span></span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_exec_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_obj_set_style_opa</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_values</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">LV_OPA_TRANSP</span><span class="p">,</span> <span class="n">LV_OPA_COVER</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_start</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="c1">// Close animation: reverse process
+</span></span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">cart_list_close_anim</span><span class="p">(</span><span class="kt">lv_obj_t</span> <span class="o">*</span><span class="n">cart_container</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">lv_anim_t</span> <span class="n">a</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_init</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_var</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">cart_container</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_exec_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_obj_set_height</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_values</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="mi">400</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_time</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="mi">300</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_path_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_anim_path_ease_in</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_start</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_exec_cb</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">lv_obj_set_style_opa</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_set_values</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">,</span> <span class="n">LV_OPA_COVER</span><span class="p">,</span> <span class="n">LV_OPA_TRANSP</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_anim_start</span><span class="p">(</span><span class="o">&amp;</span><span class="n">a</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Animation triggering is driven by the checkout button click event, working with the application tree&rsquo;s cart container:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">settlement_btn_click_cb</span><span class="p">(</span><span class="kt">lv_event_t</span> <span class="o">*</span><span class="n">e</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">g_cart_list_visible</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">cart_list_close_anim</span><span class="p">(</span><span class="n">s_cart_comp</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">.</span><span class="n">obj</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">g_cart_list_visible</span> <span class="o">=</span> <span class="nb">false</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">cart_list_open_anim</span><span class="p">(</span><span class="n">s_cart_comp</span><span class="o">-&gt;</span><span class="n">container</span><span class="o">-&gt;</span><span class="n">base</span><span class="p">.</span><span class="n">obj</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">        <span class="n">g_cart_list_visible</span> <span class="o">=</span> <span class="nb">true</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Design point</strong>: The animation operates on the <code>lv_obj_t</code> corresponding to the application tree container, but the control logic resides in the business layer (the <code>g_cart_list_visible</code> flag), reflecting the separation of data and rendering.</p>
 <hr>
 <h2 id="9-memory-management-strategy">9. Memory Management Strategy
 </h2><h3 id="91-object-pool-vs-heap-allocation">9.1 Object Pool vs Heap Allocation
@@ -1698,7 +2326,7 @@
 <li>User clicks checkout button → parse cart total price → show payment mode selection popup</li>
 <li>User selects &ldquo;User Scans QR&rdquo; → send <code>CMD_REQ_QR</code> to PC</li>
 <li>PC generates Alipay sandbox order, returns <code>CMD_QR_URL</code></li>
-<li>Device displays QR code overlay (240×240, LVGL <code>lv_qrcode</code> widget)</li>
+<li>Device displays QR code overlay (240x240, LVGL <code>lv_qrcode</code> widget)</li>
 <li>PC polls payment status and returns <code>CMD_PAY_STATUS</code></li>
 <li>On success: display &ldquo;Payment Successful!&rdquo;, auto-hide after 2 seconds, clear cart, restore carousel</li>
 </ol>
@@ -1717,14 +2345,14 @@
 <h2 id="12-qr-code-scanner-module">12. QR Code Scanner Module
 </h2><h3 id="121-hardware-configuration">12.1 Hardware Configuration
 </h3><ul>
-<li>DVP camera (OV5640), forced QVGA 320×240 output to reduce memory usage (~460KB)</li>
+<li>DVP camera (OV5640), forced QVGA 320x240 output to reduce memory usage (~460KB)</li>
 <li>ArtInChip video input framework (<code>mpp_vin</code>, <code>drv_dvp</code>)</li>
 <li>Framebuffer video layer (<code>mpp_fb</code>) for camera preview</li>
 <li>quirc QR code decoding library</li>
 </ul>
 <h3 id="122-scanning-flow">12.2 Scanning Flow
 </h3><ol>
-<li><code>qr_scanner_start()</code>: Initialize DVP (with 5-retry fault tolerance), configure sensor format, create quirc instance (160×120, 2x downsampled)</li>
+<li><code>qr_scanner_start()</code>: Initialize DVP (with 5-retry fault tolerance), configure sensor format, create quirc instance (160x120, 2x downsampled)</li>
 <li>Scanning thread loop: <code>dq_buf</code> → discard first few frames → extract Y channel and downsample every 5 frames → <code>quirc_decode</code></li>
 <li><code>handle_qr_result()</code>: Detect if it is a payment authorization code (18~28 digit pure numeric), same-code 5-second cooldown, call <code>uart3_payment_send_barcode()</code> to send</li>
 </ol>
@@ -1792,12 +2420,12 @@
 			<tr>
 					<td>POST</td>
 					<td><code>/api/upload/{filename}</code></td>
-					<td>Upload Banner image (validate 494×78)</td>
+					<td>Upload Banner image (validate 494x78)</td>
 			</tr>
 			<tr>
 					<td>POST</td>
 					<td><code>/api/upload/commodity/{filename}</code></td>
-					<td>Upload commodity image (validate 80×80)</td>
+					<td>Upload commodity image (validate 80x80)</td>
 			</tr>
 	</tbody>
 </table></div>
@@ -1924,7 +2552,7 @@
 
 
         <span>
-            Last updated on Jul 07, 2026 19:57 &#43;0800
+            Last updated on Jul 08, 2026 23:37 &#43;0800
         </span>
     </section></footer>
 
@@ -2137,7 +2765,7 @@
             
                 
             
-        This website has been running stably<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 8 ></span> articles <span style="font-weight: bold;">·</span> Total <span id="articlewordCount">&lt; 27.00 k ></span> words
+        This website has been running stably<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 8 ></span> articles <span style="font-weight: bold;">·</span> Total <span id="articlewordCount">&lt; 29.02 k ></span> words
     </section>
     <section class="powerby">
         Built with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> <br />
