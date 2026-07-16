@@ -7,7 +7,7 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>en</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Sun, 05 Jul 2026 19:22:21 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/en/tags/gd32/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Thu, 16 Jul 2026 20:36:37 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/en/tags/gd32/index.xml" rel="self" type="application/rss+xml" /><item>
         <title>Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms</title>
         <link>https://lingjia007.github.io/Hugo_Web/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/</link>
         <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
@@ -17,7 +17,7 @@
 &lt;/h2&gt;&lt;p&gt;In embedded development, UART serial communication is one of the most fundamental and commonly used peripherals. However, many developers still use byte-by-byte interrupt-driven or polling approaches, resulting in high CPU overhead and significant risk of data loss. The &lt;strong&gt;DMA + ring buffer&lt;/strong&gt; combination is the proper way to achieve efficient UART communication.&lt;/p&gt;
 &lt;p&gt;This post is based on the &lt;a class=&#34;link&#34; href=&#34;https://github.com/MaJerle/lwrb&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;lwrb&lt;/a&gt; lightweight ring buffer library and the &lt;a class=&#34;link&#34; href=&#34;https://github.com/MaJerle/stm32-usart-uart-dma-rx-tx&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
-    &gt;stm32-usart-uart-dma-rx-tx&lt;/a&gt; reference implementation, verified on both &lt;strong&gt;STM32F407VGT6 (HAL library)&lt;/strong&gt; and &lt;strong&gt;GD32F470ZGT6 (Standard Peripheral Library)&lt;/strong&gt; dual platforms. Complete project sources: &lt;a class=&#34;link&#34; href=&#34;https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;stm32-usart-uart-dma-rx-tx&lt;/a&gt; reference implementation, verified on both &lt;strong&gt;LCEDA SkyStar STM32F407VGT6 (HAL library)&lt;/strong&gt; and &lt;strong&gt;LCEDA LiangShan GD32F470ZGT6 (Standard Peripheral Library)&lt;/strong&gt; dual platforms. Complete project sources: &lt;a class=&#34;link&#34; href=&#34;https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;STM32F407VGT6 UART DMA&lt;/a&gt; and &lt;a class=&#34;link&#34; href=&#34;https://github.com/Lingjia007/GD32F470ZGT6_UART_DMA_Efficient_RingBuffer&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;GD32F470ZGT6 UART DMA&lt;/a&gt;. Every design decision is deeply analyzed in a Q&amp;amp;A format.&lt;/p&gt;
 &lt;hr&gt;

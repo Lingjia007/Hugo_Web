@@ -7,7 +7,1039 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>en</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Wed, 08 Jul 2026 23:37:53 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/en/post/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Thu, 16 Jul 2026 20:36:37 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/en/post/index.xml" rel="self" type="application/rss+xml" /><item>
+        <title>Deep Dive into the STM32F407 Assembly Startup File: The Complete Journey from Reset Vector to C main()</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/p/deep-dive-into-the-stm32f407-assembly-startup-file-the-complete-journey-from-reset-vector-to-c-main/</link>
+        <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/p/deep-dive-into-the-stm32f407-assembly-startup-file-the-complete-journey-from-reset-vector-to-c-main/</guid>
+        <description>&lt;img src="https://lingjia007.github.io/Hugo_Web/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/STM32F407%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E8%A7%A3%E6%9E%90.png" alt="Featured image of post Deep Dive into the STM32F407 Assembly Startup File: The Complete Journey from Reset Vector to C main()" /&gt;&lt;h2 id=&#34;preface&#34;&gt;Preface
+&lt;/h2&gt;&lt;p&gt;Every STM32 project contains a &lt;code&gt;startup_stm32f407xx.s&lt;/code&gt; file, quietly sitting in the project root, rarely needing modification. But if you&amp;rsquo;ve ever wondered: &lt;strong&gt;Where does the first instruction come from after power-on? Who initializes global variables? How are interrupt service functions &amp;ldquo;registered&amp;rdquo;?&lt;/strong&gt; — the answers are all in this file.&lt;/p&gt;
+&lt;p&gt;This article will use the GCC version of &lt;code&gt;startup_stm32f407xx.s&lt;/code&gt; as the reference, breaking down its mechanisms section by section, revealing the complete journey from hardware reset to C language &lt;code&gt;main()&lt;/code&gt; execution.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;The startup file analyzed in this article comes from the STM32CubeF4 HAL library, for the GCC/ARM toolchain. The Keil version (ARMASM syntax) and IAR version have similar structure but different assembly syntax.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;1-overall-file-structure&#34;&gt;1. Overall File Structure
+&lt;/h2&gt;&lt;p&gt;The startup file can be divided into four logical regions:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Region&lt;/th&gt;
+					&lt;th&gt;Function&lt;/th&gt;
+					&lt;th&gt;Line Range&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Header Declarations&lt;/td&gt;
+					&lt;td&gt;Processor architecture, instruction set, FPU type&lt;/td&gt;
+					&lt;td&gt;Lines 1-31&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Linker Symbols&lt;/td&gt;
+					&lt;td&gt;.data / .bss section address references&lt;/td&gt;
+					&lt;td&gt;Lines 35-46&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Reset_Handler&lt;/td&gt;
+					&lt;td&gt;Core boot initialization flow&lt;/td&gt;
+					&lt;td&gt;Lines 57-102&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Vector Table + Weak Symbols&lt;/td&gt;
+					&lt;td&gt;Interrupt vector table and default handler&lt;/td&gt;
+					&lt;td&gt;Lines 111-508&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;2-header-declarations-telling-the-assembler-who-we-are&#34;&gt;2. Header Declarations: Telling the Assembler Who We Are
+&lt;/h2&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.syntax&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;unified&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.cpu&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;cortex-m4&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.fpu&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;softvfp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.thumb&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Line-by-line analysis:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Directive&lt;/th&gt;
+					&lt;th&gt;Meaning&lt;/th&gt;
+					&lt;th&gt;Why It&amp;rsquo;s Needed&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;.syntax unified&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Use unified assembly syntax (ARM + Thumb instructions share the same syntax)&lt;/td&gt;
+					&lt;td&gt;GCC defaults to &lt;code&gt;divided&lt;/code&gt; syntax; unified is more modern and concise&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;.cpu cortex-m4&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Target processor is Cortex-M4&lt;/td&gt;
+					&lt;td&gt;Affects instruction encoding and available instruction set; Cortex-M4 supports DSP instructions and optional FPU&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;.fpu softvfp&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Use software floating-point calling convention&lt;/td&gt;
+					&lt;td&gt;Even with hardware FPU, software FP ABI ensures compatibility with soft-float libraries; switch to &lt;code&gt;fpv4-sp-d16&lt;/code&gt; to enable hardware floating-point&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;.thumb&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Use Thumb instruction set&lt;/td&gt;
+					&lt;td&gt;Cortex-M series &lt;strong&gt;only supports&lt;/strong&gt; Thumb instruction set (16/32-bit mixed encoding); this is a hardware mandate&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;If your project needs to use the hardware FPU (Floating Point Unit), you must modify both &lt;code&gt;.fpu fpv4-sp-d16&lt;/code&gt; and the linker flag &lt;code&gt;-mfloat-abi=hard&lt;/code&gt;. Modifying the startup file alone is not enough — the compiler, assembler, and linker must maintain ABI consistency.&lt;/p&gt;&lt;/blockquote&gt;&lt;p&gt;Next, two global symbols are declared:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.global&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;g_pfnVectors&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.global&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;Default_Handler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;g_pfnVectors&lt;/code&gt;: The starting label of the vector table; the linker needs to know its address to place interrupt vectors&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;Default_Handler&lt;/code&gt;: The default interrupt handler; all unimplemented interrupts point to it&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;3-linker-symbols-address-anchors-for-data-and-bss&#34;&gt;3. Linker Symbols: Address Anchors for .data and .bss
+&lt;/h2&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;_sidata&lt;/span&gt;    &lt;span class=&#34;cm&#34;&gt;/* Start address of .data initial values in Flash */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;_sdata&lt;/span&gt;     &lt;span class=&#34;cm&#34;&gt;/* Start address of .data section in SRAM */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;_edata&lt;/span&gt;     &lt;span class=&#34;cm&#34;&gt;/* End address of .data section in SRAM */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;_sbss&lt;/span&gt;      &lt;span class=&#34;cm&#34;&gt;/* Start address of .bss section in SRAM */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;_ebss&lt;/span&gt;      &lt;span class=&#34;cm&#34;&gt;/* End address of .bss section in SRAM */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;These five &lt;code&gt;.word&lt;/code&gt; directives are not code, but &lt;strong&gt;data reserved for Reset_Handler&lt;/strong&gt; — they reference symbols defined in the linker script (&lt;code&gt;.ld&lt;/code&gt; file) via label names. Understanding these symbols is the key to understanding the boot flow.&lt;/p&gt;
+&lt;h3 id=&#34;31-why-does-data-need-to-be-copied&#34;&gt;3.1 Why Does .data Need to Be Copied?
+&lt;/h3&gt;&lt;p&gt;Global variables with initial values in C (e.g., &lt;code&gt;int x = 42;&lt;/code&gt;) are stored in the &lt;code&gt;.data&lt;/code&gt; section. But &lt;code&gt;.data&lt;/code&gt; has two &amp;ldquo;homes&amp;rdquo;:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Location&lt;/th&gt;
+					&lt;th&gt;Content&lt;/th&gt;
+					&lt;th&gt;Reason&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Flash (&lt;code&gt;_sidata&lt;/code&gt;)&lt;/td&gt;
+					&lt;td&gt;Initial values (42)&lt;/td&gt;
+					&lt;td&gt;Flash retains data without power; stores initial values&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;SRAM (&lt;code&gt;_sdata&lt;/code&gt; ~ &lt;code&gt;_edata&lt;/code&gt;)&lt;/td&gt;
+					&lt;td&gt;Runtime variables&lt;/td&gt;
+					&lt;td&gt;SRAM is read-write; used during program execution&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;At power-on, SRAM content is random; initial values must be &lt;strong&gt;copied&lt;/strong&gt; from Flash to SRAM for &lt;code&gt;.data&lt;/code&gt; variables to have correct initial values. This is what the &amp;ldquo;Copy Data&amp;rdquo; loop in Reset_Handler does.&lt;/p&gt;
+&lt;h3 id=&#34;32-why-does-bss-only-need-zeroing&#34;&gt;3.2 Why Does .bss Only Need Zeroing?
+&lt;/h3&gt;&lt;p&gt;Uninitialized global variables in C (e.g., &lt;code&gt;int y;&lt;/code&gt;) are stored in the &lt;code&gt;.bss&lt;/code&gt; section. The C standard specifies that uninitialized global variables have a value of 0. The &lt;code&gt;.bss&lt;/code&gt; section doesn&amp;rsquo;t occupy Flash space (no initial values to store); it only needs the corresponding SRAM region zeroed at startup.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-important&#34;&gt;
+    &lt;p&gt;The names of these five symbols are &lt;strong&gt;conventional&lt;/strong&gt;, defined by the linker script. If using a custom &lt;code&gt;.ld&lt;/code&gt; file, you must ensure these symbol names match the references in the startup file. Common naming variants include &lt;code&gt;__data_start&lt;/code&gt; / &lt;code&gt;__data_end&lt;/code&gt;, etc.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;4-reset_handler-the-core-of-the-boot-flow&#34;&gt;4. Reset_Handler: The Core of the Boot Flow
+&lt;/h2&gt;&lt;p&gt;This is the most important part of the entire file — the first meaningful code executed after the chip powers on.&lt;/p&gt;
+&lt;h3 id=&#34;41-complete-code-with-line-by-line-annotations&#34;&gt;4.1 Complete Code with Line-by-Line Annotations
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;21
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;22
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;23
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;24
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;25
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;26
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;27
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;28
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;29
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;30
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;31
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;32
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;33
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;34
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;35
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;36
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;37
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;38
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;39
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;40
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;41
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;42
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;43
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;44
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;45
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;46
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;na&#34;&gt;.section&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;.text.Reset_Handler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.weak&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;Reset_Handler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.type&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;Reset_Handler&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;%function&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;Reset_Handler:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;ldr&lt;/span&gt;   &lt;span class=&#34;no&#34;&gt;sp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;_estack&lt;/span&gt;       &lt;span class=&#34;cm&#34;&gt;/* [1] Set stack pointer */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;bl&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;SystemInit&lt;/span&gt;            &lt;span class=&#34;cm&#34;&gt;/* [2] Call system initialization */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* [3] Copy .data section from Flash to SRAM */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;ldr&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;_sdata&lt;/span&gt;           &lt;span class=&#34;cm&#34;&gt;/*   r0 = .data start address in SRAM */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;ldr&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;_edata&lt;/span&gt;           &lt;span class=&#34;cm&#34;&gt;/*   r1 = .data end address in SRAM */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;ldr&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;_sidata&lt;/span&gt;          &lt;span class=&#34;cm&#34;&gt;/*   r2 = .data initial values start address in Flash */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;movs&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;#0               /*   r3 = offset, initialized to 0 */
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;b&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;LoopCopyDataInit&lt;/span&gt;        &lt;span class=&#34;cm&#34;&gt;/*   Jump to loop condition check */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;CopyDataInit:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;ldr&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;          &lt;span class=&#34;cm&#34;&gt;/*   Read 4 bytes from Flash[r2+r3] to r4 */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;str&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;r0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;          &lt;span class=&#34;cm&#34;&gt;/*   Write r4 to SRAM[r0+r3] */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;adds&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;#4           /*   offset += 4 (word-by-word copy) */
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;LoopCopyDataInit:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;adds&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;           &lt;span class=&#34;cm&#34;&gt;/*   r4 = current write address = _sdata + offset */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;cmp&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r1&lt;/span&gt;                &lt;span class=&#34;cm&#34;&gt;/*   current address &amp;lt; _edata ? */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;bcc&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;CopyDataInit&lt;/span&gt;          &lt;span class=&#34;cm&#34;&gt;/*   Yes: continue copying (bcc = branch if carry clear, i.e. unsigned less than) */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* [4] Zero fill the .bss section */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;ldr&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;_sbss&lt;/span&gt;            &lt;span class=&#34;cm&#34;&gt;/*   r2 = .bss start address */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;ldr&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;_ebss&lt;/span&gt;            &lt;span class=&#34;cm&#34;&gt;/*   r4 = .bss end address */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;movs&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;#0               /*   r3 = 0 */
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;b&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;LoopFillZerobss&lt;/span&gt;         &lt;span class=&#34;cm&#34;&gt;/*   Jump to loop condition check */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;FillZerobss:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;str&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;             &lt;span class=&#34;cm&#34;&gt;/*   Write 0 to [r2] */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;adds&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;#4           /*   address += 4 */
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;LoopFillZerobss:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;cmp&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r4&lt;/span&gt;                &lt;span class=&#34;cm&#34;&gt;/*   current address &amp;lt; _ebss ? */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;bcc&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;FillZerobss&lt;/span&gt;           &lt;span class=&#34;cm&#34;&gt;/*   Yes: continue zeroing */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* [5] Call C library initialization */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;bl&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;__libc_init_array&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* [6] Call main() */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;bl&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;main&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;bx&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;lr&lt;/span&gt;                    &lt;span class=&#34;cm&#34;&gt;/*   If main() returns, jump back to caller */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;na&#34;&gt;.size&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;Reset_Handler&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;.-Reset_Handler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;h3 id=&#34;42-six-steps-explained&#34;&gt;4.2 Six Steps Explained
+&lt;/h3&gt;&lt;h4 id=&#34;step-1-set-stack-pointer&#34;&gt;Step [1]: Set Stack Pointer
+&lt;/h4&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nf&#34;&gt;ldr&lt;/span&gt;   &lt;span class=&#34;no&#34;&gt;sp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;_estack&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;code&gt;_estack&lt;/code&gt; is the top-of-stack address, defined in the linker script (typically the end of SRAM, e.g., &lt;code&gt;0x20020000&lt;/code&gt;). The Cortex-M4 stack is &lt;strong&gt;Full Descending&lt;/strong&gt; — SP is decremented before writing on push. Therefore, the top-of-stack address points to the highest SRAM address + 1 (i.e., the byte after the SRAM end).&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;The Cortex-M4 hardware automatically loads SP from vector table offset 0 (i.e., &lt;code&gt;_estack&lt;/code&gt;) on reset, so this line appears redundant. However, it&amp;rsquo;s defensive programming: ensuring SP is correct even if the vector table is misconfigured.&lt;/p&gt;&lt;/blockquote&gt;&lt;h4 id=&#34;step-2-call-systeminit&#34;&gt;Step [2]: Call SystemInit
+&lt;/h4&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nf&#34;&gt;bl&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;SystemInit&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;code&gt;SystemInit()&lt;/code&gt; is typically defined in &lt;code&gt;system_stm32f4xx.c&lt;/code&gt;, responsible for:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Configuring Flash wait states (LATENCY)&lt;/li&gt;
+&lt;li&gt;Enabling PLL and switching the system clock to maximum frequency (168MHz for STM32F407)&lt;/li&gt;
+&lt;li&gt;Configuring AHB/APB1/APB2 prescalers&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The &lt;code&gt;bl&lt;/code&gt; (Branch with Link) instruction saves the return address to the &lt;code&gt;lr&lt;/code&gt; register while jumping; the function returns via &lt;code&gt;bx lr&lt;/code&gt; to the call site.&lt;/p&gt;
+&lt;h4 id=&#34;step-3-copy-data-section&#34;&gt;Step [3]: Copy .data Section
+&lt;/h4&gt;&lt;p&gt;This is the most elegant code in the startup file, using &lt;strong&gt;offset addressing&lt;/strong&gt; to copy data from Flash to SRAM:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Register&lt;/th&gt;
+					&lt;th&gt;Role&lt;/th&gt;
+					&lt;th&gt;Value&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;r0&lt;/td&gt;
+					&lt;td&gt;SRAM target start address&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;_sdata&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;r1&lt;/td&gt;
+					&lt;td&gt;SRAM target end address&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;_edata&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;r2&lt;/td&gt;
+					&lt;td&gt;Flash source start address&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;_sidata&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;r3&lt;/td&gt;
+					&lt;td&gt;Offset (increments by 4 each iteration)&lt;/td&gt;
+					&lt;td&gt;0 → 4 → 8 → &amp;hellip;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;r4&lt;/td&gt;
+					&lt;td&gt;Temporary register&lt;/td&gt;
+					&lt;td&gt;Current address / data&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Core loop logic:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;CopyDataInit:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;ldr&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;    &lt;span class=&#34;cm&#34;&gt;/* Source read: Flash[_sidata + offset] */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;str&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;r0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;    &lt;span class=&#34;cm&#34;&gt;/* Target write: SRAM[_sdata + offset] */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;adds&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;#4     /* Increment offset */
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;LoopCopyDataInit:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;adds&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;     &lt;span class=&#34;cm&#34;&gt;/* r4 = _sdata + offset = current write address */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;cmp&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r1&lt;/span&gt;          &lt;span class=&#34;cm&#34;&gt;/* Compare with _edata */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;bcc&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;CopyDataInit&lt;/span&gt;    &lt;span class=&#34;cm&#34;&gt;/* Not at end address, continue */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;Why use offset &lt;code&gt;[r2, r3]&lt;/code&gt; instead of directly incrementing pointers? Because the source (Flash) and target (SRAM) have different base addresses, but the offset is the same. Using a single offset &lt;code&gt;r3&lt;/code&gt; to index both source and target is the most concise approach, requiring only one counter.&lt;/p&gt;&lt;/blockquote&gt;&lt;h4 id=&#34;step-4-zero-bss-section&#34;&gt;Step [4]: Zero .bss Section
+&lt;/h4&gt;&lt;p&gt;Similar to .data copying, but simpler — no need to read from Flash, just write 0:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;FillZerobss:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;str&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;r3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;       &lt;span class=&#34;cm&#34;&gt;/* r3 = 0, write to [r2] */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;adds&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;c1&#34;&gt;#4     /* Increment address */
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;LoopFillZerobss:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;cmp&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;r4&lt;/span&gt;          &lt;span class=&#34;cm&#34;&gt;/* current address &amp;lt; _ebss ? */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;bcc&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;FillZerobss&lt;/span&gt;     &lt;span class=&#34;cm&#34;&gt;/* Continue zeroing */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Here &lt;code&gt;r2&lt;/code&gt; (the current address pointer) is directly incremented, unlike the offset approach used for .data. This is because .bss zeroing only needs one moving pointer — no need to maintain both source and target addresses.&lt;/p&gt;
+&lt;h4 id=&#34;step-5-call-c-library-initialization&#34;&gt;Step [5]: Call C Library Initialization
+&lt;/h4&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nf&#34;&gt;bl&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;__libc_init_array&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;This step is easily overlooked but crucial for C++ and certain C code. &lt;code&gt;__libc_init_array&lt;/code&gt; performs two key operations:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Calls function pointers in the &lt;code&gt;.init_array&lt;/code&gt; section&lt;/strong&gt; — C++ global object constructors (&lt;code&gt;__libc_init_array&lt;/code&gt; internally calls &lt;code&gt;.preinit_array&lt;/code&gt; first, then &lt;code&gt;.init_array&lt;/code&gt;)&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Calls functions decorated with &lt;code&gt;__attribute__((constructor))&lt;/code&gt;&lt;/strong&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;blockquote class=&#34;alert alert-important&#34;&gt;
+    &lt;p&gt;If your project is pure C with no &lt;code&gt;__attribute__((constructor))&lt;/code&gt;, this step could theoretically be skipped. However, the standard practice is to always call it, because:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Some C library initialization logic depends on it&lt;/li&gt;
+&lt;li&gt;If C++ code is introduced later, omitting it won&amp;rsquo;t cause bugs&lt;/li&gt;
+&lt;li&gt;The overhead is minimal (nearly a no-op when &lt;code&gt;.init_array&lt;/code&gt; is empty)&lt;/li&gt;
+&lt;/ul&gt;&lt;/blockquote&gt;&lt;h4 id=&#34;step-6-call-main&#34;&gt;Step [6]: Call main()
+&lt;/h4&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nf&#34;&gt;bl&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;main&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nf&#34;&gt;bx&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;lr&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;After all the above preparation, the C runtime environment is finally ready: the stack is set, global variables are initialized, and the C library is ready. It&amp;rsquo;s now safe to call &lt;code&gt;main()&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;If &lt;code&gt;main()&lt;/code&gt; somehow returns (it shouldn&amp;rsquo;t in embedded programs), &lt;code&gt;bx lr&lt;/code&gt; would jump back to the caller — but the caller is Reset_Handler itself, and &lt;code&gt;lr&lt;/code&gt;&amp;rsquo;s value is undefined at this point, so the behavior is unpredictable. In a robust system, &lt;code&gt;main()&lt;/code&gt; should be an infinite loop that never returns.&lt;/p&gt;
+&lt;h3 id=&#34;43-boot-flow-overview&#34;&gt;4.3 Boot Flow Overview
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-gdscript3&#34; data-lang=&#34;gdscript3&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;Power&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;on&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;/&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Reset&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;err&#34;&gt;▼&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;Hardware&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;auto&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;loads&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;SP&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;_estack&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;from&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;vector&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;table&lt;/span&gt;  &lt;span class=&#34;err&#34;&gt;←&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Offset&lt;/span&gt; &lt;span class=&#34;mh&#34;&gt;0x00&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;Hardware&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;auto&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;loads&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;PC&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Reset_Handler&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;from&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;vector&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;table&lt;/span&gt;  &lt;span class=&#34;err&#34;&gt;←&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Offset&lt;/span&gt; &lt;span class=&#34;mh&#34;&gt;0x04&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;err&#34;&gt;▼&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;Reset_Handler&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;executes&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;err&#34;&gt;├─&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ldr&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;sp&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;_estack&lt;/span&gt;          &lt;span class=&#34;n&#34;&gt;Re&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;set&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stack&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;pointer&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;defensive&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;err&#34;&gt;├─&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;bl&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;SystemInit&lt;/span&gt;             &lt;span class=&#34;n&#34;&gt;Configure&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;system&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;clock&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;err&#34;&gt;├─&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;3&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Copy&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Flash&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;→&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;SRAM&lt;/span&gt;  &lt;span class=&#34;n&#34;&gt;Initialize&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;global&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;variables&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;err&#34;&gt;├─&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Zero&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;bss&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;SRAM&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;clear&lt;/span&gt;     &lt;span class=&#34;n&#34;&gt;Initialize&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;uninitialized&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;globals&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;err&#34;&gt;├─&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;5&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;bl&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;__libc_init_array&lt;/span&gt;      &lt;span class=&#34;n&#34;&gt;C&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;constructors&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;/&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;constructor&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;attr&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;err&#34;&gt;└─&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;6&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;bl&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;main&lt;/span&gt;                   &lt;span class=&#34;n&#34;&gt;Enter&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;user&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;program&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id=&#34;5-default_handler-safety-net-for-unexpected-interrupts&#34;&gt;5. Default_Handler: Safety Net for Unexpected Interrupts
+&lt;/h2&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;na&#34;&gt;.section&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;.text.Default_Handler&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;ax&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;%progbits&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;Default_Handler:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;Infinite_Loop:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;b&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;Infinite_Loop&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.size&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;Default_Handler&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;.-Default_Handler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;If the CPU enters an unimplemented interrupt handler, it executes &lt;code&gt;Default_Handler&lt;/code&gt; — an infinite loop. Its purpose is to &lt;strong&gt;halt the program in place&lt;/strong&gt;, making it easy for a debugger to capture the scene:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;The interrupt return address (&lt;code&gt;lr&lt;/code&gt;) is still preserved in registers&lt;/li&gt;
+&lt;li&gt;The debugger can see the program stuck in &lt;code&gt;Default_Handler&lt;/code&gt;, immediately knowing an unhandled interrupt occurred&lt;/li&gt;
+&lt;li&gt;Register and stack contents are undisturbed, allowing analysis of the interrupt source&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;code&gt;.section&lt;/code&gt; attributes explained:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Attribute&lt;/th&gt;
+					&lt;th&gt;Meaning&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;&amp;quot;ax&amp;quot;&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;allocatable + executable&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;%progbits&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Section contains actual data (not BSS-style zero-fill)&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;blockquote class=&#34;alert alert-warning&#34;&gt;
+    &lt;p&gt;In production environments, the infinite loop in &lt;code&gt;Default_Handler&lt;/code&gt; causes the device to &amp;ldquo;freeze&amp;rdquo; — appearing to run but no longer responding. A better approach is to execute a soft reset (&lt;code&gt;NVIC_SystemReset()&lt;/code&gt;) in &lt;code&gt;Default_Handler&lt;/code&gt;, or at least log the exception information.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;6-vector-table-the-interrupt-routing-table&#34;&gt;6. Vector Table: The Interrupt Routing Table
+&lt;/h2&gt;&lt;h3 id=&#34;61-vector-table-structure&#34;&gt;6.1 Vector Table Structure
+&lt;/h3&gt;&lt;p&gt;The vector table is the core of the Cortex-M4 boot mechanism; it must be placed at the beginning of Flash (&lt;code&gt;0x08000000&lt;/code&gt;).&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;21
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   &lt;span class=&#34;na&#34;&gt;.section&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;.isr_vector&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;a&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;%progbits&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.type&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;g_pfnVectors&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nv&#34;&gt;%object&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nl&#34;&gt;g_pfnVectors:&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;_estack&lt;/span&gt;               &lt;span class=&#34;cm&#34;&gt;/* Offset 0x00: Stack top address */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;Reset_Handler&lt;/span&gt;         &lt;span class=&#34;cm&#34;&gt;/* Offset 0x04: Reset vector */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;NMI_Handler&lt;/span&gt;           &lt;span class=&#34;cm&#34;&gt;/* Offset 0x08: Non-maskable interrupt */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;HardFault_Handler&lt;/span&gt;     &lt;span class=&#34;cm&#34;&gt;/* Offset 0x0C: Hard fault */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;MemManage_Handler&lt;/span&gt;     &lt;span class=&#34;cm&#34;&gt;/* Offset 0x10: Memory management fault */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;BusFault_Handler&lt;/span&gt;      &lt;span class=&#34;cm&#34;&gt;/* Offset 0x14: Bus fault */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;UsageFault_Handler&lt;/span&gt;    &lt;span class=&#34;cm&#34;&gt;/* Offset 0x18: Usage fault */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;                     &lt;span class=&#34;cm&#34;&gt;/* Offset 0x1C: Reserved */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;                     &lt;span class=&#34;cm&#34;&gt;/* Offset 0x20: Reserved */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;                     &lt;span class=&#34;cm&#34;&gt;/* Offset 0x24: Reserved */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;                     &lt;span class=&#34;cm&#34;&gt;/* Offset 0x28: Reserved */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;SVC_Handler&lt;/span&gt;           &lt;span class=&#34;cm&#34;&gt;/* Offset 0x2C: Supervisor call */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;DebugMon_Handler&lt;/span&gt;      &lt;span class=&#34;cm&#34;&gt;/* Offset 0x30: Debug monitor */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;                     &lt;span class=&#34;cm&#34;&gt;/* Offset 0x34: Reserved */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;PendSV_Handler&lt;/span&gt;        &lt;span class=&#34;cm&#34;&gt;/* Offset 0x38: Pendable service */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;na&#34;&gt;.word&lt;/span&gt;  &lt;span class=&#34;no&#34;&gt;SysTick_Handler&lt;/span&gt;       &lt;span class=&#34;cm&#34;&gt;/* Offset 0x3C: SysTick */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* External interrupts start from offset 0x40... */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;h3 id=&#34;62-cortex-m4-exception-vector-details&#34;&gt;6.2 Cortex-M4 Exception Vector Details
+&lt;/h3&gt;&lt;p&gt;The first 16 vectors are &lt;strong&gt;system exceptions&lt;/strong&gt; defined by the ARM Cortex-M4 architecture, identical across all M4 chips:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Offset&lt;/th&gt;
+					&lt;th&gt;Exception #&lt;/th&gt;
+					&lt;th&gt;Name&lt;/th&gt;
+					&lt;th&gt;Priority&lt;/th&gt;
+					&lt;th&gt;Typical Trigger&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0x00&lt;/td&gt;
+					&lt;td&gt;-&lt;/td&gt;
+					&lt;td&gt;Initial SP&lt;/td&gt;
+					&lt;td&gt;-&lt;/td&gt;
+					&lt;td&gt;Hardware auto-loads&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0x04&lt;/td&gt;
+					&lt;td&gt;1&lt;/td&gt;
+					&lt;td&gt;Reset&lt;/td&gt;
+					&lt;td&gt;-3 (highest)&lt;/td&gt;
+					&lt;td&gt;Power-on / reset&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0x08&lt;/td&gt;
+					&lt;td&gt;2&lt;/td&gt;
+					&lt;td&gt;NMI&lt;/td&gt;
+					&lt;td&gt;-2&lt;/td&gt;
+					&lt;td&gt;External NMI pin / Watchdog&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0x0C&lt;/td&gt;
+					&lt;td&gt;3&lt;/td&gt;
+					&lt;td&gt;HardFault&lt;/td&gt;
+					&lt;td&gt;-1&lt;/td&gt;
+					&lt;td&gt;Fallback when other exceptions can&amp;rsquo;t be handled&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0x10&lt;/td&gt;
+					&lt;td&gt;4&lt;/td&gt;
+					&lt;td&gt;MemManage&lt;/td&gt;
+					&lt;td&gt;Configurable&lt;/td&gt;
+					&lt;td&gt;Accessing MPU-protected region&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0x14&lt;/td&gt;
+					&lt;td&gt;5&lt;/td&gt;
+					&lt;td&gt;BusFault&lt;/td&gt;
+					&lt;td&gt;Configurable&lt;/td&gt;
+					&lt;td&gt;Accessing invalid address (e.g., unmapped peripheral)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0x18&lt;/td&gt;
+					&lt;td&gt;6&lt;/td&gt;
+					&lt;td&gt;UsageFault&lt;/td&gt;
+					&lt;td&gt;Configurable&lt;/td&gt;
+					&lt;td&gt;Executing undefined instruction / divide by zero&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0x2C&lt;/td&gt;
+					&lt;td&gt;11&lt;/td&gt;
+					&lt;td&gt;SVCall&lt;/td&gt;
+					&lt;td&gt;Configurable&lt;/td&gt;
+					&lt;td&gt;Executing &lt;code&gt;SVC&lt;/code&gt; instruction (RTOS system call)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0x30&lt;/td&gt;
+					&lt;td&gt;12&lt;/td&gt;
+					&lt;td&gt;Debug Monitor&lt;/td&gt;
+					&lt;td&gt;Configurable&lt;/td&gt;
+					&lt;td&gt;Debug event&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0x38&lt;/td&gt;
+					&lt;td&gt;14&lt;/td&gt;
+					&lt;td&gt;PendSV&lt;/td&gt;
+					&lt;td&gt;Configurable&lt;/td&gt;
+					&lt;td&gt;RTOS context switch&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;0x3C&lt;/td&gt;
+					&lt;td&gt;15&lt;/td&gt;
+					&lt;td&gt;SysTick&lt;/td&gt;
+					&lt;td&gt;Configurable&lt;/td&gt;
+					&lt;td&gt;SysTick timer overflow&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;Lower priority numbers indicate higher priority. Reset (-3), NMI (-2), and HardFault (-1) are fixed and non-configurable. Other exception priorities can be programmed via NVIC registers.&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;63-stm32f407-external-interrupt-vectors&#34;&gt;6.3 STM32F407 External Interrupt Vectors
+&lt;/h3&gt;&lt;p&gt;Starting from offset 0x40 are chip-specific external interrupts; the STM32F407 has 82:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Exception #&lt;/th&gt;
+					&lt;th&gt;Interrupt Name&lt;/th&gt;
+					&lt;th&gt;Peripheral&lt;/th&gt;
+					&lt;th&gt;Description&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;16&lt;/td&gt;
+					&lt;td&gt;WWDG_IRQHandler&lt;/td&gt;
+					&lt;td&gt;WWDG&lt;/td&gt;
+					&lt;td&gt;Window Watchdog&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;17&lt;/td&gt;
+					&lt;td&gt;PVD_IRQHandler&lt;/td&gt;
+					&lt;td&gt;PVD&lt;/td&gt;
+					&lt;td&gt;Power Voltage Detector&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;18&lt;/td&gt;
+					&lt;td&gt;TAMP_STAMP_IRQHandler&lt;/td&gt;
+					&lt;td&gt;RTC&lt;/td&gt;
+					&lt;td&gt;Tamper and Timestamp&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&amp;hellip;&lt;/td&gt;
+					&lt;td&gt;&amp;hellip;&lt;/td&gt;
+					&lt;td&gt;&amp;hellip;&lt;/td&gt;
+					&lt;td&gt;&amp;hellip;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;25&lt;/td&gt;
+					&lt;td&gt;EXTI0_IRQHandler&lt;/td&gt;
+					&lt;td&gt;EXTI&lt;/td&gt;
+					&lt;td&gt;External interrupt line 0&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&amp;hellip;&lt;/td&gt;
+					&lt;td&gt;&amp;hellip;&lt;/td&gt;
+					&lt;td&gt;&amp;hellip;&lt;/td&gt;
+					&lt;td&gt;&amp;hellip;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;54&lt;/td&gt;
+					&lt;td&gt;USART1_IRQHandler&lt;/td&gt;
+					&lt;td&gt;USART1&lt;/td&gt;
+					&lt;td&gt;Serial port 1&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;67&lt;/td&gt;
+					&lt;td&gt;ETH_IRQHandler&lt;/td&gt;
+					&lt;td&gt;Ethernet&lt;/td&gt;
+					&lt;td&gt;Ethernet&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;97&lt;/td&gt;
+					&lt;td&gt;FPU_IRQHandler&lt;/td&gt;
+					&lt;td&gt;FPU&lt;/td&gt;
+					&lt;td&gt;Floating Point Unit&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Some positions are filled with 0 (reserved), such as offsets 0x1C-0x28 and the CRYP position. Writing 0 to reserved positions ensures the vector table size and offsets are correct.&lt;/p&gt;
+&lt;h3 id=&#34;64-hardware-vector-table-loading-mechanism&#34;&gt;6.4 Hardware Vector Table Loading Mechanism
+&lt;/h3&gt;&lt;p&gt;Cortex-M4 hardware behavior on reset (purely hardware, no software involvement):&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Read 4 bytes from address &lt;code&gt;0x00000000&lt;/code&gt; (mapped to &lt;code&gt;0x08000000&lt;/code&gt;) → load into &lt;strong&gt;SP&lt;/strong&gt; (Main Stack Pointer)&lt;/li&gt;
+&lt;li&gt;Read 4 bytes from address &lt;code&gt;0x00000004&lt;/code&gt; (mapped to &lt;code&gt;0x08000000+4&lt;/code&gt;) → load into &lt;strong&gt;PC&lt;/strong&gt; (Program Counter)&lt;/li&gt;
+&lt;li&gt;CPU begins executing from the address PC points to — i.e., &lt;code&gt;Reset_Handler&lt;/code&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;The STM32 Flash start address &lt;code&gt;0x08000000&lt;/code&gt; is aliased to &lt;code&gt;0x00000000&lt;/code&gt; (configured via BOOT pins). This is why the vector table is placed at the Flash beginning, but hardware reads from &lt;code&gt;0x00000000&lt;/code&gt; — they point to the same physical storage.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;7-weak-symbol-mechanism-placeholders-for-interrupt-handlers&#34;&gt;7. Weak Symbol Mechanism: &amp;ldquo;Placeholders&amp;rdquo; for Interrupt Handlers
+&lt;/h2&gt;&lt;h3 id=&#34;71-how-weak--thumb_set-works&#34;&gt;7.1 How .weak + .thumb_set Works
+&lt;/h3&gt;&lt;p&gt;The final section of the startup file is a long series of repeated patterns:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-asm&#34; data-lang=&#34;asm&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   &lt;span class=&#34;na&#34;&gt;.weak&lt;/span&gt;      &lt;span class=&#34;no&#34;&gt;NMI_Handler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   &lt;span class=&#34;na&#34;&gt;.thumb_set&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;NMI_Handler&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;Default_Handler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   &lt;span class=&#34;na&#34;&gt;.weak&lt;/span&gt;      &lt;span class=&#34;no&#34;&gt;HardFault_Handler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   &lt;span class=&#34;na&#34;&gt;.thumb_set&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;HardFault_Handler&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;Default_Handler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   &lt;span class=&#34;cm&#34;&gt;/* ... 80+ interrupts ... */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   &lt;span class=&#34;na&#34;&gt;.weak&lt;/span&gt;      &lt;span class=&#34;no&#34;&gt;FPU_IRQHandler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   &lt;span class=&#34;na&#34;&gt;.thumb_set&lt;/span&gt; &lt;span class=&#34;no&#34;&gt;FPU_IRQHandler&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;&lt;span class=&#34;no&#34;&gt;Default_Handler&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;These two directives form an elegant &lt;strong&gt;default value mechanism&lt;/strong&gt;:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Directive&lt;/th&gt;
+					&lt;th&gt;Meaning&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;.weak NMI_Handler&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Declares &lt;code&gt;NMI_Handler&lt;/code&gt; as a weak symbol — if another file defines a symbol with the same name, the weak definition is overridden&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;.thumb_set NMI_Handler, Default_Handler&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Sets the value of &lt;code&gt;NMI_Handler&lt;/code&gt; to the address of &lt;code&gt;Default_Handler&lt;/code&gt; (Thumb function alias)&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id=&#34;72-linker-behavior-with-weak-symbols&#34;&gt;7.2 Linker Behavior with Weak Symbols
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-zed&#34; data-lang=&#34;zed&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;Scenario&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;err&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;User&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;has&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;not&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;implemented&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;NMI_Handler&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;&lt;span class=&#34;err&#34;&gt;→&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Linker&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;uses&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;weak&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;definition&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;err&#34;&gt;→&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;NMI_Handler&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Default_Handler&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;err&#34;&gt;→&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;infinite&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;loop&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;Scenario&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;err&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;:&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;User&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;implements&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;NMI_Handler&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;in&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;stm32f4xx_it&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;w&#34;&gt;  &lt;/span&gt;&lt;span class=&#34;err&#34;&gt;→&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Linker&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;chooses&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;strong&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;definition&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;err&#34;&gt;→&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;NMI_Handler&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;o&#34;&gt;=&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;user&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;function&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;err&#34;&gt;→&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;normal&lt;/span&gt;&lt;span class=&#34;w&#34;&gt; &lt;/span&gt;&lt;span class=&#34;n&#34;&gt;execution&lt;/span&gt;&lt;span class=&#34;w&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;This is the most common interrupt registration method in embedded development — &lt;strong&gt;no need to modify the startup file; just define a function with the same name in C code&lt;/strong&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;c1&#34;&gt;// stm32f4xx_it.c
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;NMI_Handler&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c1&#34;&gt;// User-defined NMI handling logic
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;The linker sees the strong symbol &lt;code&gt;NMI_Handler&lt;/code&gt;, automatically ignores the weak definition in the startup file, and the corresponding entry in the vector table automatically points to the user function.&lt;/p&gt;
+&lt;h3 id=&#34;73-thumb_set-vs-set&#34;&gt;7.3 .thumb_set vs .set
+&lt;/h3&gt;&lt;p&gt;&lt;code&gt;.thumb_set&lt;/code&gt; is the Thumb-specific variant of &lt;code&gt;.set&lt;/code&gt;; it automatically sets bit[0] of the address to 1 (Thumb interwork flag):&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Directive&lt;/th&gt;
+					&lt;th&gt;Address bit[0]&lt;/th&gt;
+					&lt;th&gt;Use Case&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;.set&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Unmodified&lt;/td&gt;
+					&lt;td&gt;ARM mode (not applicable for Cortex-M)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;.thumb_set&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Auto-set to 1&lt;/td&gt;
+					&lt;td&gt;Thumb mode (must be used for Cortex-M)&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Cortex-M4 only supports Thumb instructions; the address bit[0] in interrupt vectors must be 1, otherwise a HardFault is triggered. Using &lt;code&gt;.thumb_set&lt;/code&gt; ensures this.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-important&#34;&gt;
+    &lt;p&gt;If you write assembly interrupt handlers manually, you must ensure the function symbol&amp;rsquo;s bit[0] is 1. GCC-compiled C functions handle this automatically, but hand-written assembly requires declaring with &lt;code&gt;.thumb_func&lt;/code&gt; or setting with &lt;code&gt;.thumb_set&lt;/code&gt;.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;8-collaboration-between-startup-file-and-linker-script&#34;&gt;8. Collaboration Between Startup File and Linker Script
+&lt;/h2&gt;&lt;p&gt;The startup file doesn&amp;rsquo;t work alone; it depends on symbols defined in the linker script (&lt;code&gt;.ld&lt;/code&gt;) and functions provided by the C runtime. Complete dependency relationships:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Reference in Startup File&lt;/th&gt;
+					&lt;th&gt;Defined In&lt;/th&gt;
+					&lt;th&gt;Type&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;_estack&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Linker script&lt;/td&gt;
+					&lt;td&gt;Stack top address&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;_sidata&lt;/code&gt;, &lt;code&gt;_sdata&lt;/code&gt;, &lt;code&gt;_edata&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Linker script&lt;/td&gt;
+					&lt;td&gt;.data section addresses&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;_sbss&lt;/code&gt;, &lt;code&gt;_ebss&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Linker script&lt;/td&gt;
+					&lt;td&gt;.bss section addresses&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;SystemInit&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;system_stm32f4xx.c&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;Clock initialization function&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;__libc_init_array&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;C runtime library (libc)&lt;/td&gt;
+					&lt;td&gt;Constructor caller&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;main&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;User code&lt;/td&gt;
+					&lt;td&gt;Program entry point&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id=&#34;81-key-linker-script-snippet&#34;&gt;8.1 Key Linker Script Snippet
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;21
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;22
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;23
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;24
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;25
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;26
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;27
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;28
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;29
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;30
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;31
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;32
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;33
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;34
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;35
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-gdscript3&#34; data-lang=&#34;gdscript3&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;o&#34;&gt;/*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Typical&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;STM32F407&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;linker&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;script&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;MEMORY&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;FLASH&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rx&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ORIGIN&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mh&#34;&gt;0x08000000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;LENGTH&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1024&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;K&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;RAM&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rwx&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;  &lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ORIGIN&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mh&#34;&gt;0x20000000&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;LENGTH&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;128&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;K&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;SECTIONS&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;isr_vector&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ALIGN&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;KEEP&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;isr_vector&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;))&lt;/span&gt;    &lt;span class=&#34;o&#34;&gt;/*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Vector&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;table&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;cannot&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;be&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;optimized&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;away&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ALIGN&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;4&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;FLASH&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;text&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;text&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;rodata&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;FLASH&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;_sidata&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;LOADADDR&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;  &lt;span class=&#34;o&#34;&gt;/*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Load&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;address&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;of&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt; &lt;span class=&#34;ow&#34;&gt;in&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Flash&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;_sdata&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;_edata&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;RAM&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AT&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;FLASH&lt;/span&gt;          &lt;span class=&#34;o&#34;&gt;/*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Runs&lt;/span&gt; &lt;span class=&#34;ow&#34;&gt;in&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;RAM&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;loaded&lt;/span&gt; &lt;span class=&#34;ow&#34;&gt;in&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Flash&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;bss&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;:&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;_sbss&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;bss&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;COMMON&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;_ebss&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;RAM&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;_estack&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ORIGIN&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;RAM&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;LENGTH&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;RAM&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;  &lt;span class=&#34;o&#34;&gt;/*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Stack&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;top&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;end&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;of&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;RAM&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;&lt;code&gt;.data : { ... } &amp;gt; RAM AT &amp;gt; FLASH&lt;/code&gt; is the key syntax — it means the &lt;code&gt;.data&lt;/code&gt; section&amp;rsquo;s &lt;strong&gt;runtime address&lt;/strong&gt; is in RAM (&lt;code&gt;&amp;gt; RAM&lt;/code&gt;), but its &lt;strong&gt;load address&lt;/strong&gt; is in Flash (&lt;code&gt;AT &amp;gt; FLASH&lt;/code&gt;). &lt;code&gt;LOADADDR(.data)&lt;/code&gt; returns the load address (i.e., the position in Flash), which is the value of &lt;code&gt;_sidata&lt;/code&gt;.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;9-common-issues-and-troubleshooting&#34;&gt;9. Common Issues and Troubleshooting
+&lt;/h2&gt;&lt;h3 id=&#34;91-hardfault-infinite-loop&#34;&gt;9.1 HardFault Infinite Loop
+&lt;/h3&gt;&lt;p&gt;&lt;strong&gt;Symptom&lt;/strong&gt;: Program stuck in &lt;code&gt;Default_Handler&lt;/code&gt; (actually &lt;code&gt;HardFault_Handler&lt;/code&gt;).&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Troubleshooting steps&lt;/strong&gt;:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Pause in debugger, examine &lt;code&gt;PC&lt;/code&gt; and &lt;code&gt;LR&lt;/code&gt; registers&lt;/li&gt;
+&lt;li&gt;Check &lt;code&gt;SCB-&amp;gt;HFSR&lt;/code&gt;, &lt;code&gt;SCB-&amp;gt;CFSR&lt;/code&gt;, &lt;code&gt;SCB-&amp;gt;MMFAR&lt;/code&gt;/&lt;code&gt;SCB-&amp;gt;BFAR&lt;/code&gt; registers&lt;/li&gt;
+&lt;li&gt;Common causes:
+&lt;ul&gt;
+&lt;li&gt;Null pointer dereference (&lt;code&gt;SCB-&amp;gt;MMFAR&lt;/code&gt; points to illegal address)&lt;/li&gt;
+&lt;li&gt;Stack overflow (SP out of SRAM range)&lt;/li&gt;
+&lt;li&gt;Function address in vector table has bit[0] = 0 (non-Thumb address)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&#34;92-incorrect-global-variable-initial-values&#34;&gt;9.2 Incorrect Global Variable Initial Values
+&lt;/h3&gt;&lt;p&gt;&lt;strong&gt;Symptom&lt;/strong&gt;: Global variables with initial values are wrong, or change across reboots.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Cause&lt;/strong&gt;: The .data copy in Reset_Handler was skipped or executed incorrectly.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Troubleshooting&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Check the linker script correctly defines &lt;code&gt;_sidata&lt;/code&gt;, &lt;code&gt;_sdata&lt;/code&gt;, &lt;code&gt;_edata&lt;/code&gt;&lt;/li&gt;
+&lt;li&gt;Check if a custom Reset_Handler overrode the weak symbol without implementing the copy logic&lt;/li&gt;
+&lt;li&gt;Confirm the vector table &lt;code&gt;.isr_vector&lt;/code&gt; section uses &lt;code&gt;KEEP()&lt;/code&gt; to prevent optimization&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;93-c-global-objects-not-constructed&#34;&gt;9.3 C++ Global Objects Not Constructed
+&lt;/h3&gt;&lt;p&gt;&lt;strong&gt;Symptom&lt;/strong&gt;: C++ global object constructors are not called.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Cause&lt;/strong&gt;: &lt;code&gt;__libc_init_array&lt;/code&gt; was omitted. Some minimal startup files (or custom Reset_Handler) may not call it.&lt;/p&gt;
+&lt;h3 id=&#34;94-interrupt-handler-not-working&#34;&gt;9.4 Interrupt Handler Not Working
+&lt;/h3&gt;&lt;p&gt;&lt;strong&gt;Symptom&lt;/strong&gt;: Defined an interrupt handler but it&amp;rsquo;s never called; always enters infinite loop.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Troubleshooting&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Confirm the function name in the C file &lt;strong&gt;exactly matches&lt;/strong&gt; the weak symbol name in the startup file (case-sensitive)&lt;/li&gt;
+&lt;li&gt;Confirm the &lt;code&gt;stm32f4xx_it.c&lt;/code&gt; file is included in compilation&lt;/li&gt;
+&lt;li&gt;Check NVIC interrupt enable is configured&lt;/li&gt;
+&lt;/ul&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;10-startup-file-modification-guide&#34;&gt;10. Startup File Modification Guide
+&lt;/h2&gt;&lt;h3 id=&#34;101-when-to-modify-the-startup-file&#34;&gt;10.1 When to Modify the Startup File
+&lt;/h3&gt;&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Scenario&lt;/th&gt;
+					&lt;th&gt;Modification&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Using external SDRAM for extended memory&lt;/td&gt;
+					&lt;td&gt;Add SDRAM initialization code in Reset_Handler&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Changing heap/stack size&lt;/td&gt;
+					&lt;td&gt;Modify &lt;code&gt;_estack&lt;/code&gt; in the linker script or increase &lt;code&gt;_Min_Heap_Size&lt;/code&gt;/&lt;code&gt;_Min_Stack_Size&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Adding custom interrupts&lt;/td&gt;
+					&lt;td&gt;Vector table usually doesn&amp;rsquo;t need changes — weak symbol mechanism handles it automatically&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Bootloader jump scenario&lt;/td&gt;
+					&lt;td&gt;Adjust vector table offset (&lt;code&gt;SCB-&amp;gt;VTOR&lt;/code&gt;); startup file itself usually doesn&amp;rsquo;t need changes&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Using hardware FPU&lt;/td&gt;
+					&lt;td&gt;Change &lt;code&gt;.fpu&lt;/code&gt; to &lt;code&gt;fpv4-sp-d16&lt;/code&gt; and enable FPU in SystemInit&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id=&#34;102-adding-custom-reset-initialization-logic&#34;&gt;10.2 Adding Custom Reset Initialization Logic
+&lt;/h3&gt;&lt;p&gt;If you need to execute additional initialization before entering &lt;code&gt;main()&lt;/code&gt; (e.g., watchdog feeding, early peripheral configuration), there are two approaches:&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Approach 1: Modify SystemInit (Recommended)&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Add code to &lt;code&gt;SystemInit()&lt;/code&gt; in &lt;code&gt;system_stm32f4xx.c&lt;/code&gt;; no need to modify the assembly file.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Approach 2: Insert Assembly Code in Reset_Handler&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Insert custom assembly calls between &lt;code&gt;bl SystemInit&lt;/code&gt; and &lt;code&gt;bl main&lt;/code&gt;. This approach requires understanding the ARM calling convention (AAPCS) to ensure register state is not corrupted.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;11-summary&#34;&gt;11. Summary
+&lt;/h2&gt;&lt;p&gt;Although &lt;code&gt;startup_stm32f407xx.s&lt;/code&gt; is only about 500 lines, it carries the full responsibility of establishing the C runtime environment from hardware reset. Key takeaways:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Header declarations&lt;/strong&gt; determine the target architecture and instruction set — Cortex-M4 only supports Thumb, a hardware mandate&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Linker symbols&lt;/strong&gt; are the bridge between the startup file and the linker script — .data copying and .bss zeroing depend on these symbols&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Reset_Handler&lt;/strong&gt; is the core of the boot flow — SP init → clock config → data copy → BSS zero → C lib init → main()&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Weak symbol mechanism&lt;/strong&gt; allows interrupt registration without modifying the startup file — just define a function with the same name in C code&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Vector table&lt;/strong&gt; is the contract between hardware and software — hardware auto-loads SP and PC on reset; subsequent interrupts are also routed through it&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;Understanding the startup file means understanding the entire process of an embedded system going &amp;ldquo;from zero to main()&amp;rdquo;.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;references&#34;&gt;References
+&lt;/h2&gt;&lt;ul&gt;
+&lt;li&gt;&lt;a class=&#34;link&#34; href=&#34;https://developer.arm.com/documentation/ddi0439/latest/&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;ARM Cortex-M4 Technical Reference Manual&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&#34;link&#34; href=&#34;https://www.st.com/resource/en/reference_manual/dm00031020.pdf&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;STM32F4xx Reference Manual (RM0090)&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&#34;link&#34; href=&#34;https://github.com/ARM-software/abi-aa/blob/main/aapcs32/aapcs32.rst&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;ARM Architecture Procedure Call Standard (AAPCS)&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&#34;link&#34; href=&#34;https://sourceware.org/binutils/docs/as/&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;GNU Assembler Manual&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a class=&#34;link&#34; href=&#34;https://developer.arm.com/documentation/dui0553/latest/&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;Cortex-M4 Devices Generic User Guide&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+</description>
+        </item>
+        <item>
         <title>Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms</title>
         <link>https://lingjia007.github.io/Hugo_Web/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/</link>
         <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
@@ -17,7 +1049,7 @@
 &lt;/h2&gt;&lt;p&gt;In embedded development, UART serial communication is one of the most fundamental and commonly used peripherals. However, many developers still use byte-by-byte interrupt-driven or polling approaches, resulting in high CPU overhead and significant risk of data loss. The &lt;strong&gt;DMA + ring buffer&lt;/strong&gt; combination is the proper way to achieve efficient UART communication.&lt;/p&gt;
 &lt;p&gt;This post is based on the &lt;a class=&#34;link&#34; href=&#34;https://github.com/MaJerle/lwrb&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;lwrb&lt;/a&gt; lightweight ring buffer library and the &lt;a class=&#34;link&#34; href=&#34;https://github.com/MaJerle/stm32-usart-uart-dma-rx-tx&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
-    &gt;stm32-usart-uart-dma-rx-tx&lt;/a&gt; reference implementation, verified on both &lt;strong&gt;STM32F407VGT6 (HAL library)&lt;/strong&gt; and &lt;strong&gt;GD32F470ZGT6 (Standard Peripheral Library)&lt;/strong&gt; dual platforms. Complete project sources: &lt;a class=&#34;link&#34; href=&#34;https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;stm32-usart-uart-dma-rx-tx&lt;/a&gt; reference implementation, verified on both &lt;strong&gt;LCEDA SkyStar STM32F407VGT6 (HAL library)&lt;/strong&gt; and &lt;strong&gt;LCEDA LiangShan GD32F470ZGT6 (Standard Peripheral Library)&lt;/strong&gt; dual platforms. Complete project sources: &lt;a class=&#34;link&#34; href=&#34;https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;STM32F407VGT6 UART DMA&lt;/a&gt; and &lt;a class=&#34;link&#34; href=&#34;https://github.com/Lingjia007/GD32F470ZGT6_UART_DMA_Efficient_RingBuffer&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;GD32F470ZGT6 UART DMA&lt;/a&gt;. Every design decision is deeply analyzed in a Q&amp;amp;A format.&lt;/p&gt;
 &lt;hr&gt;
@@ -4330,7 +5362,7 @@ $$\forall x \in \text{.data}, \text{Mem}[\text{VMA}(x)] = \text{Mem}[\text{LMA}(
         <guid>https://lingjia007.github.io/Hugo_Web/en/p/lvgl-dynamic-loading-and-render-tree-management-application-tree-architecture-practices-for-smart-vending-terminal/</guid>
         <description>&lt;img src="https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png" alt="Featured image of post LVGL Dynamic Loading and Render Tree Management: Application Tree Architecture Practices for Smart Vending Terminal" /&gt;&lt;h2 id=&#34;preface&#34;&gt;Preface
 &lt;/h2&gt;&lt;p&gt;As the most active graphics library in the embedded space, LVGL&amp;rsquo;s core is a tree-structured &lt;strong&gt;render tree&lt;/strong&gt; (&lt;code&gt;lv_obj_t&lt;/code&gt; object tree), where all visible widgets are nodes of this tree. However, in real-world applications, directly manipulating the render tree faces several problems: &lt;strong&gt;static layouts cannot be dynamically updated&lt;/strong&gt;, &lt;strong&gt;widget lifecycles are difficult to manage uniformly&lt;/strong&gt;, and &lt;strong&gt;components are tightly coupled&lt;/strong&gt;.&lt;/p&gt;
-&lt;p&gt;This article uses a smart vending terminal based on &lt;strong&gt;ArtInChip + LVGL v9 + RT-Thread&lt;/strong&gt; as a practical vehicle, providing an in-depth analysis of how to build an &lt;strong&gt;application tree&lt;/strong&gt; (&lt;code&gt;layout_node&lt;/code&gt; framework) on top of the LVGL render tree. Through the coordination of the Composite, Factory, Strategy, and Publish-Subscribe patterns, it enables dynamic loading, hot updates, and lifecycle management of the UI.&lt;/p&gt;
+&lt;p&gt;This article uses a smart vending terminal based on &lt;strong&gt;LCEDA HengShan D133EBS development board + LVGL v9 + RT-Thread&lt;/strong&gt; as a practical vehicle, providing an in-depth analysis of how to build an &lt;strong&gt;application tree&lt;/strong&gt; (&lt;code&gt;layout_node&lt;/code&gt; framework) on top of the LVGL render tree. Through the coordination of the Composite, Factory, Strategy, and Publish-Subscribe patterns, it enables dynamic loading, hot updates, and lifecycle management of the UI.&lt;/p&gt;
 &lt;hr&gt;
 &lt;h2 id=&#34;1-dual-tree-architecture-render-tree-vs-application-tree&#34;&gt;1. Dual-Tree Architecture: Render Tree vs Application Tree
 &lt;/h2&gt;&lt;h3 id=&#34;11-problem-background&#34;&gt;1.1 Problem Background
@@ -6158,7 +7190,23 @@ $$\forall x \in \text{.data}, \text{Mem}[\text{VMA}(x)] = \text{Mem}[\text{LMA}(
 &lt;/ul&gt;
 &lt;hr&gt;
 &lt;h2 id=&#34;13-web-configuration-system&#34;&gt;13. Web Configuration System
-&lt;/h2&gt;&lt;h3 id=&#34;131-architecture&#34;&gt;13.1 Architecture
+&lt;/h2&gt;&lt;p&gt;&lt;img src=&#34;https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/web_config.png&#34;
+	width=&#34;681&#34;
+	height=&#34;4916&#34;
+	srcset=&#34;https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/web_config_hu_4475f24a5df048ae.png 480w, https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/web_config_hu_c5266b1d744c7410.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;Web Configuration System&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;13&#34;
+		data-flex-basis=&#34;33px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;Want to view the source code? &lt;a class=&#34;link&#34; href=&#34;https://gitee.com/ling-sir007/luban-lite/blob/master/packages/artinchip/lvgl-ui/aic_demo/my_custom_init/web_config.html&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;web_config.html&lt;/a&gt;&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;131-architecture&#34;&gt;13.1 Architecture
 &lt;/h3&gt;&lt;p&gt;The device starts a WiFi AP (SSID: &lt;code&gt;AIC-Banner-Config&lt;/code&gt;, password: &lt;code&gt;12345678&lt;/code&gt;, channel 6), IP address 192.168.1.1, runs a DHCP server, and starts a Mongoose HTTP server on port 80.&lt;/p&gt;
 &lt;h3 id=&#34;132-api-endpoints&#34;&gt;13.2 API Endpoints
 &lt;/h3&gt;&lt;table&gt;

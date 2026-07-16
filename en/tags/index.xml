@@ -7,7 +7,55 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>en</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Wed, 08 Jul 2026 23:37:53 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/en/tags/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Thu, 16 Jul 2026 20:36:37 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/en/tags/index.xml" rel="self" type="application/rss+xml" /><item>
+        <title>Assembly</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/assembly/</link>
+        <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/assembly/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Cortex-M4</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/cortex-m4/</link>
+        <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/cortex-m4/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>GCC</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/gcc/</link>
+        <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/gcc/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Startup File</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/startup-file/</link>
+        <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/startup-file/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>STM32</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/stm32/</link>
+        <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/stm32/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Vector Table</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/vector-table/</link>
+        <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/vector-table/</guid>
+        <description></description>
+        </item>
+        <item>
         <title>DMA</title>
         <link>https://lingjia007.github.io/Hugo_Web/en/tags/dma/</link>
         <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
@@ -37,14 +85,6 @@
         <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
         
         <guid>https://lingjia007.github.io/Hugo_Web/en/tags/ring-buffer/</guid>
-        <description></description>
-        </item>
-        <item>
-        <title>STM32</title>
-        <link>https://lingjia007.github.io/Hugo_Web/en/tags/stm32/</link>
-        <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
-        
-        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/stm32/</guid>
         <description></description>
         </item>
         <item>
@@ -149,14 +189,6 @@
         <pubDate>Thu, 02 Jul 2026 00:00:00 +0000</pubDate>
         
         <guid>https://lingjia007.github.io/Hugo_Web/en/tags/embedded-ui/</guid>
-        <description></description>
-        </item>
-        <item>
-        <title>GCC</title>
-        <link>https://lingjia007.github.io/Hugo_Web/en/tags/gcc/</link>
-        <pubDate>Thu, 02 Jul 2026 00:00:00 +0000</pubDate>
-        
-        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/gcc/</guid>
         <description></description>
         </item>
         <item>

@@ -7,7 +7,31 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>en-us</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Wed, 08 Jul 2026 23:37:53 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/categories/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Thu, 16 Jul 2026 20:36:37 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/categories/index.xml" rel="self" type="application/rss+xml" /><item>
+        <title>启动流程</title>
+        <link>https://lingjia007.github.io/Hugo_Web/categories/%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B/</link>
+        <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/categories/%E5%90%AF%E5%8A%A8%E6%B5%81%E7%A8%8B/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>嵌入式</title>
+        <link>https://lingjia007.github.io/Hugo_Web/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F/</link>
+        <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>边缘AI</title>
+        <link>https://lingjia007.github.io/Hugo_Web/categories/%E8%BE%B9%E7%BC%98ai/</link>
+        <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/categories/%E8%BE%B9%E7%BC%98ai/</guid>
+        <description></description>
+        </item>
+        <item>
         <title>深度学习</title>
         <link>https://lingjia007.github.io/Hugo_Web/categories/%E6%B7%B1%E5%BA%A6%E5%AD%A6%E4%B9%A0/</link>
         <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
@@ -16,11 +40,59 @@
         <description></description>
         </item>
         <item>
-        <title>嵌入式</title>
-        <link>https://lingjia007.github.io/Hugo_Web/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F/</link>
+        <title>驱动开发</title>
+        <link>https://lingjia007.github.io/Hugo_Web/categories/%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91/</link>
         <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
         
-        <guid>https://lingjia007.github.io/Hugo_Web/categories/%E5%B5%8C%E5%85%A5%E5%BC%8F/</guid>
+        <guid>https://lingjia007.github.io/Hugo_Web/categories/%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Bootloader</title>
+        <link>https://lingjia007.github.io/Hugo_Web/categories/bootloader/</link>
+        <pubDate>Fri, 03 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/categories/bootloader/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>编程范式</title>
+        <link>https://lingjia007.github.io/Hugo_Web/categories/%E7%BC%96%E7%A8%8B%E8%8C%83%E5%BC%8F/</link>
+        <pubDate>Fri, 03 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/categories/%E7%BC%96%E7%A8%8B%E8%8C%83%E5%BC%8F/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>架构设计</title>
+        <link>https://lingjia007.github.io/Hugo_Web/categories/%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/</link>
+        <pubDate>Fri, 03 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/categories/%E6%9E%B6%E6%9E%84%E8%AE%BE%E8%AE%A1/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>GUI开发</title>
+        <link>https://lingjia007.github.io/Hugo_Web/categories/gui%E5%BC%80%E5%8F%91/</link>
+        <pubDate>Thu, 02 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/categories/gui%E5%BC%80%E5%8F%91/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>编译工具链</title>
+        <link>https://lingjia007.github.io/Hugo_Web/categories/%E7%BC%96%E8%AF%91%E5%B7%A5%E5%85%B7%E9%93%BE/</link>
+        <pubDate>Thu, 02 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/categories/%E7%BC%96%E8%AF%91%E5%B7%A5%E5%85%B7%E9%93%BE/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>上位机开发</title>
+        <link>https://lingjia007.github.io/Hugo_Web/categories/%E4%B8%8A%E4%BD%8D%E6%9C%BA%E5%BC%80%E5%8F%91/</link>
+        <pubDate>Sat, 20 Jun 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/categories/%E4%B8%8A%E4%BD%8D%E6%9C%BA%E5%BC%80%E5%8F%91/</guid>
         <description></description>
         </item>
         <item>

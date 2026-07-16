@@ -1,0 +1,2595 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="Line-by-line analysis of the startup_stm32f407xx.s assembly startup file, covering processor instruction set declarations, vector table structure, Reset_Handler boot flow (stack pointer init → .data copy → .bss zero → C lib init → main call), weak symbol interrupt mechanism and .thumb_set alias technique">
+<title>Deep Dive into the STM32F407 Assembly Startup File: The Complete Journey from Reset Vector to C main()</title>
+
+<link rel='canonical' href='https://lingjia007.github.io/Hugo_Web/en/p/deep-dive-into-the-stm32f407-assembly-startup-file-the-complete-journey-from-reset-vector-to-c-main/'>
+
+<link rel="stylesheet" href="/Hugo_Web/scss/style.min.553d9fc5cc86a8c9deb4211c02fd07c2210fc13d76ef772a58388b83939349ab.css"><meta property='og:title' content="Deep Dive into the STM32F407 Assembly Startup File: The Complete Journey from Reset Vector to C main()">
+<meta property='og:description' content="Line-by-line analysis of the startup_stm32f407xx.s assembly startup file, covering processor instruction set declarations, vector table structure, Reset_Handler boot flow (stack pointer init → .data copy → .bss zero → C lib init → main call), weak symbol interrupt mechanism and .thumb_set alias technique">
+<meta property='og:url' content='https://lingjia007.github.io/Hugo_Web/en/p/deep-dive-into-the-stm32f407-assembly-startup-file-the-complete-journey-from-reset-vector-to-c-main/'>
+<meta property='og:site_name' content='lingsir007'>
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='Assembly' /><meta property='article:tag' content='Startup File' /><meta property='article:tag' content='Cortex-M4' /><meta property='article:tag' content='Vector Table' /><meta property='article:tag' content='GCC' /><meta property='article:published_time' content='2026-07-11T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-16T20:36:37&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/STM32F407%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E8%A7%A3%E6%9E%90.png' />
+<meta name="twitter:title" content="Deep Dive into the STM32F407 Assembly Startup File: The Complete Journey from Reset Vector to C main()">
+<meta name="twitter:description" content="Line-by-line analysis of the startup_stm32f407xx.s assembly startup file, covering processor instruction set declarations, vector table structure, Reset_Handler boot flow (stack pointer init → .data copy → .bss zero → C lib init → main call), weak symbol interrupt mechanism and .thumb_set alias technique"><meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content='https://lingjia007.github.io/Hugo_Web/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/STM32F407%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E8%A7%A3%E6%9E%90.png' />
+    <link rel="shortcut icon" href="/Hugo_Web/icons/favicon.ico" />
+
+    </head>
+    <body class="
+    article-page
+    ">
+    <script>
+        (function() {
+            const colorSchemeKey = 'StackColorScheme';
+            if(!localStorage.getItem(colorSchemeKey)){
+                localStorage.setItem(colorSchemeKey, "auto");
+            }
+        })();
+    </script><script>
+    (function() {
+        const colorSchemeKey = 'StackColorScheme';
+        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+
+        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
+            
+
+            document.documentElement.dataset.scheme = 'dark';
+        } else {
+            document.documentElement.dataset.scheme = 'light';
+        }
+    })();
+</script>
+<div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky ">
+    <button class="hamburger hamburger--spin" type="button" id="toggle-menu" aria-label="Toggle Menu">
+        <span class="hamburger-box">
+            <span class="hamburger-inner"></span>
+        </span>
+    </button>
+
+    <header>
+        
+            
+            <figure class="site-avatar">
+                <a href="/Hugo_Web/en/">
+                
+                    
+                    
+                    
+                        
+                        <img src="/Hugo_Web/img/avatar_hu_49d0a8f5a8c62cc5.png" width="300"
+                            height="300" class="site-logo" loading="lazy" alt="Avatar">
+                    
+                
+                </a>
+                
+                    <span class="emoji">🤔</span>
+                
+            </figure>
+            
+        
+        
+        <div class="site-meta">
+            <h1 class="site-name"><a href="/Hugo_Web/en">lingsir007</a></h1>
+            <h2 class="site-description">welcome to my website</h2>
+        </div>
+    </header><ol class="menu-social">
+            
+                <li>
+                    <a 
+                        href='https://github.com/Lingjia007?tab=repositories'
+                        target="_blank"
+                        title="GitHub"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+                <li>
+                    <a 
+                        href='https://twitter.com'
+                        target="_blank"
+                        title="Twitter"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M22 4.01c-1 .49 -1.98 .689 -3 .99c-1.121 -1.265 -2.783 -1.335 -4.38 -.737s-2.643 2.06 -2.62 3.737v1c-3.245 .083 -6.135 -1.395 -8 -4c0 0 -4.182 7.433 4 11c-1.872 1.247 -3.739 2.088 -6 2c3.308 1.803 6.913 2.423 10.034 1.517c3.58 -1.04 6.522 -3.723 7.651 -7.742a13.84 13.84 0 0 0 .497 -3.753c-.002 -.249 1.51 -2.772 1.818 -4.013z" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+        </ol><ol class="menu" id="main-menu">
+        
+        
+        
+        <li >
+            <a href='/Hugo_Web/en/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <polyline points="5 12 3 12 12 3 21 12 19 12" />
+  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+  <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+</svg>
+
+
+
+                
+                <span>Home</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/en/about/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="7" r="4" />
+  <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+</svg>
+
+
+
+                
+                <span>About</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/en/archives/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <rect x="3" y="4" width="18" height="4" rx="2" />
+  <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10" />
+  <line x1="10" y1="12" x2="14" y2="12" />
+</svg>
+
+
+
+                
+                <span>Archives</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/en/search/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="10" cy="10" r="7" />
+  <line x1="21" y1="21" x2="15" y2="15" />
+</svg>
+
+
+
+                
+                <span>Search</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/en/links/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5" />
+  <path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5" />
+</svg>
+
+
+
+                
+                <span>Links</span>
+            </a>
+        </li>
+        
+        <li class="menu-bottom-section">
+            <ol class="menu">
+                    
+                        <li id="i18n-switch">  
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M4 5h7" />
+  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
+  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+</svg>
+
+
+
+                            <select name="language" title="language" onchange="window.location.href = this.selectedOptions[0].value">
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/" >简体中文</option>
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/zh-hk/" >繁體中文</option>
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/en/" selected>English</option>
+                                
+                            </select>
+                        </li>
+                    
+                
+
+                
+                    <li id="dark-mode-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="8" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="16" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <span>Dark Mode</span>
+                    </li>
+                
+            </ol>
+        </li>
+    </ol>
+</aside>
+
+    <aside class="sidebar right-sidebar sticky">
+        
+        
+
+        
+            
+                
+    <section class="widget archives">
+        <div class="widget-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <line x1="5" y1="9" x2="19" y2="9" />
+  <line x1="5" y1="15" x2="19" y2="15" />
+  <line x1="11" y1="4" x2="7" y2="20" />
+  <line x1="17" y1="4" x2="13" y2="20" />
+</svg>
+
+
+
+        </div>
+        <h2 class="widget-title section-title">Table of contents</h2>
+        
+        <div class="widget--toc">
+            <nav id="TableOfContents">
+  <ol>
+    <li><a href="#preface">Preface</a></li>
+    <li><a href="#1-overall-file-structure">1. Overall File Structure</a></li>
+    <li><a href="#2-header-declarations-telling-the-assembler-who-we-are">2. Header Declarations: Telling the Assembler Who We Are</a></li>
+    <li><a href="#3-linker-symbols-address-anchors-for-data-and-bss">3. Linker Symbols: Address Anchors for .data and .bss</a>
+      <ol>
+        <li><a href="#31-why-does-data-need-to-be-copied">3.1 Why Does .data Need to Be Copied?</a></li>
+        <li><a href="#32-why-does-bss-only-need-zeroing">3.2 Why Does .bss Only Need Zeroing?</a></li>
+      </ol>
+    </li>
+    <li><a href="#4-reset_handler-the-core-of-the-boot-flow">4. Reset_Handler: The Core of the Boot Flow</a>
+      <ol>
+        <li><a href="#41-complete-code-with-line-by-line-annotations">4.1 Complete Code with Line-by-Line Annotations</a></li>
+        <li><a href="#42-six-steps-explained">4.2 Six Steps Explained</a>
+          <ol>
+            <li><a href="#step-1-set-stack-pointer">Step [1]: Set Stack Pointer</a></li>
+            <li><a href="#step-2-call-systeminit">Step [2]: Call SystemInit</a></li>
+            <li><a href="#step-3-copy-data-section">Step [3]: Copy .data Section</a></li>
+            <li><a href="#step-4-zero-bss-section">Step [4]: Zero .bss Section</a></li>
+            <li><a href="#step-5-call-c-library-initialization">Step [5]: Call C Library Initialization</a></li>
+            <li><a href="#step-6-call-main">Step [6]: Call main()</a></li>
+          </ol>
+        </li>
+        <li><a href="#43-boot-flow-overview">4.3 Boot Flow Overview</a></li>
+      </ol>
+    </li>
+    <li><a href="#5-default_handler-safety-net-for-unexpected-interrupts">5. Default_Handler: Safety Net for Unexpected Interrupts</a></li>
+    <li><a href="#6-vector-table-the-interrupt-routing-table">6. Vector Table: The Interrupt Routing Table</a>
+      <ol>
+        <li><a href="#61-vector-table-structure">6.1 Vector Table Structure</a></li>
+        <li><a href="#62-cortex-m4-exception-vector-details">6.2 Cortex-M4 Exception Vector Details</a></li>
+        <li><a href="#63-stm32f407-external-interrupt-vectors">6.3 STM32F407 External Interrupt Vectors</a></li>
+        <li><a href="#64-hardware-vector-table-loading-mechanism">6.4 Hardware Vector Table Loading Mechanism</a></li>
+      </ol>
+    </li>
+    <li><a href="#7-weak-symbol-mechanism-placeholders-for-interrupt-handlers">7. Weak Symbol Mechanism: &ldquo;Placeholders&rdquo; for Interrupt Handlers</a>
+      <ol>
+        <li><a href="#71-how-weak--thumb_set-works">7.1 How .weak + .thumb_set Works</a></li>
+        <li><a href="#72-linker-behavior-with-weak-symbols">7.2 Linker Behavior with Weak Symbols</a></li>
+        <li><a href="#73-thumb_set-vs-set">7.3 .thumb_set vs .set</a></li>
+      </ol>
+    </li>
+    <li><a href="#8-collaboration-between-startup-file-and-linker-script">8. Collaboration Between Startup File and Linker Script</a>
+      <ol>
+        <li><a href="#81-key-linker-script-snippet">8.1 Key Linker Script Snippet</a></li>
+      </ol>
+    </li>
+    <li><a href="#9-common-issues-and-troubleshooting">9. Common Issues and Troubleshooting</a>
+      <ol>
+        <li><a href="#91-hardfault-infinite-loop">9.1 HardFault Infinite Loop</a></li>
+        <li><a href="#92-incorrect-global-variable-initial-values">9.2 Incorrect Global Variable Initial Values</a></li>
+        <li><a href="#93-c-global-objects-not-constructed">9.3 C++ Global Objects Not Constructed</a></li>
+        <li><a href="#94-interrupt-handler-not-working">9.4 Interrupt Handler Not Working</a></li>
+      </ol>
+    </li>
+    <li><a href="#10-startup-file-modification-guide">10. Startup File Modification Guide</a>
+      <ol>
+        <li><a href="#101-when-to-modify-the-startup-file">10.1 When to Modify the Startup File</a></li>
+        <li><a href="#102-adding-custom-reset-initialization-logic">10.2 Adding Custom Reset Initialization Logic</a></li>
+      </ol>
+    </li>
+    <li><a href="#11-summary">11. Summary</a></li>
+    <li><a href="#references">References</a></li>
+  </ol>
+</nav>
+        </div>
+    </section>
+
+            
+        
+    </aside>
+
+
+            <main class="main full-width">
+    <article class="has-image main-article">
+    <header class="article-header">
+        <div class="article-image">
+            <a href="/Hugo_Web/en/p/deep-dive-into-the-stm32f407-assembly-startup-file-the-complete-journey-from-reset-vector-to-c-main/">
+                <img src="/Hugo_Web/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/STM32F407%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E8%A7%A3%E6%9E%90_hu_6fa19e2d5bc823bd.png"
+                        srcset="/Hugo_Web/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/STM32F407%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E8%A7%A3%E6%9E%90_hu_6fa19e2d5bc823bd.png 800w, /Hugo_Web/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/STM32F407%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E8%A7%A3%E6%9E%90_hu_e691fee0f7817db9.png 1600w"
+                        width="800" 
+                        height="442" 
+                        loading="lazy"
+                        alt="Featured image of post Deep Dive into the STM32F407 Assembly Startup File: The Complete Journey from Reset Vector to C main()" />
+                
+            </a>
+        </div>
+    
+
+    <div class="article-details">
+    
+    <header class="article-category">
+        
+            <a href="/Hugo_Web/en/categories/embedded/" >
+                Embedded
+            </a>
+        
+            <a href="/Hugo_Web/en/categories/startup/" >
+                Startup
+            </a>
+        
+    </header>
+    
+
+    <div class="article-title-wrapper">
+        <h2 class="article-title">
+            <a href="/Hugo_Web/en/p/deep-dive-into-the-stm32f407-assembly-startup-file-the-complete-journey-from-reset-vector-to-c-main/">Deep Dive into the STM32F407 Assembly Startup File: The Complete Journey from Reset Vector to C main()</a>
+        </h2>
+    
+        
+        <h3 class="article-subtitle">
+            Line-by-line analysis of the startup_stm32f407xx.s assembly startup file, covering processor instruction set declarations, vector table structure, Reset_Handler boot flow (stack pointer init → .data copy → .bss zero → C lib init → main call), weak symbol interrupt mechanism and .thumb_set alias technique
+        </h3>
+        
+    </div>
+
+    
+    
+    
+    
+    <footer class="article-time">
+        
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4" />
+  <circle cx="18" cy="18" r="4" />
+  <path d="M15 3v4" />
+  <path d="M7 3v4" />
+  <path d="M3 11h16" />
+  <path d="M18 16.496v1.504l1 1" />
+</svg>
+                <time class="article-time--published">Jul 11, 2026</time>
+            </div>
+        <div class="article-lastmod">
+                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
+                <time>
+                    Jul 16, 2026 20:36 &#43;0800
+                </time>
+            </div><div id="wordCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
+            <time class="article-wordcount">
+                3643  words
+            </time>
+        </div>
+
+        
+
+        <div id="viewCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
+            <time class="article-time--reading">
+                
+                <span id="vercount_value_page_pv">loading... </span> views
+            </time>
+        </div>
+
+    </footer>
+    
+
+    
+        <footer class="article-translations">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M4 5h7" />
+  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
+  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+</svg>
+
+
+
+            <div>
+                
+                    <a href="https://lingjia007.github.io/Hugo_Web/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/" class="link">简体中文</a>
+                
+                    <a href="https://lingjia007.github.io/Hugo_Web/zh-hk/p/stm32f407-%E6%B1%87%E7%BC%96%E5%95%9F%E5%8B%95%E6%AA%94%E6%A1%88%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E5%BE%9E%E5%BE%A9%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AA%9E%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/" class="link">繁體中文</a>
+                
+            </div>
+        </footer>
+    
+</div>
+
+</header>
+
+    <section class="article-content">
+    
+    
+    <h2 id="preface">Preface
+</h2><p>Every STM32 project contains a <code>startup_stm32f407xx.s</code> file, quietly sitting in the project root, rarely needing modification. But if you&rsquo;ve ever wondered: <strong>Where does the first instruction come from after power-on? Who initializes global variables? How are interrupt service functions &ldquo;registered&rdquo;?</strong> — the answers are all in this file.</p>
+<p>This article will use the GCC version of <code>startup_stm32f407xx.s</code> as the reference, breaking down its mechanisms section by section, revealing the complete journey from hardware reset to C language <code>main()</code> execution.</p>
+<blockquote class="alert alert-note">
+    <p>The startup file analyzed in this article comes from the STM32CubeF4 HAL library, for the GCC/ARM toolchain. The Keil version (ARMASM syntax) and IAR version have similar structure but different assembly syntax.</p></blockquote><hr>
+<h2 id="1-overall-file-structure">1. Overall File Structure
+</h2><p>The startup file can be divided into four logical regions:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Region</th>
+					<th>Function</th>
+					<th>Line Range</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Header Declarations</td>
+					<td>Processor architecture, instruction set, FPU type</td>
+					<td>Lines 1-31</td>
+			</tr>
+			<tr>
+					<td>Linker Symbols</td>
+					<td>.data / .bss section address references</td>
+					<td>Lines 35-46</td>
+			</tr>
+			<tr>
+					<td>Reset_Handler</td>
+					<td>Core boot initialization flow</td>
+					<td>Lines 57-102</td>
+			</tr>
+			<tr>
+					<td>Vector Table + Weak Symbols</td>
+					<td>Interrupt vector table and default handler</td>
+					<td>Lines 111-508</td>
+			</tr>
+	</tbody>
+</table></div>
+<hr>
+<h2 id="2-header-declarations-telling-the-assembler-who-we-are">2. Header Declarations: Telling the Assembler Who We Are
+</h2><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl"><span class="na">.syntax</span> <span class="no">unified</span>
+</span></span><span class="line"><span class="cl"><span class="na">.cpu</span> <span class="no">cortex-m4</span>
+</span></span><span class="line"><span class="cl"><span class="na">.fpu</span> <span class="no">softvfp</span>
+</span></span><span class="line"><span class="cl"><span class="na">.thumb</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Line-by-line analysis:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Directive</th>
+					<th>Meaning</th>
+					<th>Why It&rsquo;s Needed</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>.syntax unified</code></td>
+					<td>Use unified assembly syntax (ARM + Thumb instructions share the same syntax)</td>
+					<td>GCC defaults to <code>divided</code> syntax; unified is more modern and concise</td>
+			</tr>
+			<tr>
+					<td><code>.cpu cortex-m4</code></td>
+					<td>Target processor is Cortex-M4</td>
+					<td>Affects instruction encoding and available instruction set; Cortex-M4 supports DSP instructions and optional FPU</td>
+			</tr>
+			<tr>
+					<td><code>.fpu softvfp</code></td>
+					<td>Use software floating-point calling convention</td>
+					<td>Even with hardware FPU, software FP ABI ensures compatibility with soft-float libraries; switch to <code>fpv4-sp-d16</code> to enable hardware floating-point</td>
+			</tr>
+			<tr>
+					<td><code>.thumb</code></td>
+					<td>Use Thumb instruction set</td>
+					<td>Cortex-M series <strong>only supports</strong> Thumb instruction set (16/32-bit mixed encoding); this is a hardware mandate</td>
+			</tr>
+	</tbody>
+</table></div>
+<blockquote class="alert alert-tip">
+    <p>If your project needs to use the hardware FPU (Floating Point Unit), you must modify both <code>.fpu fpv4-sp-d16</code> and the linker flag <code>-mfloat-abi=hard</code>. Modifying the startup file alone is not enough — the compiler, assembler, and linker must maintain ABI consistency.</p></blockquote><p>Next, two global symbols are declared:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl"><span class="na">.global</span>  <span class="no">g_pfnVectors</span>
+</span></span><span class="line"><span class="cl"><span class="na">.global</span>  <span class="no">Default_Handler</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><ul>
+<li><code>g_pfnVectors</code>: The starting label of the vector table; the linker needs to know its address to place interrupt vectors</li>
+<li><code>Default_Handler</code>: The default interrupt handler; all unimplemented interrupts point to it</li>
+</ul>
+<hr>
+<h2 id="3-linker-symbols-address-anchors-for-data-and-bss">3. Linker Symbols: Address Anchors for .data and .bss
+</h2><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl"><span class="na">.word</span>  <span class="no">_sidata</span>    <span class="cm">/* Start address of .data initial values in Flash */</span>
+</span></span><span class="line"><span class="cl"><span class="na">.word</span>  <span class="no">_sdata</span>     <span class="cm">/* Start address of .data section in SRAM */</span>
+</span></span><span class="line"><span class="cl"><span class="na">.word</span>  <span class="no">_edata</span>     <span class="cm">/* End address of .data section in SRAM */</span>
+</span></span><span class="line"><span class="cl"><span class="na">.word</span>  <span class="no">_sbss</span>      <span class="cm">/* Start address of .bss section in SRAM */</span>
+</span></span><span class="line"><span class="cl"><span class="na">.word</span>  <span class="no">_ebss</span>      <span class="cm">/* End address of .bss section in SRAM */</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>These five <code>.word</code> directives are not code, but <strong>data reserved for Reset_Handler</strong> — they reference symbols defined in the linker script (<code>.ld</code> file) via label names. Understanding these symbols is the key to understanding the boot flow.</p>
+<h3 id="31-why-does-data-need-to-be-copied">3.1 Why Does .data Need to Be Copied?
+</h3><p>Global variables with initial values in C (e.g., <code>int x = 42;</code>) are stored in the <code>.data</code> section. But <code>.data</code> has two &ldquo;homes&rdquo;:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Location</th>
+					<th>Content</th>
+					<th>Reason</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Flash (<code>_sidata</code>)</td>
+					<td>Initial values (42)</td>
+					<td>Flash retains data without power; stores initial values</td>
+			</tr>
+			<tr>
+					<td>SRAM (<code>_sdata</code> ~ <code>_edata</code>)</td>
+					<td>Runtime variables</td>
+					<td>SRAM is read-write; used during program execution</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>At power-on, SRAM content is random; initial values must be <strong>copied</strong> from Flash to SRAM for <code>.data</code> variables to have correct initial values. This is what the &ldquo;Copy Data&rdquo; loop in Reset_Handler does.</p>
+<h3 id="32-why-does-bss-only-need-zeroing">3.2 Why Does .bss Only Need Zeroing?
+</h3><p>Uninitialized global variables in C (e.g., <code>int y;</code>) are stored in the <code>.bss</code> section. The C standard specifies that uninitialized global variables have a value of 0. The <code>.bss</code> section doesn&rsquo;t occupy Flash space (no initial values to store); it only needs the corresponding SRAM region zeroed at startup.</p>
+<blockquote class="alert alert-important">
+    <p>The names of these five symbols are <strong>conventional</strong>, defined by the linker script. If using a custom <code>.ld</code> file, you must ensure these symbol names match the references in the startup file. Common naming variants include <code>__data_start</code> / <code>__data_end</code>, etc.</p></blockquote><hr>
+<h2 id="4-reset_handler-the-core-of-the-boot-flow">4. Reset_Handler: The Core of the Boot Flow
+</h2><p>This is the most important part of the entire file — the first meaningful code executed after the chip powers on.</p>
+<h3 id="41-complete-code-with-line-by-line-annotations">4.1 Complete Code with Line-by-Line Annotations
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl">    <span class="na">.section</span>  <span class="no">.text.Reset_Handler</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.weak</span>  <span class="no">Reset_Handler</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.type</span>  <span class="no">Reset_Handler</span><span class="p">,</span> <span class="nv">%function</span>
+</span></span><span class="line"><span class="cl"><span class="nl">Reset_Handler:</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ldr</span>   <span class="no">sp</span><span class="p">,</span> <span class="err">=</span><span class="no">_estack</span>       <span class="cm">/* [1] Set stack pointer */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="nf">bl</span>  <span class="no">SystemInit</span>            <span class="cm">/* [2] Call system initialization */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* [3] Copy .data section from Flash to SRAM */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ldr</span> <span class="no">r0</span><span class="p">,</span> <span class="err">=</span><span class="no">_sdata</span>           <span class="cm">/*   r0 = .data start address in SRAM */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ldr</span> <span class="no">r1</span><span class="p">,</span> <span class="err">=</span><span class="no">_edata</span>           <span class="cm">/*   r1 = .data end address in SRAM */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ldr</span> <span class="no">r2</span><span class="p">,</span> <span class="err">=</span><span class="no">_sidata</span>          <span class="cm">/*   r2 = .data initial values start address in Flash */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">movs</span> <span class="no">r3</span><span class="p">,</span> <span class="c1">#0               /*   r3 = offset, initialized to 0 */
+</span></span></span><span class="line"><span class="cl">  <span class="nf">b</span> <span class="no">LoopCopyDataInit</span>        <span class="cm">/*   Jump to loop condition check */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nl">CopyDataInit:</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ldr</span> <span class="no">r4</span><span class="p">,</span> <span class="p">[</span><span class="no">r2</span><span class="p">,</span> <span class="no">r3</span><span class="p">]</span>          <span class="cm">/*   Read 4 bytes from Flash[r2+r3] to r4 */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">str</span> <span class="no">r4</span><span class="p">,</span> <span class="p">[</span><span class="no">r0</span><span class="p">,</span> <span class="no">r3</span><span class="p">]</span>          <span class="cm">/*   Write r4 to SRAM[r0+r3] */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">adds</span> <span class="no">r3</span><span class="p">,</span> <span class="no">r3</span><span class="p">,</span> <span class="c1">#4           /*   offset += 4 (word-by-word copy) */
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nl">LoopCopyDataInit:</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">adds</span> <span class="no">r4</span><span class="p">,</span> <span class="no">r0</span><span class="p">,</span> <span class="no">r3</span>           <span class="cm">/*   r4 = current write address = _sdata + offset */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">cmp</span> <span class="no">r4</span><span class="p">,</span> <span class="no">r1</span>                <span class="cm">/*   current address &lt; _edata ? */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">bcc</span> <span class="no">CopyDataInit</span>          <span class="cm">/*   Yes: continue copying (bcc = branch if carry clear, i.e. unsigned less than) */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* [4] Zero fill the .bss section */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ldr</span> <span class="no">r2</span><span class="p">,</span> <span class="err">=</span><span class="no">_sbss</span>            <span class="cm">/*   r2 = .bss start address */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ldr</span> <span class="no">r4</span><span class="p">,</span> <span class="err">=</span><span class="no">_ebss</span>            <span class="cm">/*   r4 = .bss end address */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">movs</span> <span class="no">r3</span><span class="p">,</span> <span class="c1">#0               /*   r3 = 0 */
+</span></span></span><span class="line"><span class="cl">  <span class="nf">b</span> <span class="no">LoopFillZerobss</span>         <span class="cm">/*   Jump to loop condition check */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nl">FillZerobss:</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">str</span>  <span class="no">r3</span><span class="p">,</span> <span class="p">[</span><span class="no">r2</span><span class="p">]</span>             <span class="cm">/*   Write 0 to [r2] */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">adds</span> <span class="no">r2</span><span class="p">,</span> <span class="no">r2</span><span class="p">,</span> <span class="c1">#4           /*   address += 4 */
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nl">LoopFillZerobss:</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">cmp</span> <span class="no">r2</span><span class="p">,</span> <span class="no">r4</span>                <span class="cm">/*   current address &lt; _ebss ? */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">bcc</span> <span class="no">FillZerobss</span>           <span class="cm">/*   Yes: continue zeroing */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* [5] Call C library initialization */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">bl</span> <span class="no">__libc_init_array</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* [6] Call main() */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">bl</span>  <span class="no">main</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">bx</span>  <span class="no">lr</span>                    <span class="cm">/*   If main() returns, jump back to caller */</span>
+</span></span><span class="line"><span class="cl"><span class="na">.size</span>  <span class="no">Reset_Handler</span><span class="p">,</span> <span class="no">.-Reset_Handler</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="42-six-steps-explained">4.2 Six Steps Explained
+</h3><h4 id="step-1-set-stack-pointer">Step [1]: Set Stack Pointer
+</h4><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl"><span class="nf">ldr</span>   <span class="no">sp</span><span class="p">,</span> <span class="err">=</span><span class="no">_estack</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>_estack</code> is the top-of-stack address, defined in the linker script (typically the end of SRAM, e.g., <code>0x20020000</code>). The Cortex-M4 stack is <strong>Full Descending</strong> — SP is decremented before writing on push. Therefore, the top-of-stack address points to the highest SRAM address + 1 (i.e., the byte after the SRAM end).</p>
+<blockquote class="alert alert-note">
+    <p>The Cortex-M4 hardware automatically loads SP from vector table offset 0 (i.e., <code>_estack</code>) on reset, so this line appears redundant. However, it&rsquo;s defensive programming: ensuring SP is correct even if the vector table is misconfigured.</p></blockquote><h4 id="step-2-call-systeminit">Step [2]: Call SystemInit
+</h4><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl"><span class="nf">bl</span>  <span class="no">SystemInit</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>SystemInit()</code> is typically defined in <code>system_stm32f4xx.c</code>, responsible for:</p>
+<ul>
+<li>Configuring Flash wait states (LATENCY)</li>
+<li>Enabling PLL and switching the system clock to maximum frequency (168MHz for STM32F407)</li>
+<li>Configuring AHB/APB1/APB2 prescalers</li>
+</ul>
+<p>The <code>bl</code> (Branch with Link) instruction saves the return address to the <code>lr</code> register while jumping; the function returns via <code>bx lr</code> to the call site.</p>
+<h4 id="step-3-copy-data-section">Step [3]: Copy .data Section
+</h4><p>This is the most elegant code in the startup file, using <strong>offset addressing</strong> to copy data from Flash to SRAM:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Register</th>
+					<th>Role</th>
+					<th>Value</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>r0</td>
+					<td>SRAM target start address</td>
+					<td><code>_sdata</code></td>
+			</tr>
+			<tr>
+					<td>r1</td>
+					<td>SRAM target end address</td>
+					<td><code>_edata</code></td>
+			</tr>
+			<tr>
+					<td>r2</td>
+					<td>Flash source start address</td>
+					<td><code>_sidata</code></td>
+			</tr>
+			<tr>
+					<td>r3</td>
+					<td>Offset (increments by 4 each iteration)</td>
+					<td>0 → 4 → 8 → &hellip;</td>
+			</tr>
+			<tr>
+					<td>r4</td>
+					<td>Temporary register</td>
+					<td>Current address / data</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>Core loop logic:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl"><span class="nl">CopyDataInit:</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">ldr</span> <span class="no">r4</span><span class="p">,</span> <span class="p">[</span><span class="no">r2</span><span class="p">,</span> <span class="no">r3</span><span class="p">]</span>    <span class="cm">/* Source read: Flash[_sidata + offset] */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">str</span> <span class="no">r4</span><span class="p">,</span> <span class="p">[</span><span class="no">r0</span><span class="p">,</span> <span class="no">r3</span><span class="p">]</span>    <span class="cm">/* Target write: SRAM[_sdata + offset] */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">adds</span> <span class="no">r3</span><span class="p">,</span> <span class="no">r3</span><span class="p">,</span> <span class="c1">#4     /* Increment offset */
+</span></span></span><span class="line"><span class="cl"><span class="nl">LoopCopyDataInit:</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">adds</span> <span class="no">r4</span><span class="p">,</span> <span class="no">r0</span><span class="p">,</span> <span class="no">r3</span>     <span class="cm">/* r4 = _sdata + offset = current write address */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">cmp</span> <span class="no">r4</span><span class="p">,</span> <span class="no">r1</span>          <span class="cm">/* Compare with _edata */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">bcc</span> <span class="no">CopyDataInit</span>    <span class="cm">/* Not at end address, continue */</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><blockquote class="alert alert-tip">
+    <p>Why use offset <code>[r2, r3]</code> instead of directly incrementing pointers? Because the source (Flash) and target (SRAM) have different base addresses, but the offset is the same. Using a single offset <code>r3</code> to index both source and target is the most concise approach, requiring only one counter.</p></blockquote><h4 id="step-4-zero-bss-section">Step [4]: Zero .bss Section
+</h4><p>Similar to .data copying, but simpler — no need to read from Flash, just write 0:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl"><span class="nl">FillZerobss:</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">str</span>  <span class="no">r3</span><span class="p">,</span> <span class="p">[</span><span class="no">r2</span><span class="p">]</span>       <span class="cm">/* r3 = 0, write to [r2] */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">adds</span> <span class="no">r2</span><span class="p">,</span> <span class="no">r2</span><span class="p">,</span> <span class="c1">#4     /* Increment address */
+</span></span></span><span class="line"><span class="cl"><span class="nl">LoopFillZerobss:</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">cmp</span> <span class="no">r2</span><span class="p">,</span> <span class="no">r4</span>          <span class="cm">/* current address &lt; _ebss ? */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">bcc</span> <span class="no">FillZerobss</span>     <span class="cm">/* Continue zeroing */</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Here <code>r2</code> (the current address pointer) is directly incremented, unlike the offset approach used for .data. This is because .bss zeroing only needs one moving pointer — no need to maintain both source and target addresses.</p>
+<h4 id="step-5-call-c-library-initialization">Step [5]: Call C Library Initialization
+</h4><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl"><span class="nf">bl</span> <span class="no">__libc_init_array</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>This step is easily overlooked but crucial for C++ and certain C code. <code>__libc_init_array</code> performs two key operations:</p>
+<ol>
+<li><strong>Calls function pointers in the <code>.init_array</code> section</strong> — C++ global object constructors (<code>__libc_init_array</code> internally calls <code>.preinit_array</code> first, then <code>.init_array</code>)</li>
+<li><strong>Calls functions decorated with <code>__attribute__((constructor))</code></strong></li>
+</ol>
+<blockquote class="alert alert-important">
+    <p>If your project is pure C with no <code>__attribute__((constructor))</code>, this step could theoretically be skipped. However, the standard practice is to always call it, because:</p>
+<ul>
+<li>Some C library initialization logic depends on it</li>
+<li>If C++ code is introduced later, omitting it won&rsquo;t cause bugs</li>
+<li>The overhead is minimal (nearly a no-op when <code>.init_array</code> is empty)</li>
+</ul></blockquote><h4 id="step-6-call-main">Step [6]: Call main()
+</h4><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl"><span class="nf">bl</span>  <span class="no">main</span>
+</span></span><span class="line"><span class="cl"><span class="nf">bx</span>  <span class="no">lr</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>After all the above preparation, the C runtime environment is finally ready: the stack is set, global variables are initialized, and the C library is ready. It&rsquo;s now safe to call <code>main()</code>.</p>
+<p>If <code>main()</code> somehow returns (it shouldn&rsquo;t in embedded programs), <code>bx lr</code> would jump back to the caller — but the caller is Reset_Handler itself, and <code>lr</code>&rsquo;s value is undefined at this point, so the behavior is unpredictable. In a robust system, <code>main()</code> should be an infinite loop that never returns.</p>
+<h3 id="43-boot-flow-overview">4.3 Boot Flow Overview
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="n">Power</span><span class="o">-</span><span class="n">on</span> <span class="o">/</span> <span class="n">Reset</span>
+</span></span><span class="line"><span class="cl">  <span class="err">│</span>
+</span></span><span class="line"><span class="cl">  <span class="err">▼</span>
+</span></span><span class="line"><span class="cl"><span class="n">Hardware</span> <span class="n">auto</span><span class="o">-</span><span class="n">loads</span> <span class="n">SP</span> <span class="o">=</span> <span class="n">_estack</span> <span class="n">from</span> <span class="n">vector</span> <span class="n">table</span>  <span class="err">←</span> <span class="n">Offset</span> <span class="mh">0x00</span>
+</span></span><span class="line"><span class="cl"><span class="n">Hardware</span> <span class="n">auto</span><span class="o">-</span><span class="n">loads</span> <span class="n">PC</span> <span class="o">=</span> <span class="n">Reset_Handler</span> <span class="n">from</span> <span class="n">vector</span> <span class="n">table</span>  <span class="err">←</span> <span class="n">Offset</span> <span class="mh">0x04</span>
+</span></span><span class="line"><span class="cl">  <span class="err">│</span>
+</span></span><span class="line"><span class="cl">  <span class="err">▼</span>
+</span></span><span class="line"><span class="cl"><span class="n">Reset_Handler</span> <span class="n">executes</span>
+</span></span><span class="line"><span class="cl">  <span class="err">├─</span> <span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="n">ldr</span> <span class="n">sp</span><span class="p">,</span> <span class="o">=</span><span class="n">_estack</span>          <span class="n">Re</span><span class="o">-</span><span class="n">set</span> <span class="n">stack</span> <span class="n">pointer</span> <span class="p">(</span><span class="n">defensive</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="err">├─</span> <span class="p">[</span><span class="mi">2</span><span class="p">]</span> <span class="n">bl</span> <span class="n">SystemInit</span>             <span class="n">Configure</span> <span class="n">system</span> <span class="n">clock</span>
+</span></span><span class="line"><span class="cl">  <span class="err">├─</span> <span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="n">Copy</span> <span class="o">.</span><span class="n">data</span><span class="p">:</span> <span class="n">Flash</span> <span class="err">→</span> <span class="n">SRAM</span>  <span class="n">Initialize</span> <span class="n">global</span> <span class="n">variables</span>
+</span></span><span class="line"><span class="cl">  <span class="err">├─</span> <span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="n">Zero</span> <span class="o">.</span><span class="n">bss</span><span class="p">:</span> <span class="n">SRAM</span> <span class="n">clear</span>     <span class="n">Initialize</span> <span class="n">uninitialized</span> <span class="n">globals</span>
+</span></span><span class="line"><span class="cl">  <span class="err">├─</span> <span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="n">bl</span> <span class="n">__libc_init_array</span>      <span class="n">C</span><span class="o">++</span> <span class="n">constructors</span> <span class="o">/</span> <span class="n">constructor</span> <span class="n">attr</span>
+</span></span><span class="line"><span class="cl">  <span class="err">└─</span> <span class="p">[</span><span class="mi">6</span><span class="p">]</span> <span class="n">bl</span> <span class="n">main</span>                   <span class="n">Enter</span> <span class="n">user</span> <span class="n">program</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><hr>
+<h2 id="5-default_handler-safety-net-for-unexpected-interrupts">5. Default_Handler: Safety Net for Unexpected Interrupts
+</h2><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl">    <span class="na">.section</span>  <span class="no">.text.Default_Handler</span><span class="p">,</span><span class="s">&#34;ax&#34;</span><span class="p">,</span><span class="nv">%progbits</span>
+</span></span><span class="line"><span class="cl"><span class="nl">Default_Handler:</span>
+</span></span><span class="line"><span class="cl"><span class="nl">Infinite_Loop:</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">b</span>  <span class="no">Infinite_Loop</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.size</span>  <span class="no">Default_Handler</span><span class="p">,</span> <span class="no">.-Default_Handler</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>If the CPU enters an unimplemented interrupt handler, it executes <code>Default_Handler</code> — an infinite loop. Its purpose is to <strong>halt the program in place</strong>, making it easy for a debugger to capture the scene:</p>
+<ul>
+<li>The interrupt return address (<code>lr</code>) is still preserved in registers</li>
+<li>The debugger can see the program stuck in <code>Default_Handler</code>, immediately knowing an unhandled interrupt occurred</li>
+<li>Register and stack contents are undisturbed, allowing analysis of the interrupt source</li>
+</ul>
+<p><code>.section</code> attributes explained:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Attribute</th>
+					<th>Meaning</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>&quot;ax&quot;</code></td>
+					<td>allocatable + executable</td>
+			</tr>
+			<tr>
+					<td><code>%progbits</code></td>
+					<td>Section contains actual data (not BSS-style zero-fill)</td>
+			</tr>
+	</tbody>
+</table></div>
+<blockquote class="alert alert-warning">
+    <p>In production environments, the infinite loop in <code>Default_Handler</code> causes the device to &ldquo;freeze&rdquo; — appearing to run but no longer responding. A better approach is to execute a soft reset (<code>NVIC_SystemReset()</code>) in <code>Default_Handler</code>, or at least log the exception information.</p></blockquote><hr>
+<h2 id="6-vector-table-the-interrupt-routing-table">6. Vector Table: The Interrupt Routing Table
+</h2><h3 id="61-vector-table-structure">6.1 Vector Table Structure
+</h3><p>The vector table is the core of the Cortex-M4 boot mechanism; it must be placed at the beginning of Flash (<code>0x08000000</code>).</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl">   <span class="na">.section</span>  <span class="no">.isr_vector</span><span class="p">,</span><span class="s">&#34;a&#34;</span><span class="p">,</span><span class="nv">%progbits</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.type</span>  <span class="no">g_pfnVectors</span><span class="p">,</span> <span class="nv">%object</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="nl">g_pfnVectors:</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="no">_estack</span>               <span class="cm">/* Offset 0x00: Stack top address */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="no">Reset_Handler</span>         <span class="cm">/* Offset 0x04: Reset vector */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="no">NMI_Handler</span>           <span class="cm">/* Offset 0x08: Non-maskable interrupt */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="no">HardFault_Handler</span>     <span class="cm">/* Offset 0x0C: Hard fault */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="no">MemManage_Handler</span>     <span class="cm">/* Offset 0x10: Memory management fault */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="no">BusFault_Handler</span>      <span class="cm">/* Offset 0x14: Bus fault */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="no">UsageFault_Handler</span>    <span class="cm">/* Offset 0x18: Usage fault */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="mi">0</span>                     <span class="cm">/* Offset 0x1C: Reserved */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="mi">0</span>                     <span class="cm">/* Offset 0x20: Reserved */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="mi">0</span>                     <span class="cm">/* Offset 0x24: Reserved */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="mi">0</span>                     <span class="cm">/* Offset 0x28: Reserved */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="no">SVC_Handler</span>           <span class="cm">/* Offset 0x2C: Supervisor call */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="no">DebugMon_Handler</span>      <span class="cm">/* Offset 0x30: Debug monitor */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="mi">0</span>                     <span class="cm">/* Offset 0x34: Reserved */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="no">PendSV_Handler</span>        <span class="cm">/* Offset 0x38: Pendable service */</span>
+</span></span><span class="line"><span class="cl">  <span class="na">.word</span>  <span class="no">SysTick_Handler</span>       <span class="cm">/* Offset 0x3C: SysTick */</span>
+</span></span><span class="line"><span class="cl">  <span class="cm">/* External interrupts start from offset 0x40... */</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="62-cortex-m4-exception-vector-details">6.2 Cortex-M4 Exception Vector Details
+</h3><p>The first 16 vectors are <strong>system exceptions</strong> defined by the ARM Cortex-M4 architecture, identical across all M4 chips:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Offset</th>
+					<th>Exception #</th>
+					<th>Name</th>
+					<th>Priority</th>
+					<th>Typical Trigger</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>0x00</td>
+					<td>-</td>
+					<td>Initial SP</td>
+					<td>-</td>
+					<td>Hardware auto-loads</td>
+			</tr>
+			<tr>
+					<td>0x04</td>
+					<td>1</td>
+					<td>Reset</td>
+					<td>-3 (highest)</td>
+					<td>Power-on / reset</td>
+			</tr>
+			<tr>
+					<td>0x08</td>
+					<td>2</td>
+					<td>NMI</td>
+					<td>-2</td>
+					<td>External NMI pin / Watchdog</td>
+			</tr>
+			<tr>
+					<td>0x0C</td>
+					<td>3</td>
+					<td>HardFault</td>
+					<td>-1</td>
+					<td>Fallback when other exceptions can&rsquo;t be handled</td>
+			</tr>
+			<tr>
+					<td>0x10</td>
+					<td>4</td>
+					<td>MemManage</td>
+					<td>Configurable</td>
+					<td>Accessing MPU-protected region</td>
+			</tr>
+			<tr>
+					<td>0x14</td>
+					<td>5</td>
+					<td>BusFault</td>
+					<td>Configurable</td>
+					<td>Accessing invalid address (e.g., unmapped peripheral)</td>
+			</tr>
+			<tr>
+					<td>0x18</td>
+					<td>6</td>
+					<td>UsageFault</td>
+					<td>Configurable</td>
+					<td>Executing undefined instruction / divide by zero</td>
+			</tr>
+			<tr>
+					<td>0x2C</td>
+					<td>11</td>
+					<td>SVCall</td>
+					<td>Configurable</td>
+					<td>Executing <code>SVC</code> instruction (RTOS system call)</td>
+			</tr>
+			<tr>
+					<td>0x30</td>
+					<td>12</td>
+					<td>Debug Monitor</td>
+					<td>Configurable</td>
+					<td>Debug event</td>
+			</tr>
+			<tr>
+					<td>0x38</td>
+					<td>14</td>
+					<td>PendSV</td>
+					<td>Configurable</td>
+					<td>RTOS context switch</td>
+			</tr>
+			<tr>
+					<td>0x3C</td>
+					<td>15</td>
+					<td>SysTick</td>
+					<td>Configurable</td>
+					<td>SysTick timer overflow</td>
+			</tr>
+	</tbody>
+</table></div>
+<blockquote class="alert alert-note">
+    <p>Lower priority numbers indicate higher priority. Reset (-3), NMI (-2), and HardFault (-1) are fixed and non-configurable. Other exception priorities can be programmed via NVIC registers.</p></blockquote><h3 id="63-stm32f407-external-interrupt-vectors">6.3 STM32F407 External Interrupt Vectors
+</h3><p>Starting from offset 0x40 are chip-specific external interrupts; the STM32F407 has 82:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Exception #</th>
+					<th>Interrupt Name</th>
+					<th>Peripheral</th>
+					<th>Description</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>16</td>
+					<td>WWDG_IRQHandler</td>
+					<td>WWDG</td>
+					<td>Window Watchdog</td>
+			</tr>
+			<tr>
+					<td>17</td>
+					<td>PVD_IRQHandler</td>
+					<td>PVD</td>
+					<td>Power Voltage Detector</td>
+			</tr>
+			<tr>
+					<td>18</td>
+					<td>TAMP_STAMP_IRQHandler</td>
+					<td>RTC</td>
+					<td>Tamper and Timestamp</td>
+			</tr>
+			<tr>
+					<td>&hellip;</td>
+					<td>&hellip;</td>
+					<td>&hellip;</td>
+					<td>&hellip;</td>
+			</tr>
+			<tr>
+					<td>25</td>
+					<td>EXTI0_IRQHandler</td>
+					<td>EXTI</td>
+					<td>External interrupt line 0</td>
+			</tr>
+			<tr>
+					<td>&hellip;</td>
+					<td>&hellip;</td>
+					<td>&hellip;</td>
+					<td>&hellip;</td>
+			</tr>
+			<tr>
+					<td>54</td>
+					<td>USART1_IRQHandler</td>
+					<td>USART1</td>
+					<td>Serial port 1</td>
+			</tr>
+			<tr>
+					<td>67</td>
+					<td>ETH_IRQHandler</td>
+					<td>Ethernet</td>
+					<td>Ethernet</td>
+			</tr>
+			<tr>
+					<td>97</td>
+					<td>FPU_IRQHandler</td>
+					<td>FPU</td>
+					<td>Floating Point Unit</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>Some positions are filled with 0 (reserved), such as offsets 0x1C-0x28 and the CRYP position. Writing 0 to reserved positions ensures the vector table size and offsets are correct.</p>
+<h3 id="64-hardware-vector-table-loading-mechanism">6.4 Hardware Vector Table Loading Mechanism
+</h3><p>Cortex-M4 hardware behavior on reset (purely hardware, no software involvement):</p>
+<ol>
+<li>Read 4 bytes from address <code>0x00000000</code> (mapped to <code>0x08000000</code>) → load into <strong>SP</strong> (Main Stack Pointer)</li>
+<li>Read 4 bytes from address <code>0x00000004</code> (mapped to <code>0x08000000+4</code>) → load into <strong>PC</strong> (Program Counter)</li>
+<li>CPU begins executing from the address PC points to — i.e., <code>Reset_Handler</code></li>
+</ol>
+<blockquote class="alert alert-tip">
+    <p>The STM32 Flash start address <code>0x08000000</code> is aliased to <code>0x00000000</code> (configured via BOOT pins). This is why the vector table is placed at the Flash beginning, but hardware reads from <code>0x00000000</code> — they point to the same physical storage.</p></blockquote><hr>
+<h2 id="7-weak-symbol-mechanism-placeholders-for-interrupt-handlers">7. Weak Symbol Mechanism: &ldquo;Placeholders&rdquo; for Interrupt Handlers
+</h2><h3 id="71-how-weak--thumb_set-works">7.1 How .weak + .thumb_set Works
+</h3><p>The final section of the startup file is a long series of repeated patterns:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-asm" data-lang="asm"><span class="line"><span class="cl">   <span class="na">.weak</span>      <span class="no">NMI_Handler</span>
+</span></span><span class="line"><span class="cl">   <span class="na">.thumb_set</span> <span class="no">NMI_Handler</span><span class="p">,</span><span class="no">Default_Handler</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">   <span class="na">.weak</span>      <span class="no">HardFault_Handler</span>
+</span></span><span class="line"><span class="cl">   <span class="na">.thumb_set</span> <span class="no">HardFault_Handler</span><span class="p">,</span><span class="no">Default_Handler</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">   <span class="cm">/* ... 80+ interrupts ... */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">   <span class="na">.weak</span>      <span class="no">FPU_IRQHandler</span>
+</span></span><span class="line"><span class="cl">   <span class="na">.thumb_set</span> <span class="no">FPU_IRQHandler</span><span class="p">,</span><span class="no">Default_Handler</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>These two directives form an elegant <strong>default value mechanism</strong>:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Directive</th>
+					<th>Meaning</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>.weak NMI_Handler</code></td>
+					<td>Declares <code>NMI_Handler</code> as a weak symbol — if another file defines a symbol with the same name, the weak definition is overridden</td>
+			</tr>
+			<tr>
+					<td><code>.thumb_set NMI_Handler, Default_Handler</code></td>
+					<td>Sets the value of <code>NMI_Handler</code> to the address of <code>Default_Handler</code> (Thumb function alias)</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="72-linker-behavior-with-weak-symbols">7.2 Linker Behavior with Weak Symbols
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-zed" data-lang="zed"><span class="line"><span class="cl"><span class="n">Scenario</span><span class="w"> </span><span class="err">1</span><span class="o">:</span><span class="w"> </span><span class="n">User</span><span class="w"> </span><span class="n">has</span><span class="w"> </span><span class="n">not</span><span class="w"> </span><span class="n">implemented</span><span class="w"> </span><span class="n">NMI_Handler</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="n">Linker</span><span class="w"> </span><span class="n">uses</span><span class="w"> </span><span class="n">weak</span><span class="w"> </span><span class="kt">definition</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">NMI_Handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Default_Handler</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">infinite</span><span class="w"> </span><span class="n">loop</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="n">Scenario</span><span class="w"> </span><span class="err">2</span><span class="o">:</span><span class="w"> </span><span class="n">User</span><span class="w"> </span><span class="n">implements</span><span class="w"> </span><span class="n">NMI_Handler</span><span class="w"> </span><span class="n">in</span><span class="w"> </span><span class="n">stm32f4xx_it</span><span class="p">.</span><span class="n">c</span><span class="w">
+</span></span></span><span class="line"><span class="cl"><span class="w">  </span><span class="err">→</span><span class="w"> </span><span class="n">Linker</span><span class="w"> </span><span class="n">chooses</span><span class="w"> </span><span class="n">strong</span><span class="w"> </span><span class="kt">definition</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">NMI_Handler</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">user</span><span class="w"> </span><span class="n">function</span><span class="w"> </span><span class="err">→</span><span class="w"> </span><span class="n">normal</span><span class="w"> </span><span class="n">execution</span><span class="w">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>This is the most common interrupt registration method in embedded development — <strong>no need to modify the startup file; just define a function with the same name in C code</strong>:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="c1">// stm32f4xx_it.c
+</span></span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">NMI_Handler</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// User-defined NMI handling logic
+</span></span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>The linker sees the strong symbol <code>NMI_Handler</code>, automatically ignores the weak definition in the startup file, and the corresponding entry in the vector table automatically points to the user function.</p>
+<h3 id="73-thumb_set-vs-set">7.3 .thumb_set vs .set
+</h3><p><code>.thumb_set</code> is the Thumb-specific variant of <code>.set</code>; it automatically sets bit[0] of the address to 1 (Thumb interwork flag):</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Directive</th>
+					<th>Address bit[0]</th>
+					<th>Use Case</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>.set</code></td>
+					<td>Unmodified</td>
+					<td>ARM mode (not applicable for Cortex-M)</td>
+			</tr>
+			<tr>
+					<td><code>.thumb_set</code></td>
+					<td>Auto-set to 1</td>
+					<td>Thumb mode (must be used for Cortex-M)</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>Cortex-M4 only supports Thumb instructions; the address bit[0] in interrupt vectors must be 1, otherwise a HardFault is triggered. Using <code>.thumb_set</code> ensures this.</p>
+<blockquote class="alert alert-important">
+    <p>If you write assembly interrupt handlers manually, you must ensure the function symbol&rsquo;s bit[0] is 1. GCC-compiled C functions handle this automatically, but hand-written assembly requires declaring with <code>.thumb_func</code> or setting with <code>.thumb_set</code>.</p></blockquote><hr>
+<h2 id="8-collaboration-between-startup-file-and-linker-script">8. Collaboration Between Startup File and Linker Script
+</h2><p>The startup file doesn&rsquo;t work alone; it depends on symbols defined in the linker script (<code>.ld</code>) and functions provided by the C runtime. Complete dependency relationships:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Reference in Startup File</th>
+					<th>Defined In</th>
+					<th>Type</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>_estack</code></td>
+					<td>Linker script</td>
+					<td>Stack top address</td>
+			</tr>
+			<tr>
+					<td><code>_sidata</code>, <code>_sdata</code>, <code>_edata</code></td>
+					<td>Linker script</td>
+					<td>.data section addresses</td>
+			</tr>
+			<tr>
+					<td><code>_sbss</code>, <code>_ebss</code></td>
+					<td>Linker script</td>
+					<td>.bss section addresses</td>
+			</tr>
+			<tr>
+					<td><code>SystemInit</code></td>
+					<td><code>system_stm32f4xx.c</code></td>
+					<td>Clock initialization function</td>
+			</tr>
+			<tr>
+					<td><code>__libc_init_array</code></td>
+					<td>C runtime library (libc)</td>
+					<td>Constructor caller</td>
+			</tr>
+			<tr>
+					<td><code>main</code></td>
+					<td>User code</td>
+					<td>Program entry point</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="81-key-linker-script-snippet">8.1 Key Linker Script Snippet
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="o">/*</span> <span class="n">Typical</span> <span class="n">STM32F407</span> <span class="n">linker</span> <span class="n">script</span> <span class="o">*/</span>
+</span></span><span class="line"><span class="cl"><span class="n">MEMORY</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="n">FLASH</span> <span class="p">(</span><span class="n">rx</span><span class="p">)</span> <span class="p">:</span> <span class="n">ORIGIN</span> <span class="o">=</span> <span class="mh">0x08000000</span><span class="p">,</span> <span class="n">LENGTH</span> <span class="o">=</span> <span class="mi">1024</span><span class="n">K</span>
+</span></span><span class="line"><span class="cl">  <span class="n">RAM</span> <span class="p">(</span><span class="n">rwx</span><span class="p">)</span>  <span class="p">:</span> <span class="n">ORIGIN</span> <span class="o">=</span> <span class="mh">0x20000000</span><span class="p">,</span> <span class="n">LENGTH</span> <span class="o">=</span> <span class="mi">128</span><span class="n">K</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="n">SECTIONS</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="o">.</span><span class="n">isr_vector</span> <span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="o">.</span> <span class="o">=</span> <span class="n">ALIGN</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">KEEP</span><span class="p">(</span><span class="o">*</span><span class="p">(</span><span class="o">.</span><span class="n">isr_vector</span><span class="p">))</span>    <span class="o">/*</span> <span class="n">Vector</span> <span class="n">table</span><span class="p">,</span> <span class="n">cannot</span> <span class="n">be</span> <span class="n">optimized</span> <span class="n">away</span> <span class="o">*/</span>
+</span></span><span class="line"><span class="cl">    <span class="o">.</span> <span class="o">=</span> <span class="n">ALIGN</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="o">&gt;</span> <span class="n">FLASH</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="o">.</span><span class="n">text</span> <span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="o">*</span><span class="p">(</span><span class="o">.</span><span class="n">text</span><span class="o">*</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="o">*</span><span class="p">(</span><span class="o">.</span><span class="n">rodata</span><span class="o">*</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="o">&gt;</span> <span class="n">FLASH</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">_sidata</span> <span class="o">=</span> <span class="n">LOADADDR</span><span class="p">(</span><span class="o">.</span><span class="n">data</span><span class="p">);</span>  <span class="o">/*</span> <span class="n">Load</span> <span class="n">address</span> <span class="n">of</span> <span class="o">.</span><span class="n">data</span> <span class="ow">in</span> <span class="n">Flash</span> <span class="o">*/</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="o">.</span><span class="n">data</span> <span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">_sdata</span> <span class="o">=</span> <span class="o">.</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">*</span><span class="p">(</span><span class="o">.</span><span class="n">data</span><span class="o">*</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">_edata</span> <span class="o">=</span> <span class="o">.</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="o">&gt;</span> <span class="n">RAM</span> <span class="n">AT</span> <span class="o">&gt;</span> <span class="n">FLASH</span>          <span class="o">/*</span> <span class="n">Runs</span> <span class="ow">in</span> <span class="n">RAM</span><span class="p">,</span> <span class="n">loaded</span> <span class="ow">in</span> <span class="n">Flash</span> <span class="o">*/</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="o">.</span><span class="n">bss</span> <span class="p">:</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">_sbss</span> <span class="o">=</span> <span class="o">.</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="o">*</span><span class="p">(</span><span class="o">.</span><span class="n">bss</span><span class="o">*</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="o">*</span><span class="p">(</span><span class="n">COMMON</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">_ebss</span> <span class="o">=</span> <span class="o">.</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="o">&gt;</span> <span class="n">RAM</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="n">_estack</span> <span class="o">=</span> <span class="n">ORIGIN</span><span class="p">(</span><span class="n">RAM</span><span class="p">)</span> <span class="o">+</span> <span class="n">LENGTH</span><span class="p">(</span><span class="n">RAM</span><span class="p">);</span>  <span class="o">/*</span> <span class="n">Stack</span> <span class="n">top</span> <span class="o">=</span> <span class="n">end</span> <span class="n">of</span> <span class="n">RAM</span> <span class="o">*/</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><blockquote class="alert alert-note">
+    <p><code>.data : { ... } &gt; RAM AT &gt; FLASH</code> is the key syntax — it means the <code>.data</code> section&rsquo;s <strong>runtime address</strong> is in RAM (<code>&gt; RAM</code>), but its <strong>load address</strong> is in Flash (<code>AT &gt; FLASH</code>). <code>LOADADDR(.data)</code> returns the load address (i.e., the position in Flash), which is the value of <code>_sidata</code>.</p></blockquote><hr>
+<h2 id="9-common-issues-and-troubleshooting">9. Common Issues and Troubleshooting
+</h2><h3 id="91-hardfault-infinite-loop">9.1 HardFault Infinite Loop
+</h3><p><strong>Symptom</strong>: Program stuck in <code>Default_Handler</code> (actually <code>HardFault_Handler</code>).</p>
+<p><strong>Troubleshooting steps</strong>:</p>
+<ol>
+<li>Pause in debugger, examine <code>PC</code> and <code>LR</code> registers</li>
+<li>Check <code>SCB-&gt;HFSR</code>, <code>SCB-&gt;CFSR</code>, <code>SCB-&gt;MMFAR</code>/<code>SCB-&gt;BFAR</code> registers</li>
+<li>Common causes:
+<ul>
+<li>Null pointer dereference (<code>SCB-&gt;MMFAR</code> points to illegal address)</li>
+<li>Stack overflow (SP out of SRAM range)</li>
+<li>Function address in vector table has bit[0] = 0 (non-Thumb address)</li>
+</ul>
+</li>
+</ol>
+<h3 id="92-incorrect-global-variable-initial-values">9.2 Incorrect Global Variable Initial Values
+</h3><p><strong>Symptom</strong>: Global variables with initial values are wrong, or change across reboots.</p>
+<p><strong>Cause</strong>: The .data copy in Reset_Handler was skipped or executed incorrectly.</p>
+<p><strong>Troubleshooting</strong>:</p>
+<ul>
+<li>Check the linker script correctly defines <code>_sidata</code>, <code>_sdata</code>, <code>_edata</code></li>
+<li>Check if a custom Reset_Handler overrode the weak symbol without implementing the copy logic</li>
+<li>Confirm the vector table <code>.isr_vector</code> section uses <code>KEEP()</code> to prevent optimization</li>
+</ul>
+<h3 id="93-c-global-objects-not-constructed">9.3 C++ Global Objects Not Constructed
+</h3><p><strong>Symptom</strong>: C++ global object constructors are not called.</p>
+<p><strong>Cause</strong>: <code>__libc_init_array</code> was omitted. Some minimal startup files (or custom Reset_Handler) may not call it.</p>
+<h3 id="94-interrupt-handler-not-working">9.4 Interrupt Handler Not Working
+</h3><p><strong>Symptom</strong>: Defined an interrupt handler but it&rsquo;s never called; always enters infinite loop.</p>
+<p><strong>Troubleshooting</strong>:</p>
+<ul>
+<li>Confirm the function name in the C file <strong>exactly matches</strong> the weak symbol name in the startup file (case-sensitive)</li>
+<li>Confirm the <code>stm32f4xx_it.c</code> file is included in compilation</li>
+<li>Check NVIC interrupt enable is configured</li>
+</ul>
+<hr>
+<h2 id="10-startup-file-modification-guide">10. Startup File Modification Guide
+</h2><h3 id="101-when-to-modify-the-startup-file">10.1 When to Modify the Startup File
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Scenario</th>
+					<th>Modification</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Using external SDRAM for extended memory</td>
+					<td>Add SDRAM initialization code in Reset_Handler</td>
+			</tr>
+			<tr>
+					<td>Changing heap/stack size</td>
+					<td>Modify <code>_estack</code> in the linker script or increase <code>_Min_Heap_Size</code>/<code>_Min_Stack_Size</code></td>
+			</tr>
+			<tr>
+					<td>Adding custom interrupts</td>
+					<td>Vector table usually doesn&rsquo;t need changes — weak symbol mechanism handles it automatically</td>
+			</tr>
+			<tr>
+					<td>Bootloader jump scenario</td>
+					<td>Adjust vector table offset (<code>SCB-&gt;VTOR</code>); startup file itself usually doesn&rsquo;t need changes</td>
+			</tr>
+			<tr>
+					<td>Using hardware FPU</td>
+					<td>Change <code>.fpu</code> to <code>fpv4-sp-d16</code> and enable FPU in SystemInit</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="102-adding-custom-reset-initialization-logic">10.2 Adding Custom Reset Initialization Logic
+</h3><p>If you need to execute additional initialization before entering <code>main()</code> (e.g., watchdog feeding, early peripheral configuration), there are two approaches:</p>
+<p><strong>Approach 1: Modify SystemInit (Recommended)</strong></p>
+<p>Add code to <code>SystemInit()</code> in <code>system_stm32f4xx.c</code>; no need to modify the assembly file.</p>
+<p><strong>Approach 2: Insert Assembly Code in Reset_Handler</strong></p>
+<p>Insert custom assembly calls between <code>bl SystemInit</code> and <code>bl main</code>. This approach requires understanding the ARM calling convention (AAPCS) to ensure register state is not corrupted.</p>
+<hr>
+<h2 id="11-summary">11. Summary
+</h2><p>Although <code>startup_stm32f407xx.s</code> is only about 500 lines, it carries the full responsibility of establishing the C runtime environment from hardware reset. Key takeaways:</p>
+<ol>
+<li><strong>Header declarations</strong> determine the target architecture and instruction set — Cortex-M4 only supports Thumb, a hardware mandate</li>
+<li><strong>Linker symbols</strong> are the bridge between the startup file and the linker script — .data copying and .bss zeroing depend on these symbols</li>
+<li><strong>Reset_Handler</strong> is the core of the boot flow — SP init → clock config → data copy → BSS zero → C lib init → main()</li>
+<li><strong>Weak symbol mechanism</strong> allows interrupt registration without modifying the startup file — just define a function with the same name in C code</li>
+<li><strong>Vector table</strong> is the contract between hardware and software — hardware auto-loads SP and PC on reset; subsequent interrupts are also routed through it</li>
+</ol>
+<p>Understanding the startup file means understanding the entire process of an embedded system going &ldquo;from zero to main()&rdquo;.</p>
+<hr>
+<h2 id="references">References
+</h2><ul>
+<li><a class="link" href="https://developer.arm.com/documentation/ddi0439/latest/"  target="_blank" rel="noopener"
+    >ARM Cortex-M4 Technical Reference Manual</a></li>
+<li><a class="link" href="https://www.st.com/resource/en/reference_manual/dm00031020.pdf"  target="_blank" rel="noopener"
+    >STM32F4xx Reference Manual (RM0090)</a></li>
+<li><a class="link" href="https://github.com/ARM-software/abi-aa/blob/main/aapcs32/aapcs32.rst"  target="_blank" rel="noopener"
+    >ARM Architecture Procedure Call Standard (AAPCS)</a></li>
+<li><a class="link" href="https://sourceware.org/binutils/docs/as/"  target="_blank" rel="noopener"
+    >GNU Assembler Manual</a></li>
+<li><a class="link" href="https://developer.arm.com/documentation/dui0553/latest/"  target="_blank" rel="noopener"
+    >Cortex-M4 Devices Generic User Guide</a></li>
+</ul>
+
+</section>
+
+
+    <footer class="article-footer">
+    
+    <section class="article-tags">
+        
+            <a href="/Hugo_Web/en/tags/stm32/">STM32</a>
+        
+            <a href="/Hugo_Web/en/tags/assembly/">Assembly</a>
+        
+            <a href="/Hugo_Web/en/tags/startup-file/">Startup File</a>
+        
+            <a href="/Hugo_Web/en/tags/cortex-m4/">Cortex-M4</a>
+        
+            <a href="/Hugo_Web/en/tags/vector-table/">Vector Table</a>
+        
+            <a href="/Hugo_Web/en/tags/gcc/">GCC</a>
+        
+    </section>
+
+
+    
+    <section class="article-copyright">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <path d="M14.5 9a3.5 4 0 1 0 0 6" />
+</svg>
+
+
+
+        <span>Licensed under CC BY-NC-SA 4.0</span>
+    </section>
+    <section class="article-lastmod">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <polyline points="12 7 12 12 15 15" />
+</svg>
+
+
+
+        <span>
+            Last updated on Jul 16, 2026 20:36 &#43;0800
+        </span>
+    </section></footer>
+
+
+    
+        <link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI&#43;WdtXRGWt2kTvGFasHpSy3SV"crossorigin="anonymous"
+            ><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG&#43;vnGctmUb0ZY0l8"crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"integrity="sha384-&#43;VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4&#43;/RRE05"crossorigin="anonymous"
+                defer
+                >
+            </script><script>
+  window.addEventListener("DOMContentLoaded", () => {
+    const mainArticleElement = document.querySelector(".main-article");
+    renderMathInElement(mainArticleElement, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  });
+</script>
+<div class="math-katex"></div>
+
+    
+</article>
+
+    
+
+    
+
+<aside class="related-content--wrapper">
+    <h2 class="section-title">Related content</h2>
+    <div class="related-content">
+        <div class="flex article-list--tile">
+            
+                
+<article class="has-image">
+    <a href="/Hugo_Web/en/p/gnu-ld-linker-script-in-depth-dissecting-embedded-memory-layout-and-section-relocation-via-an-stm32f407-example/">
+        
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/gnu-ld-%E9%93%BE%E6%8E%A5%E8%84%9A%E6%9C%AC%E8%AF%A6%E8%A7%A3%E4%BB%8E-stm32f407-%E5%AE%9E%E4%BE%8B%E5%89%96%E6%9E%90%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80%E4%B8%8E%E6%AE%B5%E9%87%8D%E5%AE%9A%E4%BD%8D/gnu-ld-linker-script.fcad4f3ea326a9f595ecedb86073a2db_hu_604e604f3f084745.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post GNU LD Linker Script in Depth: Dissecting Embedded Memory Layout and Section Relocation via an STM32F407 Example"
+                        
+                        data-hash="md5-/K1PPqMmqfWV7O24YHOi2w==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">GNU LD Linker Script in Depth: Dissecting Embedded Memory Layout and Section Relocation via an STM32F407 Example</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/Hugo_Web/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/">
+        
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.aa17ac05ece23fe492616d826bed0cc3_hu_c370f2443c0623d6.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms"
+                        
+                        data-hash="md5-qhesBeziP&#43;SSYW2Ca&#43;0Mww==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/Hugo_Web/en/p/a-taste-of-bootloader-five-layer-architecture-oop-object-design-model-from-platform-abstraction-to-app-orchestration/">
+        
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop.845ad1bc14f6864ea3e8db6e61af4b4f_hu_7dfd5ddb3e7a77a7.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post A Taste of Bootloader Five-Layer Architecture: OOP Object Design Model from Platform Abstraction to App Orchestration"
+                        
+                        data-hash="md5-hFrRvBT2hk6j6NtuYa9LTw==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">A Taste of Bootloader Five-Layer Architecture: OOP Object Design Model from Platform Abstraction to App Orchestration</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/Hugo_Web/en/p/pyiaptoolkit-design-and-implementation-of-an-stm32-iap-host-tool-suite/">
+        
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/pyiaptoolkitstm32-iap-%E4%B8%8A%E4%BD%8D%E6%9C%BA%E5%B7%A5%E5%85%B7%E5%A5%97%E4%BB%B6%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/PyIAPToolKit.bce3b53e3d529bb9662f75f33ad529b9_hu_796cd764b38bb6af.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post PyIAPToolKit: Design and Implementation of an STM32 IAP Host Tool Suite"
+                        
+                        data-hash="md5-vOO1Pj1Sm7lmL3XzOtUpuQ==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">PyIAPToolKit: Design and Implementation of an STM32 IAP Host Tool Suite</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/Hugo_Web/en/p/stm32f407-secure-bootloader-design-a/b-dual-partition-encryption/signing-and-multi-channel-upgrade/">
+        
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/stm32f407-%E5%AE%89%E5%85%A8-bootloader-%E8%AE%BE%E8%AE%A1a/b-%E5%8F%8C%E5%88%86%E5%8C%BA%E5%8A%A0%E5%AF%86%E7%AD%BE%E5%90%8D%E4%B8%8E%E5%A4%9A%E6%B8%A0%E9%81%93%E5%8D%87%E7%BA%A7/STM32F407%E5%AE%89%E5%85%A8Bootloader%E8%AE%BE%E8%AE%A1.7c8335e5345c22f2e144305e64572346_hu_246f581f8c773c70.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post STM32F407 Secure Bootloader Design: A/B Dual Partition, Encryption/Signing, and Multi-Channel Upgrade"
+                        
+                        data-hash="md5-fIM15TRcIvLhRDBeZFcjRg==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">STM32F407 Secure Bootloader Design: A/B Dual Partition, Encryption/Signing, and Multi-Channel Upgrade</h2>
+        </div>
+    </a>
+</article>
+
+            
+        </div>
+    </div>
+</aside>
+
+     
+    
+        
+    
+    <div class="comment"></div>
+
+    
+
+    <footer class="site-footer">
+    <section class="copyright">
+        &copy; 
+        
+            2025 - 
+        
+        2026 lingsir007
+    </section>
+    
+    <section class="running-time">
+        
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+        This website has been running stably<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 9 ></span> articles <span style="font-weight: bold;">·</span> Total <span id="articlewordCount">&lt; 32.68 k ></span> words
+    </section>
+    <section class="powerby">
+        Built with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> <br />
+        Theme <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.30.0">Stack</a></b> designed by <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a>
+    </section>
+</footer>
+
+
+    
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    
+    <div class="pswp__bg"></div>
+
+    
+    <div class="pswp__scroll-wrap">
+
+        
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                
+                
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo="crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU="crossorigin="anonymous"
+                defer
+                >
+            </script><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css"crossorigin="anonymous"
+            ><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css"crossorigin="anonymous"
+            >
+
+            </main>
+        </div>
+        <script 
+                src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z&#43;KMkF24hUW8WePSA9HM="crossorigin="anonymous"
+                
+                >
+            </script><script type="text/javascript" src="/Hugo_Web/ts/main.99ce1801c4bad426a42fc436add4721e149159dbb598636e9578fd59cf778c83.js" defer></script> <script>
+    (function () {
+        const customFont = document.createElement('link');
+        customFont.href = "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap";
+
+        customFont.type = "text/css";
+        customFont.rel = "stylesheet";
+
+        document.head.appendChild(customFont);
+    }());
+</script> <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css"
+/>
+
+<script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
+<script>
+  var pjax = new Pjax({
+    selectors: ["title", ".main-container", ".js-Pjax1", ".js-Pjax2"],
+  });
+</script>
+
+<div id="aplayer"></div>
+<script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
+
+<script>
+  const staticDir = "https://lingjia007.github.io/Hugo_Web/en/";
+  const ap = new APlayer({
+    container: document.getElementById("aplayer"),
+    audio: [
+      {
+        name: "Keil Generic Key",
+        artist: "EDGE",
+        url: staticDir + "music/Keil Generic Key-EDGE/song.mp3",
+        cover: staticDir + "music/Keil Generic Key-EDGE/cover.png",
+        lrc: staticDir + "music/Keil Generic Key-EDGE/lyric.lrc",
+      },
+      {
+        name: "查无此字",
+        artist: "林奕匡",
+        url: staticDir + "music/查无此字-林奕匡/song.mp3",
+        cover: staticDir + "music/查无此字-林奕匡/cover.jpg",
+        lrc: staticDir + "music/查无此字-林奕匡/lyric.lrc",
+      },
+      {
+        name: "爱别等",
+        artist: "洪卓立",
+        url: staticDir + "music/爱别等-洪卓立/song.mp3",
+        cover: staticDir + "music/爱别等-洪卓立/cover.jpg",
+        lrc: staticDir + "music/爱别等-洪卓立/lyric.lrc",
+      },
+      {
+        name: "乖乖报到",
+        artist: "MC 张天赋",
+        url: staticDir + "music/乖乖报到-MC 张天赋/song.mp3",
+        cover: staticDir + "music/乖乖报到-MC 张天赋/cover.jpg",
+        lrc: staticDir + "music/乖乖报到-MC 张天赋/lyric.lrc",
+      },
+      {
+        name: "指纹",
+        artist: "胡歌",
+        url: staticDir + "music/指纹-胡歌/song.mp3",
+        cover: staticDir + "music/指纹-胡歌/cover.jpg",
+        lrc: staticDir + "music/指纹-胡歌/lyric.lrc",
+      },
+      {
+        name: "还记得",
+        artist: "周柏豪",
+        url: staticDir + "music/还记得-周柏豪/song.mp3",
+        cover: staticDir + "music/还记得-周柏豪/cover.jpg",
+        lrc: staticDir + "music/还记得-周柏豪/lyric.lrc",
+      },
+      {
+        name: "摄氏零度",
+        artist: "张敬轩",
+        url: staticDir + "music/摄氏零度-张敬轩/song.mp3",
+        cover: staticDir + "music/摄氏零度-张敬轩/cover.jpg",
+        lrc: staticDir + "music/摄氏零度-张敬轩/lyric.lrc",
+      },
+      {
+        name: "下一位前度",
+        artist: "林家谦",
+        url: staticDir + "music/下一位前度-林家谦/song.mp3",
+        cover: staticDir + "music/下一位前度-林家谦/cover.jpg",
+        lrc: staticDir + "music/下一位前度-林家谦/lyric.lrc",
+      },
+      {
+        name: "初初",
+        artist: "古巨基",
+        url: staticDir + "music/初初-古巨基/song.mp3",
+        cover: staticDir + "music/初初-古巨基/cover.jpg",
+        lrc: staticDir + "music/初初-古巨基/lyric.lrc",
+      },
+      {
+        name: "这个故事教训我们",
+        artist: "李克勤",
+        url: staticDir + "music/这个故事教训我们-李克勤/song.mp3",
+        cover: staticDir + "music/这个故事教训我们-李克勤/cover.jpg",
+        lrc: staticDir + "music/这个故事教训我们-李克勤/lyric.lrc",
+      },
+      {
+        name: "最后祝福",
+        artist: "黄宗泽",
+        url: staticDir + "music/最后祝福-黄宗泽/song.mp3",
+        cover: staticDir + "music/最后祝福-黄宗泽/cover.jpg",
+        lrc: staticDir + "music/最后祝福-黄宗泽/lyric.lrc",
+      }
+    ],
+    lrcType: 3,
+    fixed: true
+  });
+</script>
+
+<script>
+  
+  function calculateRunningDays(startDateStr, elementId) {
+    let s1 = new Date(startDateStr.replace(/-/g, "/"));
+    let s2 = new Date();
+    let timeDifference = s2.getTime() - s1.getTime();
+
+    let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+    let hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    let minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+
+    
+    let dayText = "d "; 
+    let hourText = "h ";
+    let minuteText = "m ";
+
+    let result = `<span>< ${days} ${dayText} ${hours} ${hourText} ${minutes} ${minuteText} ></span>`;
+    document.getElementById(elementId).innerHTML = result;
+    }
+
+    document.addEventListener("pjax:complete", () => {
+        calculateRunningDays('2025-3-14', 'runningdays');
+    });
+    calculateRunningDays('2025-3-14', 'runningdays');
+</script>
+
+<script>
+  pjax._handleResponse = pjax.handleResponse;
+  pjax.handleResponse = function (responseText, request, href, options) {
+    if (request.responseText.match("<html")) {
+      if (responseText) {
+        
+        let newDom = new DOMParser().parseFromString(responseText, "text/html");
+        
+        let bodyClass = newDom.body.className;
+        document.body.setAttribute("class", bodyClass);
+      }
+      
+      pjax._handleResponse(responseText, request, href, options);
+    } else {
+      
+    }
+  };
+</script>
+
+<script>
+  
+  function initClock() {
+    
+    var hr = document.getElementById("hr"); 
+    var mn = document.getElementById("mn"); 
+    var sc = document.getElementById("sc"); 
+    if (!hr || !mn || !sc) return;
+
+    
+    var date = new Date();
+    var HH = date.getHours();
+    var MM = date.getMinutes();
+    var SS = date.getSeconds();
+
+    
+    var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+    var minuteAngle = MM * 6 + (SS / 60) * 6;
+    var secondAngle = SS * 6;
+
+    
+    hr.style.transition = "none";
+    mn.style.transition = "none";
+    sc.style.transition = "none";
+
+    
+    hr.style.transform = "rotate(0deg)";
+    mn.style.transform = "rotate(0deg)";
+    sc.style.transform = "rotate(0deg)";
+
+    
+    setTimeout(() => {
+      hr.style.transition = "";
+      mn.style.transition = "";
+      sc.style.transition = "";
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 0);
+
+    
+    setInterval(function () {
+      var date = new Date();
+      var HH = date.getHours();
+      var MM = date.getMinutes();
+      var SS = date.getSeconds();
+
+      
+      var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+      var minuteAngle = MM * 6 + (SS / 60) * 6;
+      var secondAngle = SS * 6;
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 1000);
+  }
+
+  
+  window.onload = function () {
+    initClock();
+  };
+
+  
+  document.addEventListener("pjax:complete", () => {
+    initClock();
+  });
+</script>
+
+<script>
+  document.addEventListener("pjax:complete", () => {
+    
+    window.Stack.init();
+  });
+</script>
+
+<script>
+  async function renderKaTeX() {
+    
+    let katex = document.querySelector(".math-katex");
+    if (!katex) {
+      return;
+    }
+    
+    while (typeof renderMathInElement !== "function") {
+      await delay(500);
+    }
+    
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  }
+
+  
+
+  function delay(time) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, time);
+    });
+  }
+
+  document.addEventListener("pjax:complete", () => {
+    renderKaTeX();
+  });
+</script>
+
+<script src="https://lingjia007.github.io/Hugo_Web/en/js/topbar.min.js"></script>
+
+<script>
+  
+  topbar.config({
+    barColors: {
+      0: "rgba(255,  255, 255, 1)", 
+      "1.0": "rgba(0, 149, 234,  1)", 
+    },
+  });
+
+  document.addEventListener("pjax:send", () => {
+    
+    topbar.show();
+  });
+
+  document.addEventListener("pjax:complete", () => {
+    
+    topbar.hide();
+  });
+</script>
+
+<script>
+  const cdnPath =
+    "https://cdn.jsdelivr.net/gh/Lingjia007/live2d-widget-v3@main";
+  const config = {
+    
+    path: {
+      homePath: "/",
+      modelPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/live2d-moc3/",
+      cssPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/js/waifu.css",
+      tipsJsonPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/js/my-waifu-tips.json",
+      tipsJsPath: cdnPath + "/waifu-tips.js",
+      live2dCorePath: "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/js/live2dcubismcore.js",
+      live2dSdkPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/js/live2d-sdk.js",
+    },
+    
+    tools: [
+      "hitokoto",
+      "asteroids",
+      "express",
+      "switch-model",
+      "switch-texture",
+      "photo",
+      "info",
+      "quit",
+    ],
+    
+    drag: {
+      enable: true,
+      direction: ["x", 0],
+    },
+    
+    switchType: "order",
+  };
+
+  
+  if (screen.width >= 10) {
+    Promise.all([
+      loadExternalResource(config.path.cssPath, "css"),
+      loadExternalResource(config.path.live2dCorePath, "js"),
+      loadExternalResource(config.path.live2dSdkPath, "js"),
+      loadExternalResource(config.path.tipsJsPath, "js"),
+    ]).then(() => {
+      initWidget({
+        homePath: config.path.homePath,
+        waifuPath: config.path.tipsJsonPath,
+        cdnPath: config.path.modelPath,
+        tools: config.tools,
+        dragEnable: config.drag.enable,
+        dragDirection: config.drag.direction,
+        switchType: config.switchType,
+      });
+      
+      if (window.innerWidth <= 768) {
+        setTimeout(function () {
+          var waifu = document.getElementById("waifu");
+          var toggle = document.getElementById("waifu-toggle");
+          if (waifu) waifu.style.display = "none";
+          if (toggle) toggle.classList.add("waifu-toggle-active");
+        }, 100);
+      }
+    });
+    function waitForElement(selector, callback) {
+      new MutationObserver(function (mutations) {
+        if (document.querySelector(selector)) {
+          callback();
+          this.disconnect();
+        }
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    }
+  }
+
+  
+  function loadExternalResource(url, type) {
+    return new Promise((resolve, reject) => {
+      let tag;
+      if (type === "css") {
+        tag = document.createElement("link");
+        tag.rel = "stylesheet";
+        tag.href = url;
+      } else if (type === "js") {
+        tag = document.createElement("script");
+        tag.src = url;
+      }
+      if (tag) {
+        tag.onload = () => resolve(url);
+        tag.onerror = () => reject(url);
+        document.head.appendChild(tag);
+      }
+    });
+  }
+</script>
+
+<style>
+  .highlight {
+     
+    max-height: 400px;
+    overflow: hidden;
+  }
+
+  .code-show {
+    max-height: none !important;
+  }
+
+  .code-more-box {
+    width: 100%;
+    padding-top: 78px;
+    background-image: -webkit-gradient(
+      linear,
+      left top,
+      left bottom,
+      from(rgba(255, 255, 255, 0)),
+      to(#fff)
+    );
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+  }
+
+  .code-more-btn {
+    display: block;
+    margin: auto;
+    width: 44px;
+    height: 22px;
+    background: #f0f0f5;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding-top: 6px;
+    cursor: pointer;
+  }
+
+  .code-more-img {
+    cursor: pointer !important;
+    display: block;
+    margin: auto;
+    width: 22px;
+    height: 16px;
+  }
+</style>
+
+<script>
+  function initCodeMoreBox() {
+    let codeBlocks = document.querySelectorAll(".highlight");
+    if (!codeBlocks) {
+      return;
+    }
+    codeBlocks.forEach((codeBlock) => {
+      
+      if (codeBlock.scrollHeight <= codeBlock.clientHeight) {
+        return;
+      }
+      
+      
+      let codeMoreBox = document.createElement("div");
+      codeMoreBox.classList.add("code-more-box");
+      
+      let codeMoreBtn = document.createElement("span");
+      codeMoreBtn.classList.add("code-more-btn");
+      codeMoreBtn.addEventListener("click", () => {
+        codeBlock.classList.add("code-show");
+        codeMoreBox.style.display = "none";
+        
+        window.dispatchEvent(new Event("resize"));
+      });
+      
+      let img = document.createElement("img");
+      img.classList.add("code-more-img");
+      img.src = "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/icons/codeMore.png";
+      
+      codeMoreBtn.appendChild(img);
+      codeMoreBox.appendChild(codeMoreBtn);
+      codeBlock.appendChild(codeMoreBox);
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initCodeMoreBox();
+  });
+  initCodeMoreBox();
+</script>
+
+<div id="particles-js"></div>
+
+<script src="https://lingjia007.github.io/Hugo_Web/en/background/particles.min.js"></script>
+<script>
+  particlesJS.load(
+    "particles-js",
+    "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/background/particlesjs-config.json",
+    function () {
+      console.log("particles.js loaded - callback");
+    },
+  );
+</script>
+
+<style>
+  #particles-js {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: -1;
+  }
+</style>
+
+<style>
+  #TableOfContents > ul,
+  ol {
+    ul,
+    ol {
+      display: none;
+    }
+    .open {
+      display: block;
+    }
+  }
+</style>
+
+<script>
+  function initTocHide() {
+    
+    let toc = document.querySelector(".widget--toc");
+    if (!toc) {
+      return;
+    }
+    
+    window.addEventListener("scroll", function () {
+      
+      let openUl = document.querySelectorAll(".open");
+      if (openUl.length > 0) {
+        openUl.forEach((ul) => {
+          ul.classList.remove("open");
+        });
+      }
+      
+      let currentLi = document.querySelector(".active-class");
+      if (!currentLi) {
+        return;
+      }
+      
+      if (currentLi.children.length > 1) {
+        currentLi.children[1].classList.add("open");
+      }
+      
+      let ul = currentLi.parentElement;
+      do {
+        ul.classList.add("open");
+        ul = ul.parentElement.parentElement;
+      } while (
+        ul !== undefined &&
+        (ul.localName === "ul" || ul.localName === "ol")
+      );
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initTocHide();
+  });
+  initTocHide();
+</script>
+
+<style>
+  @font-face {
+    font-family: "AlibabaPuHuiTi-3-65-Medium";
+    src: url(https://lingjia007.github.io/Hugo_Web/font/AlibabaPuHuiTi-3-65-Medium.ttf)
+      format("truetype");
+  }
+
+  :root {
+    --base-font-family: "AlibabaPuHuiTi-3-65-Medium";
+    --code-font-family: "AlibabaPuHuiTi-3-65-Medium";
+  }
+</style>
+
+<style>
+  #backTopBtn {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    z-index: 99;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    background-image: url("https://lingjia007.github.io/Hugo_Web/en/icons/backTop.svg");
+  }
+</style>
+
+<script>
+  
+
+  function initScrollTop() {
+    let rightSideBar = document.querySelector(".right-sidebar");
+    if (!rightSideBar) {
+      return;
+    }
+    
+    let btn = document.createElement("div");
+    btn.id = "backTopBtn";
+    btn.onclick = backToTop;
+    rightSideBar.appendChild(btn);
+    
+    window.onscroll = function () {
+      
+      if (
+        document.body.scrollTop > 20 ||
+        document.documentElement.scrollTop > 20
+      ) {
+        btn.style.display = "block";
+      } else {
+        btn.style.display = "none";
+      }
+    };
+  }
+
+  
+
+  function backToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initScrollTop();
+  });
+  initScrollTop();
+</script>
+
+<div class="js-Pjax2">
+  
+  <script>
+    (function () {
+      
+      const verScript = document.createElement("script");
+      verScript.defer = true;
+      verScript.src = "https://cn.vercount.one/js";
+      document.body.appendChild(verScript);
+
+      
+      function showHideView() {
+        const viewCounts = document.querySelectorAll("#viewCount");
+        if (viewCounts) {
+          const isArticle = !!document.querySelector(".article-page");
+          viewCounts.forEach((ele) => {
+            ele.style.display = isArticle ? "" : "none";
+          });
+        }
+      }
+      
+      showHideView();
+      
+      document.addEventListener("pjax:complete", function () {
+        showHideView();
+      });
+    })();
+  </script>
+</div><script>
+  (function () {
+    var giscusConfig = {
+      repo: "Lingjia007\/Hugo_Web",
+      repoId: "R_kgDOTNf24g",
+      category: "Announcements",
+      categoryId: "DIC_kwDOTNf24s4DAe9e",
+      mapping: 'title',
+      strict: "0",
+      reactionsEnabled: "1",
+      emitMetadata: "0",
+      inputPosition: 'top',
+      theme: 'light',
+      loading: "lazy",
+    };
+    var giscusLightTheme = 'light';
+    var giscusDarkTheme = 'dark_dimmed';
+
+    function getGiscusLang() {
+      var path = window.location.pathname;
+      if (path.indexOf("/zh-hk") !== -1) return "zh-HK";
+      if (path.indexOf("/en") !== -1) return "en";
+      return "zh-CN";
+    }
+
+    function getGiscusTheme() {
+      if (document.documentElement.dataset.scheme === "light") {
+        return giscusLightTheme;
+      }
+      return giscusDarkTheme;
+    }
+
+    function setGiscusTheme(theme) {
+      var giscus = document.querySelector("iframe.giscus-frame");
+      if (giscus) {
+        giscus.contentWindow.postMessage(
+          { giscus: { setConfig: { theme: theme } } },
+          "https://giscus.app",
+        );
+      }
+    }
+
+    function loadGiscus() {
+      var comment = document.querySelector(".comment");
+      if (!comment) return;
+      comment.innerHTML = "";
+      var lang = getGiscusLang();
+      var script = document.createElement("script");
+      script.src = "https://giscus.app/client.js";
+      script.setAttribute("data-repo", giscusConfig.repo);
+      script.setAttribute("data-repo-id", giscusConfig.repoId);
+      script.setAttribute("data-category", giscusConfig.category);
+      script.setAttribute("data-category-id", giscusConfig.categoryId);
+      script.setAttribute("data-mapping", giscusConfig.mapping);
+      script.setAttribute("data-strict", giscusConfig.strict);
+      script.setAttribute(
+        "data-reactions-enabled",
+        giscusConfig.reactionsEnabled,
+      );
+      script.setAttribute("data-emit-metadata", giscusConfig.emitMetadata);
+      script.setAttribute("data-input-position", giscusConfig.inputPosition);
+      script.setAttribute("data-theme", giscusConfig.theme);
+      script.setAttribute("data-lang", lang);
+      script.setAttribute("data-loading", giscusConfig.loading);
+      script.setAttribute("crossorigin", "anonymous");
+      script.async = true;
+      comment.appendChild(script);
+    }
+
+    window.addEventListener("message", function (e) {
+      if (e.origin !== "https://giscus.app") return;
+      setGiscusTheme(getGiscusTheme());
+    });
+    window.addEventListener("onColorSchemeChange", function () {
+      setGiscusTheme(getGiscusTheme());
+    });
+
+    loadGiscus();
+    document.addEventListener("pjax:complete", loadGiscus);
+  })();
+</script>
+
+    </body>
+</html>
