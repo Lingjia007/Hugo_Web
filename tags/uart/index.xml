@@ -7,7 +7,7 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>en-us</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Thu, 16 Jul 2026 21:11:08 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/tags/uart/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Thu, 16 Jul 2026 21:21:05 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/tags/uart/index.xml" rel="self" type="application/rss+xml" /><item>
         <title>UART DMA 高效收发：环形缓冲区零拷贝实战，STM32 与 GD32 双芯片验证</title>
         <link>https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/</link>
         <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
