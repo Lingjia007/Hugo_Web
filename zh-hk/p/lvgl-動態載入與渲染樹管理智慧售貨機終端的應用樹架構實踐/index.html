@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="zh-hk" dir="ltr">
     <head><meta charset='utf-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="基於 ArtInChip + LVGL v9 + RT-Thread 的智慧售貨機終端，深入剖析應用樹（layout_node）如何管理 LVGL 渲染樹，涵蓋組合模式雙樹映射、Wrap 橋接機制、策略驅動的 Flex/Grid 佈局、控件工廠動態創建、事件驅動熱更新、靜態骨架到動態元件的替換流程等核心技術詳解">
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="基於立創·衡山派D133EBS開發板 + LVGL v9 + RT-Thread 的智慧售貨機終端，深入剖析應用樹（layout_node）如何管理 LVGL 渲染樹，涵蓋組合模式雙樹映射、Wrap 橋接機制、策略驅動的 Flex/Grid 佈局、控件工廠動態創建、事件驅動熱更新、靜態骨架到動態元件的替換流程等核心技術詳解">
 <title>LVGL 動態載入與渲染樹管理：智慧售貨機終端的應用樹架構實踐</title>
 
 <link rel='canonical' href='https://lingsir007.netlify.app/zh-hk/p/lvgl-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E8%88%87%E6%B8%B2%E6%9F%93%E6%A8%B9%E7%AE%A1%E7%90%86%E6%99%BA%E6%85%A7%E5%94%AE%E8%B2%A8%E6%A9%9F%E7%B5%82%E7%AB%AF%E7%9A%84%E6%87%89%E7%94%A8%E6%A8%B9%E6%9E%B6%E6%A7%8B%E5%AF%A6%E8%B8%90/'>
 
 <link rel="stylesheet" href="/scss/style.min.553d9fc5cc86a8c9deb4211c02fd07c2210fc13d76ef772a58388b83939349ab.css"><meta property='og:title' content="LVGL 動態載入與渲染樹管理：智慧售貨機終端的應用樹架構實踐">
-<meta property='og:description' content="基於 ArtInChip + LVGL v9 + RT-Thread 的智慧售貨機終端，深入剖析應用樹（layout_node）如何管理 LVGL 渲染樹，涵蓋組合模式雙樹映射、Wrap 橋接機制、策略驅動的 Flex/Grid 佈局、控件工廠動態創建、事件驅動熱更新、靜態骨架到動態元件的替換流程等核心技術詳解">
+<meta property='og:description' content="基於立創·衡山派D133EBS開發板 + LVGL v9 + RT-Thread 的智慧售貨機終端，深入剖析應用樹（layout_node）如何管理 LVGL 渲染樹，涵蓋組合模式雙樹映射、Wrap 橋接機制、策略驅動的 Flex/Grid 佈局、控件工廠動態創建、事件驅動熱更新、靜態骨架到動態元件的替換流程等核心技術詳解">
 <meta property='og:url' content='https://lingsir007.netlify.app/zh-hk/p/lvgl-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E8%88%87%E6%B8%B2%E6%9F%93%E6%A8%B9%E7%AE%A1%E7%90%86%E6%99%BA%E6%85%A7%E5%94%AE%E8%B2%A8%E6%A9%9F%E7%B5%82%E7%AB%AF%E7%9A%84%E6%87%89%E7%94%A8%E6%A8%B9%E6%9E%B6%E6%A7%8B%E5%AF%A6%E8%B8%90/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='售貨機' /><meta property='article:tag' content='嵌入式UI' /><meta property='article:tag' content='設計模式' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-08T23:37:53&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='售貨機' /><meta property='article:tag' content='嵌入式UI' /><meta property='article:tag' content='設計模式' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-16T20:37:32&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
 <meta name="twitter:title" content="LVGL 動態載入與渲染樹管理：智慧售貨機終端的應用樹架構實踐">
-<meta name="twitter:description" content="基於 ArtInChip + LVGL v9 + RT-Thread 的智慧售貨機終端，深入剖析應用樹（layout_node）如何管理 LVGL 渲染樹，涵蓋組合模式雙樹映射、Wrap 橋接機制、策略驅動的 Flex/Grid 佈局、控件工廠動態創建、事件驅動熱更新、靜態骨架到動態元件的替換流程等核心技術詳解"><meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:description" content="基於立創·衡山派D133EBS開發板 + LVGL v9 + RT-Thread 的智慧售貨機終端，深入剖析應用樹（layout_node）如何管理 LVGL 渲染樹，涵蓋組合模式雙樹映射、Wrap 橋接機制、策略驅動的 Flex/Grid 佈局、控件工廠動態創建、事件驅動熱更新、靜態骨架到動態元件的替換流程等核心技術詳解"><meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content='https://lingsir007.netlify.app/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
     <link rel="shortcut icon" href="/icons/favicon.ico" />
 
@@ -448,6 +448,10 @@
                 嵌入式
             </a>
         
+            <a href="/zh-hk/categories/gui%E9%96%8B%E7%99%BC/" >
+                GUI開發
+            </a>
+        
     </header>
     
 
@@ -458,7 +462,7 @@
     
         
         <h3 class="article-subtitle">
-            基於 ArtInChip &#43; LVGL v9 &#43; RT-Thread 的智慧售貨機終端，深入剖析應用樹（layout_node）如何管理 LVGL 渲染樹，涵蓋組合模式雙樹映射、Wrap 橋接機制、策略驅動的 Flex/Grid 佈局、控件工廠動態創建、事件驅動熱更新、靜態骨架到動態元件的替換流程等核心技術詳解
+            基於立創·衡山派D133EBS開發板 &#43; LVGL v9 &#43; RT-Thread 的智慧售貨機終端，深入剖析應用樹（layout_node）如何管理 LVGL 渲染樹，涵蓋組合模式雙樹映射、Wrap 橋接機制、策略驅動的 Flex/Grid 佈局、控件工廠動態創建、事件驅動熱更新、靜態骨架到動態元件的替換流程等核心技術詳解
         </h3>
         
     </div>
@@ -484,12 +488,12 @@
         <div class="article-lastmod">
                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
                 <time>
-                    Jul 08, 2026 23:37 &#43;0800
+                    Jul 16, 2026 20:37 &#43;0800
                 </time>
             </div><div id="wordCount">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
             <time class="article-wordcount">
-                9858  字
+                9896  字
             </time>
         </div>
 
@@ -537,7 +541,7 @@
     
     <h2 id="前言">前言
 </h2><p>LVGL 作為嵌入式領域最活躍的圖形庫，其核心是一個樹形的<strong>渲染樹</strong>（<code>lv_obj_t</code> 物件樹），所有可見控件都是這棵樹的節點。但在實際業務中，直接操作渲染樹面臨諸多問題：<strong>靜態佈局無法動態更新</strong>、<strong>控件生命週期難以統一管理</strong>、<strong>元件間耦合緊密</strong>。</p>
-<p>本文以一個基於 <strong>ArtInChip + LVGL v9 + RT-Thread</strong> 的智慧售貨機終端為實踐載體，深入剖析如何在 LVGL 渲染樹之上構建一層<strong>應用樹</strong>（<code>layout_node</code> 框架），通過組合模式、工廠模式、策略模式和發布-訂閱模式的協同，實現 UI 的動態載入、熱更新和生命週期管理。</p>
+<p>本文以一個基於 <strong>立創·衡山派D133EBS開發板 + LVGL v9 + RT-Thread</strong> 的智慧售貨機終端為實踐載體，深入剖析如何在 LVGL 渲染樹之上構建一層<strong>應用樹</strong>（<code>layout_node</code> 框架），通過組合模式、工廠模式、策略模式和發布-訂閱模式的協同，實現 UI 的動態載入、熱更新和生命週期管理。</p>
 <hr>
 <h2 id="一雙樹架構渲染樹-vs-應用樹">一、雙樹架構：渲染樹 vs 應用樹
 </h2><h3 id="11-問題背景">1.1 問題背景
@@ -2365,7 +2369,23 @@
 </ul>
 <hr>
 <h2 id="十三web-配置系統">十三、Web 配置系統
-</h2><h3 id="131-架構">13.1 架構
+</h2><p><img src="/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/web_config.png"
+	width="681"
+	height="4916"
+	srcset="/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/web_config_hu_4475f24a5df048ae.png 480w, /p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/web_config_hu_c5266b1d744c7410.png 1024w"
+	loading="lazy"
+	
+		alt="Web 配置系統"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="13"
+		data-flex-basis="33px"
+	
+></p>
+<blockquote class="alert alert-note">
+    <p>想要查看原始碼？<a class="link" href="https://gitee.com/ling-sir007/luban-lite/blob/master/packages/artinchip/lvgl-ui/aic_demo/my_custom_init/web_config.html"  target="_blank" rel="noopener"
+    >web_config.html</a></p></blockquote><h3 id="131-架構">13.1 架構
 </h3><p>設備啟動 WiFi AP（SSID: <code>AIC-Banner-Config</code>，密碼: <code>12345678</code>，信道 6），IP 位址 192.168.1.1，執行 DHCP 伺服器，在 80 埠啟動 Mongoose HTTP 伺服器。</p>
 <h3 id="132-api-介面">13.2 API 介面
 </h3><div class="table-wrapper"><table>
@@ -2552,7 +2572,7 @@
 
 
         <span>
-            上次改過於 Jul 08, 2026 23:37 &#43;0800
+            上次改過於 Jul 16, 2026 20:37 &#43;0800
         </span>
     </section></footer>
 
@@ -2596,6 +2616,30 @@
     <h2 class="section-title">相關內容</h2>
     <div class="related-content">
         <div class="flex article-list--tile">
+            
+                
+<article class="has-image">
+    <a href="/zh-hk/p/stm32f407-%E6%B1%87%E7%BC%96%E5%95%9F%E5%8B%95%E6%AA%94%E6%A1%88%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E5%BE%9E%E5%BE%A9%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AA%9E%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/">
+        
+        
+            <div class="article-image">
+                <img src="/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/STM32F407%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E8%A7%A3%E6%9E%90.e726a00e31475d23ed99e8f219216ba5_hu_a8f1b2361cc9ecf4.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post STM32F407 汇编啟動檔案深度解析：從復位向量到 C 語言 main() 的完整旅程"
+                        
+                        data-hash="md5-5yagDjFHXSPtmejyGSFrpQ==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">STM32F407 汇编啟動檔案深度解析：從復位向量到 C 語言 main() 的完整旅程</h2>
+        </div>
+    </a>
+</article>
+
             
                 
 <article class="has-image">
@@ -2693,30 +2737,6 @@
 </article>
 
             
-                
-<article class="has-image">
-    <a href="/zh-hk/p/pyiaptoolkitstm32-iap-%E4%B8%8A%E4%BD%8D%E6%A9%9F%E5%B7%A5%E5%85%B7%E5%A5%97%E4%BB%B6%E8%A8%AD%E8%A8%88%E8%88%87%E5%AF%A6%E7%8F%BE/">
-        
-        
-            <div class="article-image">
-                <img src="/p/pyiaptoolkitstm32-iap-%E4%B8%8A%E4%BD%8D%E6%9C%BA%E5%B7%A5%E5%85%B7%E5%A5%97%E4%BB%B6%E8%AE%BE%E8%AE%A1%E4%B8%8E%E5%AE%9E%E7%8E%B0/PyIAPToolKit.bce3b53e3d529bb9662f75f33ad529b9_hu_796cd764b38bb6af.png" 
-                        width="250" 
-                        height="150" 
-                        loading="lazy"
-                        alt="Featured image of post PyIAPToolKit：STM32 IAP 上位機工具套件設計與實現"
-                        
-                        data-hash="md5-vOO1Pj1Sm7lmL3XzOtUpuQ==">
-                
-            </div>
-        
-
-        <div class="article-details">
-            <h2 class="article-title">PyIAPToolKit：STM32 IAP 上位機工具套件設計與實現</h2>
-        </div>
-    </a>
-</article>
-
-            
         </div>
     </div>
 </aside>
@@ -2765,7 +2785,9 @@
             
                 
             
-        本網站已穩定運行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;總計<span id="articleCount">&lt; 8 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 48.60 k ></span>字
+                
+            
+        本網站已穩定運行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;總計<span id="articleCount">&lt; 9 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 55.16 k ></span>字
     </section>
     <section class="powerby">
         使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 構建 <br />

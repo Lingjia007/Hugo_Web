@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
     <head><meta charset='utf-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive + zero-copy transmit architecture, verified on both STM32F407 (HAL) and GD32F470 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission">
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive + zero-copy transmit architecture, verified on both LCEDA SkyStar STM32F407VGT6 (HAL) and LCEDA LiangShan GD32F470ZGT6 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission">
 <title>Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms</title>
 
 <link rel='canonical' href='https://lingsir007.netlify.app/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/'>
 
 <link rel="stylesheet" href="/scss/style.min.553d9fc5cc86a8c9deb4211c02fd07c2210fc13d76ef772a58388b83939349ab.css"><meta property='og:title' content="Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms">
-<meta property='og:description' content="Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive + zero-copy transmit architecture, verified on both STM32F407 (HAL) and GD32F470 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission">
+<meta property='og:description' content="Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive + zero-copy transmit architecture, verified on both LCEDA SkyStar STM32F407VGT6 (HAL) and LCEDA LiangShan GD32F470ZGT6 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission">
 <meta property='og:url' content='https://lingsir007.netlify.app/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='GD32' /><meta property='article:tag' content='UART' /><meta property='article:tag' content='DMA' /><meta property='article:tag' content='Ring-Buffer' /><meta property='article:tag' content='lwrb' /><meta property='article:tag' content='Zero-Copy' /><meta property='article:published_time' content='2026-07-05T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-08T23:37:53&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.png' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='GD32' /><meta property='article:tag' content='UART' /><meta property='article:tag' content='DMA' /><meta property='article:tag' content='Ring-Buffer' /><meta property='article:tag' content='lwrb' /><meta property='article:tag' content='Zero-Copy' /><meta property='article:published_time' content='2026-07-05T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-16T20:37:32&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.png' />
 <meta name="twitter:title" content="Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms">
-<meta name="twitter:description" content="Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive + zero-copy transmit architecture, verified on both STM32F407 (HAL) and GD32F470 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission"><meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:description" content="Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive + zero-copy transmit architecture, verified on both LCEDA SkyStar STM32F407VGT6 (HAL) and LCEDA LiangShan GD32F470ZGT6 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission"><meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.png' />
     <link rel="shortcut icon" href="/icons/favicon.ico" />
 
@@ -411,6 +411,10 @@
                 Embedded
             </a>
         
+            <a href="/en/categories/driver/" >
+                Driver
+            </a>
+        
     </header>
     
 
@@ -421,7 +425,7 @@
     
         
         <h3 class="article-subtitle">
-            Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive &#43; zero-copy transmit architecture, verified on both STM32F407 (HAL) and GD32F470 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission
+            Based on the lwrb lightweight ring buffer library and stm32-usart-uart-dma-rx-tx reference implementation, this post details the complete UART DMA circular receive &#43; zero-copy transmit architecture, verified on both LCEDA SkyStar STM32F407VGT6 (HAL) and LCEDA LiangShan GD32F470ZGT6 (Standard Peripheral Library), with in-depth analysis of triple interrupt triggers, DMA position inference, and chained TX transmission
         </h3>
         
     </div>
@@ -447,12 +451,12 @@
         <div class="article-lastmod">
                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
                 <time>
-                    Jul 08, 2026 23:37 &#43;0800
+                    Jul 16, 2026 20:37 &#43;0800
                 </time>
             </div><div id="wordCount">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
             <time class="article-wordcount">
-                3457  words
+                3461  words
             </time>
         </div>
 
@@ -502,7 +506,7 @@
 </h2><p>In embedded development, UART serial communication is one of the most fundamental and commonly used peripherals. However, many developers still use byte-by-byte interrupt-driven or polling approaches, resulting in high CPU overhead and significant risk of data loss. The <strong>DMA + ring buffer</strong> combination is the proper way to achieve efficient UART communication.</p>
 <p>This post is based on the <a class="link" href="https://github.com/MaJerle/lwrb"  target="_blank" rel="noopener"
     >lwrb</a> lightweight ring buffer library and the <a class="link" href="https://github.com/MaJerle/stm32-usart-uart-dma-rx-tx"  target="_blank" rel="noopener"
-    >stm32-usart-uart-dma-rx-tx</a> reference implementation, verified on both <strong>STM32F407VGT6 (HAL library)</strong> and <strong>GD32F470ZGT6 (Standard Peripheral Library)</strong> dual platforms. Complete project sources: <a class="link" href="https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
+    >stm32-usart-uart-dma-rx-tx</a> reference implementation, verified on both <strong>LCEDA SkyStar STM32F407VGT6 (HAL library)</strong> and <strong>LCEDA LiangShan GD32F470ZGT6 (Standard Peripheral Library)</strong> dual platforms. Complete project sources: <a class="link" href="https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
     >STM32F407VGT6 UART DMA</a> and <a class="link" href="https://github.com/Lingjia007/GD32F470ZGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
     >GD32F470ZGT6 UART DMA</a>. Every design decision is deeply analyzed in a Q&amp;A format.</p>
 <hr>
@@ -1511,7 +1515,7 @@ $$\text{pos} = N - \text{CNDTR}$$<p>where $N$ is the buffer size. For example, w
 
 
         <span>
-            Last updated on Jul 08, 2026 23:37 &#43;0800
+            Last updated on Jul 16, 2026 20:37 &#43;0800
         </span>
     </section></footer>
 
@@ -1555,6 +1559,30 @@ $$\text{pos} = N - \text{CNDTR}$$<p>where $N$ is the buffer size. For example, w
     <h2 class="section-title">Related content</h2>
     <div class="related-content">
         <div class="flex article-list--tile">
+            
+                
+<article class="has-image">
+    <a href="/en/p/deep-dive-into-the-stm32f407-assembly-startup-file-the-complete-journey-from-reset-vector-to-c-main/">
+        
+        
+            <div class="article-image">
+                <img src="/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/STM32F407%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E8%A7%A3%E6%9E%90.e726a00e31475d23ed99e8f219216ba5_hu_a8f1b2361cc9ecf4.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post Deep Dive into the STM32F407 Assembly Startup File: The Complete Journey from Reset Vector to C main()"
+                        
+                        data-hash="md5-5yagDjFHXSPtmejyGSFrpQ==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Deep Dive into the STM32F407 Assembly Startup File: The Complete Journey from Reset Vector to C main()</h2>
+        </div>
+    </a>
+</article>
+
             
                 
 <article class="has-image">
@@ -1652,30 +1680,6 @@ $$\text{pos} = N - \text{CNDTR}$$<p>where $N$ is the buffer size. For example, w
 </article>
 
             
-                
-<article class="has-image">
-    <a href="/en/p/the-essence-of-c-structs-and-pointers-embedded-object-oriented-platform-agnostic-layered-design/">
-        
-        
-            <div class="article-image">
-                <img src="/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.bc913b6a996b7421fe3ea97f79ea25e3_hu_b1e5a0a00e8e56e1.png" 
-                        width="250" 
-                        height="150" 
-                        loading="lazy"
-                        alt="Featured image of post The Essence of C: Structs and Pointers — Embedded Object-Oriented Platform-Agnostic Layered Design"
-                        
-                        data-hash="md5-vJE7aplrdCH&#43;Pql/eeol4w==">
-                
-            </div>
-        
-
-        <div class="article-details">
-            <h2 class="article-title">The Essence of C: Structs and Pointers — Embedded Object-Oriented Platform-Agnostic Layered Design</h2>
-        </div>
-    </a>
-</article>
-
-            
         </div>
     </div>
 </aside>
@@ -1724,7 +1728,9 @@ $$\text{pos} = N - \text{CNDTR}$$<p>where $N$ is the buffer size. For example, w
             
                 
             
-        This website has been running stably<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 8 ></span> articles <span style="font-weight: bold;">·</span> Total <span id="articlewordCount">&lt; 29.02 k ></span> words
+                
+            
+        This website has been running stably<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 9 ></span> articles <span style="font-weight: bold;">·</span> Total <span id="articlewordCount">&lt; 32.68 k ></span> words
     </section>
     <section class="powerby">
         Built with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> <br />

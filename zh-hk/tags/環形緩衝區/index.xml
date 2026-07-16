@@ -7,7 +7,7 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>zh-hk</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Wed, 08 Jul 2026 23:37:53 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/zh-hk/tags/%E7%92%B0%E5%BD%A2%E7%B7%A9%E8%A1%9D%E5%8D%80/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Thu, 16 Jul 2026 20:37:32 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/zh-hk/tags/%E7%92%B0%E5%BD%A2%E7%B7%A9%E8%A1%9D%E5%8D%80/index.xml" rel="self" type="application/rss+xml" /><item>
         <title>UART DMA 高效收發：環形緩衝區零拷貝實戰，STM32 與 GD32 雙晶片驗證</title>
         <link>https://lingsir007.netlify.app/zh-hk/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E7%99%BC%E7%92%B0%E5%BD%A2%E7%B7%A9%E8%A1%9D%E5%8D%80%E9%9B%B6%E6%8B%B7%E8%B2%9D%E5%AF%A6%E6%88%B0stm32-%E8%88%87-gd32-%E9%9B%99%E6%99%B6%E7%89%87%E9%A9%97%E8%AD%89/</link>
         <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
@@ -17,7 +17,7 @@
 &lt;/h2&gt;&lt;p&gt;在嵌入式開發中，UART 串口通信是最基礎也最常用的外設之一。然而，許多開發者仍然在使用中斷逐位元組收發或輪詢方式，導致 CPU 佔用高、資料遺失風險大。&lt;strong&gt;DMA + 環形緩衝區&lt;/strong&gt;的組合，才是高效 UART 通信的正確打開方式。&lt;/p&gt;
 &lt;p&gt;本文基於 &lt;a class=&#34;link&#34; href=&#34;https://github.com/MaJerle/lwrb&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;lwrb&lt;/a&gt; 輕量級環形緩衝區函式庫和 &lt;a class=&#34;link&#34; href=&#34;https://github.com/MaJerle/stm32-usart-uart-dma-rx-tx&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
-    &gt;stm32-usart-uart-dma-rx-tx&lt;/a&gt; 參考實現，分別用 &lt;strong&gt;STM32F407VGT6 (HAL 庫)&lt;/strong&gt; 和 &lt;strong&gt;GD32F470ZGT6 (標準外設庫)&lt;/strong&gt; 完成雙晶片驗證，完整工程見 &lt;a class=&#34;link&#34; href=&#34;https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
+    &gt;stm32-usart-uart-dma-rx-tx&lt;/a&gt; 參考實現，分別用 &lt;strong&gt;立創·天空星STM32F407VGT6 (HAL 庫)&lt;/strong&gt; 和 &lt;strong&gt;立創·梁山派GD32F470ZGT6 (標準外設庫)&lt;/strong&gt; 完成雙晶片驗證，完整工程見 &lt;a class=&#34;link&#34; href=&#34;https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;STM32F407VGT6 UART DMA&lt;/a&gt; 與 &lt;a class=&#34;link&#34; href=&#34;https://github.com/Lingjia007/GD32F470ZGT6_UART_DMA_Efficient_RingBuffer&#34;  target=&#34;_blank&#34; rel=&#34;noopener&#34;
     &gt;GD32F470ZGT6 UART DMA&lt;/a&gt;，以有問有答的方式深入剖析每一個設計決策。&lt;/p&gt;
 &lt;hr&gt;

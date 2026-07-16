@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="en-us" dir="ltr">
     <head><meta charset='utf-8'>
-<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 + 零拷贝发送的完整架构，以 STM32F407 (HAL) 和 GD32F470 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析">
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 + 零拷贝发送的完整架构，以立创·天空星STM32F407VGT6 (HAL) 和立创·梁山派GD32F470ZGT6 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析">
 <title>UART DMA 高效收发：环形缓冲区零拷贝实战，STM32 与 GD32 双芯片验证</title>
 
 <link rel='canonical' href='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/'>
 
 <link rel="stylesheet" href="/scss/style.min.553d9fc5cc86a8c9deb4211c02fd07c2210fc13d76ef772a58388b83939349ab.css"><meta property='og:title' content="UART DMA 高效收发：环形缓冲区零拷贝实战，STM32 与 GD32 双芯片验证">
-<meta property='og:description' content="基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 + 零拷贝发送的完整架构，以 STM32F407 (HAL) 和 GD32F470 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析">
+<meta property='og:description' content="基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 + 零拷贝发送的完整架构，以立创·天空星STM32F407VGT6 (HAL) 和立创·梁山派GD32F470ZGT6 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析">
 <meta property='og:url' content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='GD32' /><meta property='article:tag' content='UART' /><meta property='article:tag' content='DMA' /><meta property='article:tag' content='环形缓冲区' /><meta property='article:tag' content='lwrb' /><meta property='article:tag' content='零拷贝' /><meta property='article:published_time' content='2026-07-05T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-08T23:37:53&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.png' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='GD32' /><meta property='article:tag' content='UART' /><meta property='article:tag' content='DMA' /><meta property='article:tag' content='环形缓冲区' /><meta property='article:tag' content='lwrb' /><meta property='article:tag' content='零拷贝' /><meta property='article:published_time' content='2026-07-05T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-16T20:37:32&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.png' />
 <meta name="twitter:title" content="UART DMA 高效收发：环形缓冲区零拷贝实战，STM32 与 GD32 双芯片验证">
-<meta name="twitter:description" content="基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 + 零拷贝发送的完整架构，以 STM32F407 (HAL) 和 GD32F470 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析"><meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:description" content="基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 + 零拷贝发送的完整架构，以立创·天空星STM32F407VGT6 (HAL) 和立创·梁山派GD32F470ZGT6 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析"><meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content='https://lingsir007.netlify.app/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.png' />
     <link rel="shortcut icon" href="/icons/favicon.ico" />
 
@@ -411,6 +411,10 @@
                 嵌入式
             </a>
         
+            <a href="/categories/%E9%A9%B1%E5%8A%A8%E5%BC%80%E5%8F%91/" >
+                驱动开发
+            </a>
+        
     </header>
     
 
@@ -421,7 +425,7 @@
     
         
         <h3 class="article-subtitle">
-            基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 &#43; 零拷贝发送的完整架构，以 STM32F407 (HAL) 和 GD32F470 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析
+            基于 lwrb 环形缓冲区库，详解 UART DMA 循环接收 &#43; 零拷贝发送的完整架构，以立创·天空星STM32F407VGT6 (HAL) 和立创·梁山派GD32F470ZGT6 (标准外设库) 双平台实现验证，三重中断触发、DMA 位置反推、链式 TX 发送逐一剖析
         </h3>
         
     </div>
@@ -447,12 +451,12 @@
         <div class="article-lastmod">
                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
                 <time>
-                    Jul 08, 2026 23:37 &#43;0800
+                    Jul 16, 2026 20:37 &#43;0800
                 </time>
             </div><div id="wordCount">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
             <time class="article-wordcount">
-                5792  字
+                5827  字
             </time>
         </div>
 
@@ -502,7 +506,7 @@
 </h2><p>在嵌入式开发中，UART 串口通信是最基础也最常用的外设之一。然而，许多开发者仍然在使用中断逐字节收发或轮询方式，导致 CPU 占用高、数据丢失风险大。<strong>DMA + 环形缓冲区</strong>的组合，才是高效 UART 通信的正确打开方式。</p>
 <p>本文基于 <a class="link" href="https://github.com/MaJerle/lwrb"  target="_blank" rel="noopener"
     >lwrb</a> 轻量级环形缓冲区库和 <a class="link" href="https://github.com/MaJerle/stm32-usart-uart-dma-rx-tx"  target="_blank" rel="noopener"
-    >stm32-usart-uart-dma-rx-tx</a> 参考实现，分别用 <strong>STM32F407VGT6 (HAL 库)</strong> 和 <strong>GD32F470ZGT6 (标准外设库)</strong> 完成双芯片验证，完整工程见 <a class="link" href="https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
+    >stm32-usart-uart-dma-rx-tx</a> 参考实现，分别用 <strong>立创·天空星STM32F407VGT6 (HAL 库)</strong> 和 <strong>立创·梁山派GD32F470ZGT6 (标准外设库)</strong> 完成双芯片验证，完整工程见 <a class="link" href="https://github.com/Lingjia007/STM32F407VGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
     >STM32F407VGT6 UART DMA</a> 与 <a class="link" href="https://github.com/Lingjia007/GD32F470ZGT6_UART_DMA_Efficient_RingBuffer"  target="_blank" rel="noopener"
     >GD32F470ZGT6 UART DMA</a>，以有问有答的方式深入剖析每一个设计决策。</p>
 <hr>
@@ -1511,7 +1515,7 @@ $$\text{pos} = N - \text{CNDTR}$$<p>其中 $N$ 为缓冲区大小。例如 <code
 
 
         <span>
-            最后更新于 Jul 08, 2026 23:37 &#43;0800
+            最后更新于 Jul 16, 2026 20:37 &#43;0800
         </span>
     </section></footer>
 
@@ -1555,6 +1559,30 @@ $$\text{pos} = N - \text{CNDTR}$$<p>其中 $N$ 为缓冲区大小。例如 <code
     <h2 class="section-title">相关文章</h2>
     <div class="related-content">
         <div class="flex article-list--tile">
+            
+                
+<article class="has-image">
+    <a href="/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/">
+        
+        
+            <div class="article-image">
+                <img src="/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/STM32F407%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E8%A7%A3%E6%9E%90.e726a00e31475d23ed99e8f219216ba5_hu_a8f1b2361cc9ecf4.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post STM32F407 汇编启动文件深度解析：从复位向量到 C 语言 main() 的完整旅程"
+                        
+                        data-hash="md5-5yagDjFHXSPtmejyGSFrpQ==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">STM32F407 汇编启动文件深度解析：从复位向量到 C 语言 main() 的完整旅程</h2>
+        </div>
+    </a>
+</article>
+
             
                 
 <article class="has-image">
@@ -1652,30 +1680,6 @@ $$\text{pos} = N - \text{CNDTR}$$<p>其中 $N$ 为缓冲区大小。例如 <code
 </article>
 
             
-                
-<article class="has-image">
-    <a href="/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/">
-        
-        
-            <div class="article-image">
-                <img src="/p/c-%E8%AF%AD%E8%A8%80%E7%9A%84%E7%B2%BE%E9%AB%93%E7%BB%93%E6%9E%84%E4%BD%93%E4%B8%8E%E6%8C%87%E9%92%88%E5%B5%8C%E5%85%A5%E5%BC%8F%E9%9D%A2%E5%90%91%E5%AF%B9%E8%B1%A1%E5%B9%B3%E5%8F%B0%E5%8C%96%E5%88%86%E5%B1%82%E8%AE%BE%E8%AE%A1/C%E8%AF%AD%E8%A8%80%E7%BB%93%E6%9E%84%E4%BD%93%E6%8C%87%E9%92%88%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.bc913b6a996b7421fe3ea97f79ea25e3_hu_b1e5a0a00e8e56e1.png" 
-                        width="250" 
-                        height="150" 
-                        loading="lazy"
-                        alt="Featured image of post C 语言的精髓：结构体与指针——嵌入式面向对象平台化分层设计"
-                        
-                        data-hash="md5-vJE7aplrdCH&#43;Pql/eeol4w==">
-                
-            </div>
-        
-
-        <div class="article-details">
-            <h2 class="article-title">C 语言的精髓：结构体与指针——嵌入式面向对象平台化分层设计</h2>
-        </div>
-    </a>
-</article>
-
-            
         </div>
     </div>
 </aside>
@@ -1728,7 +1732,9 @@ $$\text{pos} = N - \text{CNDTR}$$<p>其中 $N$ 为缓冲区大小。例如 <code
             
                 
             
-        本网站已稳定运行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;总计<span id="articleCount">&lt; 10 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 51.10 k ></span>字
+                
+            
+        本网站已稳定运行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;总计<span id="articleCount">&lt; 11 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 57.68 k ></span>字
     </section>
     <section class="powerby">
         使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 构建 <br />
