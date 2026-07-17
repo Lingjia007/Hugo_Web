@@ -7,7 +7,87 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>en-us</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Thu, 16 Jul 2026 20:36:37 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/tags/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Sat, 18 Jul 2026 03:51:42 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/tags/index.xml" rel="self" type="application/rss+xml" /><item>
+        <title>DMA</title>
+        <link>https://lingjia007.github.io/Hugo_Web/tags/dma/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/tags/dma/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>I2S</title>
+        <link>https://lingjia007.github.io/Hugo_Web/tags/i2s/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/tags/i2s/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>INMP441</title>
+        <link>https://lingjia007.github.io/Hugo_Web/tags/inmp441/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/tags/inmp441/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>KWS</title>
+        <link>https://lingjia007.github.io/Hugo_Web/tags/kws/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/tags/kws/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Micro_speech</title>
+        <link>https://lingjia007.github.io/Hugo_Web/tags/micro_speech/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/tags/micro_speech/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>STM32</title>
+        <link>https://lingjia007.github.io/Hugo_Web/tags/stm32/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/tags/stm32/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>TensorFlow-Lite-Micro</title>
+        <link>https://lingjia007.github.io/Hugo_Web/tags/tensorflow-lite-micro/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/tags/tensorflow-lite-micro/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Volatile</title>
+        <link>https://lingjia007.github.io/Hugo_Web/tags/volatile/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/tags/volatile/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>关键词检测</title>
+        <link>https://lingjia007.github.io/Hugo_Web/tags/%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/tags/%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>模块化</title>
+        <link>https://lingjia007.github.io/Hugo_Web/tags/%E6%A8%A1%E5%9D%97%E5%8C%96/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/tags/%E6%A8%A1%E5%9D%97%E5%8C%96/</guid>
+        <description></description>
+        </item>
+        <item>
         <title>Cortex-M4</title>
         <link>https://lingjia007.github.io/Hugo_Web/tags/cortex-m4/</link>
         <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
@@ -21,14 +101,6 @@
         <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
         
         <guid>https://lingjia007.github.io/Hugo_Web/tags/gcc/</guid>
-        <description></description>
-        </item>
-        <item>
-        <title>STM32</title>
-        <link>https://lingjia007.github.io/Hugo_Web/tags/stm32/</link>
-        <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
-        
-        <guid>https://lingjia007.github.io/Hugo_Web/tags/stm32/</guid>
         <description></description>
         </item>
         <item>
@@ -101,14 +173,6 @@
         <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
         
         <guid>https://lingjia007.github.io/Hugo_Web/tags/%E6%A8%A1%E5%9E%8B%E8%AE%AD%E7%BB%83/</guid>
-        <description></description>
-        </item>
-        <item>
-        <title>DMA</title>
-        <link>https://lingjia007.github.io/Hugo_Web/tags/dma/</link>
-        <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
-        
-        <guid>https://lingjia007.github.io/Hugo_Web/tags/dma/</guid>
         <description></description>
         </item>
         <item>
