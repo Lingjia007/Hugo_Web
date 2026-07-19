@@ -10,7 +10,7 @@
 <meta property='og:description' content="Based on LCEDA HengShan D133EBS development board + LVGL v9 + RT-Thread smart vending terminal, an in-depth analysis of how the application tree (layout_node) manages the LVGL render tree, covering Composite pattern dual-tree mapping, Wrap bridging mechanism, strategy-driven Flex/Grid layout, widget factory dynamic creation, event-driven hot updates, and the replacement flow from static skeleton to dynamic components">
 <meta property='og:url' content='https://lingjia007.github.io/Hugo_Web/en/p/lvgl-dynamic-loading-and-render-tree-management-application-tree-architecture-practices-for-smart-vending-terminal/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='Vending Machine' /><meta property='article:tag' content='Embedded UI' /><meta property='article:tag' content='Design Patterns' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-16T20:36:37&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='Vending Machine' /><meta property='article:tag' content='Embedded UI' /><meta property='article:tag' content='Design Patterns' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-19T13:28:50&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
 <meta name="twitter:title" content="LVGL Dynamic Loading and Render Tree Management: Application Tree Architecture Practices for Smart Vending Terminal">
 <meta name="twitter:description" content="Based on LCEDA HengShan D133EBS development board + LVGL v9 + RT-Thread smart vending terminal, an in-depth analysis of how the application tree (layout_node) manages the LVGL render tree, covering Composite pattern dual-tree mapping, Wrap bridging mechanism, strategy-driven Flex/Grid layout, widget factory dynamic creation, event-driven hot updates, and the replacement flow from static skeleton to dynamic components"><meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content='https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
@@ -410,6 +410,8 @@
         <li><a href="#132-api-endpoints">13.2 API Endpoints</a></li>
         <li><a href="#133-security-measures">13.3 Security Measures</a></li>
         <li><a href="#134-configuration-hot-update">13.4 Configuration Hot-Update</a></li>
+        <li><a href="#135-commodity-and-navigation-categorization-system">13.5 Commodity and Navigation Categorization System</a></li>
+        <li><a href="#136-source-directory-organization">13.6 Source Directory Organization</a></li>
       </ol>
     </li>
     <li><a href="#14-asynchronous-loading-mechanism">14. Asynchronous Loading Mechanism</a></li>
@@ -488,12 +490,12 @@
         <div class="article-lastmod">
                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
                 <time>
-                    Jul 16, 2026 20:36 &#43;0800
+                    Jul 19, 2026 13:28 &#43;0800
                 </time>
             </div><div id="wordCount">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
             <time class="article-wordcount">
-                6010  words
+                6629  words
             </time>
         </div>
 
@@ -2384,7 +2386,7 @@
 	
 ></p>
 <blockquote class="alert alert-note">
-    <p>Want to view the source code? <a class="link" href="https://gitee.com/ling-sir007/luban-lite/blob/master/packages/artinchip/lvgl-ui/aic_demo/my_custom_init/web_config.html"  target="_blank" rel="noopener"
+    <p>Want to view the source code? <a class="link" href="https://gitee.com/ling-sir007/luban-lite/blob/master/packages/artinchip/lvgl-ui/aic_demo/vending_demo/config/web_config.html"  target="_blank" rel="noopener"
     >web_config.html</a></p></blockquote><h3 id="131-architecture">13.1 Architecture
 </h3><p>The device starts a WiFi AP (SSID: <code>AIC-Banner-Config</code>, password: <code>12345678</code>, channel 6), IP address 192.168.1.1, runs a DHCP server, and starts a Mongoose HTTP server on port 80.</p>
 <h3 id="132-api-endpoints">13.2 API Endpoints
@@ -2463,6 +2465,168 @@
 <li>Simultaneously save JSON to SD card file for persistence</li>
 <li>LVGL timer polls flag every 200ms → publish event → each component performs hot-update</li>
 </ol>
+<h3 id="135-commodity-and-navigation-categorization-system">13.5 Commodity and Navigation Categorization System
+</h3><p>The <code>tag</code> and <code>navi_tag</code> fields on commodity cards are two independent dimensions serving different purposes:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Field</th>
+					<th>Purpose</th>
+					<th>Value Range</th>
+					<th>Source</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>tag</code></td>
+					<td><strong>Display icon</strong> on card corner</td>
+					<td><code>hot</code>/<code>new</code>/<code>recommend</code>/<code>none</code></td>
+					<td>Web config selection</td>
+			</tr>
+			<tr>
+					<td><code>navi_tag</code></td>
+					<td><strong>Navigation filter</strong> category</td>
+					<td>Tag of each manually-created navi item</td>
+					<td>Web config category dropdown</td>
+			</tr>
+	</tbody>
+</table></div>
+<p><strong>Navigation Item Management Rules</strong>:</p>
+<ol>
+<li>A default &ldquo;全部&rdquo; (All) item (tag=<code>all</code>) always exists — it cannot be deleted or edited</li>
+<li>Users manually add navigation items (up to 10); tag auto-generates from label (e.g., label=&ldquo;Drinks&rdquo; → tag=&ldquo;Drinks&rdquo;)</li>
+<li>Navigation item changes (add/remove/modify) immediately refresh the commodity card category dropdown</li>
+</ol>
+<p><strong>Commodity Card Category Assignment</strong>:</p>
+<ul>
+<li>Each commodity card shows a &ldquo;Category&rdquo; dropdown in the Web config page, listing all current navi items (excluding &ldquo;All&rdquo;) plus a &ldquo;None&rdquo; option</li>
+<li>The selection is written to the <code>navi_tag</code> field for runtime filtering</li>
+<li>Clicking a navigation bar item triggers <code>commodity_apply_filter()</code> to filter the commodity list by <code>navi_tag</code></li>
+</ul>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* Key fields in commodity_card_priv_t */</span>
+</span></span><span class="line"><span class="cl"><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl">    <span class="kt">commodity_tag_t</span> <span class="n">tag</span><span class="p">;</span>       <span class="cm">/* Display icon: hot/new/recommend/none */</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">char</span> <span class="n">navi_tag</span><span class="p">[</span><span class="mi">32</span><span class="p">];</span>         <span class="cm">/* Navigation category tag for filtering */</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="kt">commodity_card_priv_t</span><span class="p">;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Runtime Filtering Logic</strong> (<code>commodity_apply_filter</code>):</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* Filter commodities by navi_tag */</span>
+</span></span><span class="line"><span class="cl"><span class="n">cJSON</span> <span class="o">*</span><span class="n">filtered</span> <span class="o">=</span> <span class="nf">cJSON_CreateArray</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="n">count</span> <span class="o">=</span> <span class="nf">cJSON_GetArraySize</span><span class="p">(</span><span class="n">items</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cJSON</span> <span class="o">*</span><span class="n">item</span> <span class="o">=</span> <span class="nf">cJSON_GetArrayItem</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">i</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cJSON</span> <span class="o">*</span><span class="n">navi_tag</span> <span class="o">=</span> <span class="nf">cJSON_GetObjectItem</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="s">&#34;navi_tag&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">cJSON_IsString</span><span class="p">(</span><span class="n">navi_tag</span><span class="p">)</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">strcmp</span><span class="p">(</span><span class="n">navi_tag</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">,</span> <span class="n">filter_tag</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">cJSON_AddItemToArray</span><span class="p">(</span><span class="n">filtered</span><span class="p">,</span> <span class="nf">cJSON_Duplicate</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Data Binding Safety</strong>: When commodity card fields are empty, old display values must be cleared to prevent ghost images:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* Clear old value when image is empty */</span>
+</span></span><span class="line"><span class="cl"><span class="n">cJSON</span> <span class="o">*</span><span class="n">image</span> <span class="o">=</span> <span class="nf">cJSON_GetObjectItem</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s">&#34;image&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="p">(</span><span class="nf">cJSON_IsString</span><span class="p">(</span><span class="n">image</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="n">image</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="sc">&#39;\0&#39;</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_img_set_src</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">img</span><span class="p">,</span> <span class="n">image</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">strncpy</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">image</span><span class="p">,</span> <span class="n">image</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">image</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_img_set_src</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">img</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>   <span class="cm">/* Clear ghost image */</span>
+</span></span><span class="line"><span class="cl">    <span class="n">p</span><span class="o">-&gt;</span><span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="sc">&#39;\0&#39;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="136-source-directory-organization">13.6 Source Directory Organization
+</h3><p>The source code was reorganized from a flat <code>my_custom_init/</code> directory to a functionally categorized <code>vending_demo/</code> directory tree:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="n">vending_demo</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">core</span><span class="o">/</span>          <span class="c1"># event_bus.c/h, async_loader.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">layout</span><span class="o">/</span>        <span class="c1"># layout_node.c/h, layout_strategy.c/h, widget_factory.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">banner</span><span class="o">/</span>        <span class="c1"># banner_item.c/h, banner_carousel.c/h, banner_types.h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">commodity</span><span class="o">/</span>     <span class="c1"># commodity_card.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">cart</span><span class="o">/</span>          <span class="c1"># cart_item.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">navi</span><span class="o">/</span>          <span class="c1"># navi_item.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">config</span><span class="o">/</span>        <span class="c1"># web_config.c/h, web_config.html → web_config_html.c</span>
+</span></span><span class="line"><span class="cl"><span class="err">└──</span> <span class="n">payment</span><span class="o">/</span>       <span class="c1"># uart3_payment.c/h, qr_scanner.c/h</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>SConscript uses <code>os.walk()</code> to recursively scan <code>vending_demo/</code> and its subdirectories, collecting <code>.c</code> files and header include paths:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">vending_path</span> <span class="o">=</span> <span class="n">cwd</span> <span class="o">+</span> <span class="s1">&#39;/vending_demo&#39;</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">vending_path</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">vending_path</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">rela_path</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">cwd</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">src</span> <span class="o">=</span> <span class="n">src</span> <span class="o">+</span> <span class="n">Glob</span><span class="p">(</span><span class="n">rela_path</span> <span class="o">+</span> <span class="s1">&#39;/*.c&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">check_h_hpp_exist</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">            <span class="n">inc</span> <span class="o">=</span> <span class="n">inc</span> <span class="o">+</span> <span class="p">[</span><span class="n">root</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">html_src</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cwd</span><span class="p">,</span> <span class="s1">&#39;vending_demo&#39;</span><span class="p">,</span> <span class="s1">&#39;config&#39;</span><span class="p">,</span> <span class="s1">&#39;web_config.html&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">html_c</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cwd</span><span class="p">,</span> <span class="s1">&#39;vending_demo&#39;</span><span class="p">,</span> <span class="s1">&#39;config&#39;</span><span class="p">,</span> <span class="s1">&#39;web_config_html.c&#39;</span><span class="p">)</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>web_config_html.c</code> is auto-generated from <code>web_config.html</code> at build time, containing an embedded HTML string constant that the Mongoose HTTP server returns directly without filesystem access.</p>
 <hr>
 <h2 id="14-asynchronous-loading-mechanism">14. Asynchronous Loading Mechanism
 </h2><p>Implemented based on RT-Thread thread + dual message queues:</p>
@@ -2526,6 +2690,12 @@
 <li>
 <p><strong>Camera View Hardware Acceleration</strong>: DVP buffer zero-copy push to video layer, UI layer semi-transparent to achieve picture-in-picture effect.</p>
 </li>
+<li>
+<p><strong>tag/navi_tag Dual-Dimension Categorization</strong>: <code>tag</code> controls the commodity card display icon, while <code>navi_tag</code> controls navigation bar filter assignment — two independent dimensions managed separately, with category changes immediately refreshing commodity options.</p>
+</li>
+<li>
+<p><strong>Recursive Directory Build</strong>: SConscript recursively scans <code>vending_demo/</code> subdirectories via <code>os.walk()</code>, supporting functionally organized directory structures; <code>web_config_html.c</code> is auto-generated at build time.</p>
+</li>
 </ol>
 
 </section>
@@ -2572,7 +2742,7 @@
 
 
         <span>
-            Last updated on Jul 16, 2026 20:36 &#43;0800
+            Last updated on Jul 19, 2026 13:28 &#43;0800
         </span>
     </section></footer>
 
@@ -2787,7 +2957,7 @@
             
                 
             
-        This website has been running stably<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 9 ></span> articles <span style="font-weight: bold;">·</span> Total <span id="articlewordCount">&lt; 32.68 k ></span> words
+        This website has been running stably<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 9 ></span> articles <span style="font-weight: bold;">·</span> Total <span id="articlewordCount">&lt; 33.30 k ></span> words
     </section>
     <section class="powerby">
         Built with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> <br />

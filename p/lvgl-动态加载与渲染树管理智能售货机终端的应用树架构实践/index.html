@@ -10,7 +10,7 @@
 <meta property='og:description' content="基于立创·衡山派D133EBS开发板 + LVGL v9 + RT-Thread 的智能售货机终端，深入剖析应用树（layout_node）如何管理 LVGL 渲染树，涵盖组合模式双树映射、Wrap 桥接机制、策略驱动的 Flex/Grid 布局、控件工厂动态创建、事件驱动热更新、静态骨架到动态组件的替换流程等核心技术详解">
 <meta property='og:url' content='https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='售货机' /><meta property='article:tag' content='嵌入式UI' /><meta property='article:tag' content='设计模式' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-16T20:36:37&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='售货机' /><meta property='article:tag' content='嵌入式UI' /><meta property='article:tag' content='设计模式' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-19T13:28:50&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
 <meta name="twitter:title" content="LVGL 动态加载与渲染树管理：智能售货机终端的应用树架构实践">
 <meta name="twitter:description" content="基于立创·衡山派D133EBS开发板 + LVGL v9 + RT-Thread 的智能售货机终端，深入剖析应用树（layout_node）如何管理 LVGL 渲染树，涵盖组合模式双树映射、Wrap 桥接机制、策略驱动的 Flex/Grid 布局、控件工厂动态创建、事件驱动热更新、静态骨架到动态组件的替换流程等核心技术详解"><meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content='https://lingjia007.github.io/Hugo_Web/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
@@ -410,6 +410,8 @@
         <li><a href="#132-api-接口">13.2 API 接口</a></li>
         <li><a href="#133-安全措施">13.3 安全措施</a></li>
         <li><a href="#134-配置热更新">13.4 配置热更新</a></li>
+        <li><a href="#135-商品与导航分类系统">13.5 商品与导航分类系统</a></li>
+        <li><a href="#136-源码目录组织">13.6 源码目录组织</a></li>
       </ol>
     </li>
     <li><a href="#十四异步加载机制">十四、异步加载机制</a></li>
@@ -488,12 +490,12 @@
         <div class="article-lastmod">
                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
                 <time>
-                    Jul 16, 2026 20:36 &#43;0800
+                    Jul 19, 2026 13:28 &#43;0800
                 </time>
             </div><div id="wordCount">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
             <time class="article-wordcount">
-                9931  字
+                10902  字
             </time>
         </div>
 
@@ -2384,7 +2386,7 @@
 	
 ></p>
 <blockquote class="alert alert-note">
-    <p>想要查看源码？<a class="link" href="https://gitee.com/ling-sir007/luban-lite/blob/master/packages/artinchip/lvgl-ui/aic_demo/my_custom_init/web_config.html"  target="_blank" rel="noopener"
+    <p>想要查看源码？<a class="link" href="https://gitee.com/ling-sir007/luban-lite/blob/master/packages/artinchip/lvgl-ui/aic_demo/vending_demo/config/web_config.html"  target="_blank" rel="noopener"
     >web_config.html</a></p></blockquote><h3 id="131-架构">13.1 架构
 </h3><p>设备启动 WiFi AP（SSID: <code>AIC-Banner-Config</code>，密码: <code>12345678</code>，信道 6），IP 地址 192.168.1.1，运行 DHCP 服务器，在 80 端口启动 Mongoose HTTP 服务器。</p>
 <h3 id="132-api-接口">13.2 API 接口
@@ -2463,6 +2465,168 @@
 <li>同时将 JSON 保存到 SD 卡文件实现持久化</li>
 <li>LVGL 定时器 200ms 轮询检测标志 → 发布事件 → 各组件执行热更新</li>
 </ol>
+<h3 id="135-商品与导航分类系统">13.5 商品与导航分类系统
+</h3><p>商品卡片的 <code>tag</code> 和 <code>navi_tag</code> 是两个独立维度，分别服务于不同目的：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>字段</th>
+					<th>用途</th>
+					<th>取值范围</th>
+					<th>来源</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>tag</code></td>
+					<td>商品卡片左上角<strong>显示图标</strong></td>
+					<td><code>hot</code>/<code>new</code>/<code>recommend</code>/<code>none</code></td>
+					<td>Web 配置手动选择</td>
+			</tr>
+			<tr>
+					<td><code>navi_tag</code></td>
+					<td>导航栏<strong>分类筛选</strong>归属</td>
+					<td>各手动创建的 navi 项 tag</td>
+					<td>Web 配置分类下拉</td>
+			</tr>
+	</tbody>
+</table></div>
+<p><strong>导航项管理规则</strong>：</p>
+<ol>
+<li>默认存在&quot;全部&quot;项（tag=<code>all</code>），不可删除、不可编辑</li>
+<li>用户手动添加导航项（最多 10 个），tag 由 label 自动生成（如 label=&ldquo;饮料&rdquo; → tag=&ldquo;饮料&rdquo;）</li>
+<li>导航项变更（增/删/改）时，立即刷新商品卡片的分类下拉选项</li>
+</ol>
+<p><strong>商品卡片分类归属</strong>：</p>
+<ul>
+<li>每个商品卡片在 Web 配置页面中显示&quot;分类&quot;下拉框，选项为当前所有 navi 项（排除&quot;全部&quot;），外加&quot;无&quot;选项</li>
+<li>选择后写入 <code>navi_tag</code> 字段，用于运行时筛选</li>
+<li>点击导航栏某项时，<code>commodity_apply_filter()</code> 按 <code>navi_tag</code> 过滤商品列表</li>
+</ul>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* commodity_card_priv_t 中的关键字段 */</span>
+</span></span><span class="line"><span class="cl"><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl">    <span class="kt">commodity_tag_t</span> <span class="n">tag</span><span class="p">;</span>       <span class="cm">/* 显示图标：热卖/新品/推荐/无 */</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">char</span> <span class="n">navi_tag</span><span class="p">[</span><span class="mi">32</span><span class="p">];</span>         <span class="cm">/* 导航分类标签，用于筛选 */</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="kt">commodity_card_priv_t</span><span class="p">;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>运行时筛选逻辑</strong>（<code>commodity_apply_filter</code>）：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* 按 navi_tag 过滤商品 */</span>
+</span></span><span class="line"><span class="cl"><span class="n">cJSON</span> <span class="o">*</span><span class="n">filtered</span> <span class="o">=</span> <span class="nf">cJSON_CreateArray</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="n">count</span> <span class="o">=</span> <span class="nf">cJSON_GetArraySize</span><span class="p">(</span><span class="n">items</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cJSON</span> <span class="o">*</span><span class="n">item</span> <span class="o">=</span> <span class="nf">cJSON_GetArrayItem</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">i</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cJSON</span> <span class="o">*</span><span class="n">navi_tag</span> <span class="o">=</span> <span class="nf">cJSON_GetObjectItem</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="s">&#34;navi_tag&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">cJSON_IsString</span><span class="p">(</span><span class="n">navi_tag</span><span class="p">)</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">strcmp</span><span class="p">(</span><span class="n">navi_tag</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">,</span> <span class="n">filter_tag</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">cJSON_AddItemToArray</span><span class="p">(</span><span class="n">filtered</span><span class="p">,</span> <span class="nf">cJSON_Duplicate</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>数据绑定安全性</strong>：当商品卡片字段为空时，必须清除旧的显示值，避免残影：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* 图片为空时清空旧值 */</span>
+</span></span><span class="line"><span class="cl"><span class="n">cJSON</span> <span class="o">*</span><span class="n">image</span> <span class="o">=</span> <span class="nf">cJSON_GetObjectItem</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s">&#34;image&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="p">(</span><span class="nf">cJSON_IsString</span><span class="p">(</span><span class="n">image</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="n">image</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="sc">&#39;\0&#39;</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_img_set_src</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">img</span><span class="p">,</span> <span class="n">image</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">strncpy</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">image</span><span class="p">,</span> <span class="n">image</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">image</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_img_set_src</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">img</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>   <span class="cm">/* 清除残影 */</span>
+</span></span><span class="line"><span class="cl">    <span class="n">p</span><span class="o">-&gt;</span><span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="sc">&#39;\0&#39;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="136-源码目录组织">13.6 源码目录组织
+</h3><p>源码从扁平的 <code>my_custom_init/</code> 重构为按功能分类的 <code>vending_demo/</code> 目录树：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="n">vending_demo</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">core</span><span class="o">/</span>          <span class="c1"># event_bus.c/h, async_loader.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">layout</span><span class="o">/</span>        <span class="c1"># layout_node.c/h, layout_strategy.c/h, widget_factory.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">banner</span><span class="o">/</span>        <span class="c1"># banner_item.c/h, banner_carousel.c/h, banner_types.h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">commodity</span><span class="o">/</span>     <span class="c1"># commodity_card.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">cart</span><span class="o">/</span>          <span class="c1"># cart_item.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">navi</span><span class="o">/</span>          <span class="c1"># navi_item.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">config</span><span class="o">/</span>        <span class="c1"># web_config.c/h, web_config.html → web_config_html.c</span>
+</span></span><span class="line"><span class="cl"><span class="err">└──</span> <span class="n">payment</span><span class="o">/</span>       <span class="c1"># uart3_payment.c/h, qr_scanner.c/h</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>SConscript 使用 <code>os.walk()</code> 递归扫描 <code>vending_demo/</code> 及其子目录，收集 <code>.c</code> 文件和头文件路径：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">vending_path</span> <span class="o">=</span> <span class="n">cwd</span> <span class="o">+</span> <span class="s1">&#39;/vending_demo&#39;</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">vending_path</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">vending_path</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">rela_path</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">cwd</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">src</span> <span class="o">=</span> <span class="n">src</span> <span class="o">+</span> <span class="n">Glob</span><span class="p">(</span><span class="n">rela_path</span> <span class="o">+</span> <span class="s1">&#39;/*.c&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">check_h_hpp_exist</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">            <span class="n">inc</span> <span class="o">=</span> <span class="n">inc</span> <span class="o">+</span> <span class="p">[</span><span class="n">root</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">html_src</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cwd</span><span class="p">,</span> <span class="s1">&#39;vending_demo&#39;</span><span class="p">,</span> <span class="s1">&#39;config&#39;</span><span class="p">,</span> <span class="s1">&#39;web_config.html&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">html_c</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cwd</span><span class="p">,</span> <span class="s1">&#39;vending_demo&#39;</span><span class="p">,</span> <span class="s1">&#39;config&#39;</span><span class="p">,</span> <span class="s1">&#39;web_config_html.c&#39;</span><span class="p">)</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>web_config_html.c</code> 由 <code>web_config.html</code> 在构建时自动生成，包含嵌入式 HTML 字符串常量，供 Mongoose HTTP 服务器直接返回，无需文件系统读取。</p>
 <hr>
 <h2 id="十四异步加载机制">十四、异步加载机制
 </h2><p>基于 RT-Thread 线程 + 双消息队列实现：</p>
@@ -2526,6 +2690,12 @@
 <li>
 <p><strong>摄像头视图硬件加速</strong>：DVP 缓冲区零拷贝推送到视频层，UI 层半透明实现画中画效果。</p>
 </li>
+<li>
+<p><strong>tag/navi_tag 双维度分类</strong>：tag 控制商品卡片显示图标，navi_tag 控制导航栏筛选归属，两个维度独立管理、互不干扰，分类变更实时刷新商品选项。</p>
+</li>
+<li>
+<p><strong>递归目录构建</strong>：SConscript 通过 <code>os.walk()</code> 递归扫描 <code>vending_demo/</code> 子目录，支持按功能归档的目录结构，<code>web_config_html.c</code> 构建时自动生成。</p>
+</li>
 </ol>
 
 </section>
@@ -2572,7 +2742,7 @@
 
 
         <span>
-            最后更新于 Jul 16, 2026 20:36 &#43;0800
+            最后更新于 Jul 19, 2026 13:28 &#43;0800
         </span>
     </section></footer>
 
@@ -2619,23 +2789,23 @@
             
                 
 <article class="has-image">
-    <a href="/Hugo_Web/p/stm32f407--tensorflow-lite-micro-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E5%AE%9E%E6%88%98%E4%BB%8E%E8%AF%A1%E5%BC%82-bug-%E5%88%B0%E6%A8%A1%E5%9D%97%E5%8C%96%E6%9E%B6%E6%9E%84/">
+    <a href="/Hugo_Web/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/">
         
         
             <div class="article-image">
-                <img src="/Hugo_Web/p/stm32f407--tensorflow-lite-micro-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E5%AE%9E%E6%88%98%E4%BB%8E%E8%AF%A1%E5%BC%82-bug-%E5%88%B0%E6%A8%A1%E5%9D%97%E5%8C%96%E6%9E%B6%E6%9E%84/STM32F407-TFLM-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E8%AF%86%E5%88%AB.19a0b822edb11957055e4588c2159058_hu_238e9fa255a75dba.png" 
+                <img src="/Hugo_Web/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/STM32F407-TFLM-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E8%AF%86%E5%88%AB.f2d22c302accd0e4033d1ee3c5e7297d_hu_2f06e080cca6ce5f.png" 
                         width="250" 
                         height="150" 
                         loading="lazy"
-                        alt="Featured image of post STM32F407 &#43; TensorFlow-Lite-Micro 流式语音关键词检测全链路实战：从诡异 Bug 到模块化架构"
+                        alt="Featured image of post STM32F407 流式语音关键词检测：全链路设计与五大踩坑解析"
                         
-                        data-hash="md5-GaC4Iu2xGVcFXkWIwhWQWA==">
+                        data-hash="md5-8tIsMCrM0OQDPR7jxecpfQ==">
                 
             </div>
         
 
         <div class="article-details">
-            <h2 class="article-title">STM32F407 &#43; TensorFlow-Lite-Micro 流式语音关键词检测全链路实战：从诡异 Bug 到模块化架构</h2>
+            <h2 class="article-title">STM32F407 流式语音关键词检测：全链路设计与五大踩坑解析</h2>
         </div>
     </a>
 </article>
@@ -2793,7 +2963,9 @@
             
                 
             
-        本网站已稳定运行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;总计<span id="articleCount">&lt; 12 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 67.20 k ></span>字
+                
+            
+        本网站已稳定运行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;总计<span id="articleCount">&lt; 13 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 76.52 k ></span>字
     </section>
     <section class="powerby">
         使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 构建 <br />
