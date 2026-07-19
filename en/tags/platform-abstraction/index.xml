@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
     <channel>
-        <title>Platform Abstraction on lingsir007</title>
+        <title>Platform-Abstraction on lingsir007</title>
         <link>https://lingsir007.netlify.app/en/tags/platform-abstraction/</link>
-        <description>Recent content in Platform Abstraction on lingsir007</description>
+        <description>Recent content in Platform-Abstraction on lingsir007</description>
         <generator>Hugo -- gohugo.io</generator>
         <language>en</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Sat, 18 Jul 2026 03:51:42 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/en/tags/platform-abstraction/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Sun, 19 Jul 2026 13:28:50 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/en/tags/platform-abstraction/index.xml" rel="self" type="application/rss+xml" /><item>
         <title>A Taste of Bootloader Five-Layer Architecture: OOP Object Design Model from Platform Abstraction to App Orchestration</title>
         <link>https://lingsir007.netlify.app/en/p/a-taste-of-bootloader-five-layer-architecture-oop-object-design-model-from-platform-abstraction-to-app-orchestration/</link>
         <pubDate>Fri, 03 Jul 2026 00:00:00 +0000</pubDate>

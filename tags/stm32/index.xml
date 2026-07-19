@@ -7,32 +7,58 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>en-us</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Sat, 18 Jul 2026 03:51:42 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/tags/stm32/index.xml" rel="self" type="application/rss+xml" /><item>
-        <title>STM32F407 &#43; TensorFlow-Lite-Micro 流式语音关键词检测全链路实战：从诡异 Bug 到模块化架构</title>
-        <link>https://lingsir007.netlify.app/p/stm32f407--tensorflow-lite-micro-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E5%AE%9E%E6%88%98%E4%BB%8E%E8%AF%A1%E5%BC%82-bug-%E5%88%B0%E6%A8%A1%E5%9D%97%E5%8C%96%E6%9E%B6%E6%9E%84/</link>
+        <lastBuildDate>Sun, 19 Jul 2026 13:28:50 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/tags/stm32/index.xml" rel="self" type="application/rss+xml" /><item>
+        <title>STM32F407 流式语音关键词检测：全链路设计与五大踩坑解析</title>
+        <link>https://lingsir007.netlify.app/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/</link>
         <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
         
-        <guid>https://lingsir007.netlify.app/p/stm32f407--tensorflow-lite-micro-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E5%AE%9E%E6%88%98%E4%BB%8E%E8%AF%A1%E5%BC%82-bug-%E5%88%B0%E6%A8%A1%E5%9D%97%E5%8C%96%E6%9E%B6%E6%9E%84/</guid>
-        <description>&lt;img src="https://lingsir007.netlify.app/p/stm32f407--tensorflow-lite-micro-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E5%AE%9E%E6%88%98%E4%BB%8E%E8%AF%A1%E5%BC%82-bug-%E5%88%B0%E6%A8%A1%E5%9D%97%E5%8C%96%E6%9E%B6%E6%9E%84/STM32F407-TFLM-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E8%AF%86%E5%88%AB.png" alt="Featured image of post STM32F407 &#43; TensorFlow-Lite-Micro 流式语音关键词检测全链路实战：从诡异 Bug 到模块化架构" /&gt;&lt;h2 id=&#34;前言&#34;&gt;前言
-&lt;/h2&gt;&lt;p&gt;故事要从一句诡异的吐槽说起。&lt;/p&gt;
-&lt;p&gt;我对着麦克风字正腔圆地喊了一声 &amp;ldquo;yes&amp;rdquo;，串口屏上却跳出来一行：&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
-&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
-&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
-&lt;td class=&#34;lntd&#34;&gt;
-&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;[KWS 0] up (96.7%, score=18, hits=3/5)
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;&lt;p&gt;&lt;code&gt;up&lt;/code&gt;？我明明说的是 &lt;code&gt;yes&lt;/code&gt;。更离谱的是，连续说 &amp;ldquo;one / two / three&amp;rdquo;，识别结果在 &lt;code&gt;cat&lt;/code&gt;、&lt;code&gt;right&lt;/code&gt;、&lt;code&gt;up&lt;/code&gt; 之间随机横跳，置信度只有 14~30。而当我把模型直接喂整段录音测试时，明明能稳定识别。&lt;strong&gt;流式推理到底哪里出了问题？&lt;/strong&gt;&lt;/p&gt;
-&lt;p&gt;接下来是一连串更诡异的现象：&lt;/p&gt;
-&lt;ul&gt;
-&lt;li&gt;删掉一行 &lt;code&gt;printf&lt;/code&gt;，整个系统就再无输出，加上又&amp;quot;复活&amp;quot;了&lt;/li&gt;
-&lt;li&gt;把大数组从栈移到 &lt;code&gt;static&lt;/code&gt; 后崩溃消失&lt;/li&gt;
-&lt;li&gt;DWT 周期计数器读出来永远是 0&lt;/li&gt;
-&lt;li&gt;噪音被识别成 &lt;code&gt;up&lt;/code&gt;，分数竟然和真说 &amp;ldquo;up&amp;rdquo; 时差不多&lt;/li&gt;
-&lt;/ul&gt;
-&lt;p&gt;这篇文章记录的就是把 &lt;a class=&#34;link&#34; href=&#34;file:///d:/edgedownload/STM32F407VGT6_TensorFlow-Lite-Micro&#34; &gt;STM32F407VGT6_TensorFlow-Lite-Micro&lt;/a&gt; 这个工程从&amp;quot;能跑但乱识别&amp;quot;调到&amp;quot;流式稳定识别 yes/no/up/down/&amp;hellip;&amp;ldquo;的完整过程。每个坑都附了&lt;strong&gt;根因分析&lt;/strong&gt;和&lt;strong&gt;修复方案&lt;/strong&gt;，希望后来人能少绕几圈。&lt;/p&gt;
+        <guid>https://lingsir007.netlify.app/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/</guid>
+        <description>&lt;img src="https://lingsir007.netlify.app/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/STM32F407-TFLM-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E8%AF%86%E5%88%AB.png" alt="Featured image of post STM32F407 流式语音关键词检测：全链路设计与五大踩坑解析" /&gt;&lt;h2 id=&#34;前言&#34;&gt;前言
+&lt;/h2&gt;&lt;p&gt;这个工程的目标：在 STM32F407VGT6 上用 INMP441 I2S MEMS 麦克风跑通 micro_speech 模型的&lt;strong&gt;流式&lt;/strong&gt;关键词检测——用户随时说话，系统实时识别 yes/no/up/down/&amp;hellip;，不需要提前录音再整段喂给模型。&lt;/p&gt;
+&lt;p&gt;参考工程是 ST 官方的 &lt;a class=&#34;link&#34; href=&#34;file:///d:/edgedownload/STM32N6-GettingStarted-Audio&#34; &gt;STM32N6-GettingStarted-Audio&lt;/a&gt;，它已经实现了流式采集 + 推理的完整链路。但把它移植到 STM32F407 + INMP441 时，遇到了五个坑，每个症状都不一样：&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;#&lt;/th&gt;
+					&lt;th&gt;坑&lt;/th&gt;
+					&lt;th&gt;症状&lt;/th&gt;
+					&lt;th&gt;根因&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;1&lt;/td&gt;
+					&lt;td&gt;stride 错误&lt;/td&gt;
+					&lt;td&gt;识别结果随机横跳，score 14~30&lt;/td&gt;
+					&lt;td&gt;STM32F4 I2S 16B_EXTENDED 帧布局与假设不符&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;2&lt;/td&gt;
+					&lt;td&gt;volatile 缺失&lt;/td&gt;
+					&lt;td&gt;删掉一行 printf 系统就无输出&lt;/td&gt;
+					&lt;td&gt;ISR/main 共享变量被 &lt;code&gt;-O3 -flto&lt;/code&gt; 缓存到寄存器&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;3&lt;/td&gt;
+					&lt;td&gt;栈余量不足&lt;/td&gt;
+					&lt;td&gt;预防性优化（未观察到明确症状）&lt;/td&gt;
+					&lt;td&gt;大数组放栈上，默认 2KB 栈余量危险&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;4&lt;/td&gt;
+					&lt;td&gt;KWS 误报&lt;/td&gt;
+					&lt;td&gt;噪音被识别成 up，连续触发&lt;/td&gt;
+					&lt;td&gt;int8 量化分数区分度低 + per-word 冷却被重置&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;5&lt;/td&gt;
+					&lt;td&gt;隐藏依赖&lt;/td&gt;
+					&lt;td&gt;编译报错找不到 array.h&lt;/td&gt;
+					&lt;td&gt;kernel_util.cpp 依赖上游 TFL 的 array.cc&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;本文先按数据流自上而下讲架构，再按踩坑时间线讲调试。每个坑附&lt;strong&gt;症状 → 根因 → 修复&lt;/strong&gt;三段式分析，希望遇到类似问题的人能直接对号入座。&lt;/p&gt;
 &lt;blockquote class=&#34;alert alert-note&#34;&gt;
     &lt;p&gt;本文不是保姆级教程，假设读者已熟悉 STM32 HAL、I2S、DMA、TFLite 基础。重点在&lt;strong&gt;踩坑与架构&lt;/strong&gt;，不是从零搭建。模型训练部分见前作 &lt;a class=&#34;link&#34; href=&#34;../wsl2-docker-tensorflow/&#34; &gt;WSL2 + Docker + TensorFlow 教程&lt;/a&gt;。&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
 &lt;h2 id=&#34;一工程总览&#34;&gt;一、工程总览
@@ -133,7 +159,7 @@
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;audio/capture/                       ← 第 2 层：环形缓冲
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  AudioCaptureRingBuff_t
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  4 × 3200 = 12800 samples
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  4 × 3200 = 12800 samples（25.6 KB，存 CCMRAM）
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  LDREX/STREX 原子计数器
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  volatile 保证 ISR/main 可见
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   ▼ consume (3200 samples / 200 ms)
@@ -143,7 +169,7 @@
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • SLIDE_COLS=10 (200 ms)
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • CMSIS-DSP RFFT Q15
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • 40 通道 Mel 滤波器组
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • 存放在 CCMRAM 节省 RAM
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • 存放在 CCMRAM（连同环形缓冲）
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   ▼ 49×40 int8 特征
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;X-CUBE-AI                            ← 第 4 层：int8 推理
@@ -166,7 +192,7 @@
     &lt;p&gt;为什么要分层？因为流式 KWS 的 bug 80% 出在&amp;quot;层与层的接口&amp;quot;上：DMA 帧布局错了、环形缓冲可见性错了、滑动窗口步长错了……分层之后每层都能独立验证，定位 bug 时按层排查即可。&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
 &lt;h2 id=&#34;二第-1-层i2s-dma-ping-pong-采集&#34;&gt;二、第 1 层：I2S DMA ping-pong 采集
 &lt;/h2&gt;&lt;h3 id=&#34;21-为什么用-16b_extended-而不是-24b32b&#34;&gt;2.1 为什么用 16B_EXTENDED 而不是 24B/32B？
-&lt;/h3&gt;&lt;p&gt;INMP441 是 24-bit MEMS 麦克风，按理说应该用 24 位或 32 位 I2S 格式才&amp;quot;对味&amp;rdquo;。但实际上，micro_speech 模型只需要 16-bit 输入，而 STM32F4 的 I2S 24B/32B 模式会让 DMA 传输 4 个半字（每通道 2 个），多搬一半数据，浪费带宽和 CPU 去交错时间。&lt;/p&gt;
+&lt;/h3&gt;&lt;p&gt;INMP441 是 24-bit MEMS 麦克风，按理说应该用 24 位或 32 位 I2S 格式才&amp;quot;对味&amp;quot;。但实际上，micro_speech 模型只需要 16-bit 输入，而 STM32F4 的 I2S 24B/32B 模式会让 DMA 传输 4 个半字（每通道 2 个），多搬一半数据，浪费带宽和 CPU 去交错时间。&lt;/p&gt;
 &lt;p&gt;&lt;code&gt;16B_EXTENDED&lt;/code&gt; 模式则是一个折中：&lt;strong&gt;32-bit 时隙 + 16-bit 数据&lt;/strong&gt;，每个通道只搬 1 个半字，DMA 拿到的就是已经对齐的 16-bit 样本。&lt;/p&gt;
 &lt;blockquote class=&#34;alert alert-warning&#34;&gt;
     &lt;p&gt;这就是第一个大坑的发源地——STM32N6 原工程&lt;strong&gt;根本不用 I2S&lt;/strong&gt;（用的是 MDF 数字麦克风接口 + BSP 单声道抽象），所以没有去交错逻辑可供参考。在 STM32F4 上新写去交错代码时，对 &lt;code&gt;16B_EXTENDED&lt;/code&gt; 帧布局的误解导致 stride=4 错误。详见 &lt;a class=&#34;link&#34; href=&#34;#51-stride-bug16b_extended-%e5%b8%a7%e5%b8%83%e5%b1%80%e9%99%b7%e9%98%b1&#34; &gt;5.1 节&lt;/a&gt;。&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;22-dma-双缓冲与回调&#34;&gt;2.2 DMA 双缓冲与回调
@@ -578,11 +604,9 @@
 &lt;/div&gt;
 &lt;/div&gt;&lt;blockquote class=&#34;alert alert-important&#34;&gt;
     &lt;p&gt;这是嵌入式 C 最经典的坑之一：&lt;strong&gt;LDREX/STREX 只保证原子性，不保证可见性&lt;/strong&gt;。原子操作解决的是&amp;quot;读-改-写不可分割&amp;quot;，可见性解决的是&amp;quot;修改对其他上下文可见&amp;quot;。两者是正交的概念，缺一不可。&lt;/p&gt;
-&lt;p&gt;在 Linux 内核里 &lt;code&gt;atomic_t&lt;/code&gt; 内部封装了 memory barrier，所以用户不用关心。但 bare-metal 上自己写原子操作，&lt;strong&gt;volatile 仍然必须加&lt;/strong&gt;。&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;53-栈溢出8-kb-都不够&#34;&gt;5.3 栈溢出：8 KB 都不够
-&lt;/h3&gt;&lt;h4 id=&#34;症状-2&#34;&gt;症状
-&lt;/h4&gt;&lt;p&gt;调试前期，系统运行几秒后莫名重启（看门狗复位）。打开调试器发现是 HardFault，跳到 &lt;code&gt;MemManage_Handler&lt;/code&gt;，栈指针跑飞。&lt;/p&gt;
-&lt;h4 id=&#34;根因-2&#34;&gt;根因
-&lt;/h4&gt;&lt;p&gt;&lt;code&gt;audio_frontend_process_frame()&lt;/code&gt; 函数里声明了几个大数组作为局部变量：&lt;/p&gt;
+&lt;p&gt;在 Linux 内核里 &lt;code&gt;atomic_t&lt;/code&gt; 内部封装了 memory barrier，所以用户不用关心。但 bare-metal 上自己写原子操作，&lt;strong&gt;volatile 仍然必须加&lt;/strong&gt;。&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;53-预防性栈优化大数组改-static--栈扩容&#34;&gt;5.3 预防性栈优化：大数组改 static + 栈扩容
+&lt;/h3&gt;&lt;h4 id=&#34;背景&#34;&gt;背景
+&lt;/h4&gt;&lt;p&gt;volatile 修复后系统能跑了。但回头看 &lt;code&gt;audio_frontend_process_frame()&lt;/code&gt; 的代码，发现里面声明了几个大数组作为局部变量：&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
 &lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
 &lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
@@ -593,11 +617,9 @@
 &lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
 &lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
 &lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;8
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;9
 &lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
 &lt;td class=&#34;lntd&#34;&gt;
-&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* ❌ 错误：几百 KB 的局部数组放栈上 */&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;audio_frontend_process_frame&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(...)&lt;/span&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;audio_frontend_process_frame&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(...)&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;window&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;FRAME_LEN&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;           &lt;span class=&#34;cm&#34;&gt;/* 480 × 2 = 960 B */&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;fft_input&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;FFT_LENGTH&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;       &lt;span class=&#34;cm&#34;&gt;/* 512 × 2 = 1024 B */&lt;/span&gt;
@@ -607,10 +629,9 @@
 &lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
 &lt;/div&gt;
-&lt;/div&gt;&lt;p&gt;加起来每帧调用 ~5 KB 栈，加上中断嵌套和其他函数的栈帧，STM32F4 默认的 2 KB 栈瞬间爆掉。&lt;/p&gt;
+&lt;/div&gt;&lt;p&gt;加起来每帧调用 ~5 KB 栈。STM32F4 默认栈只有 2 KB，虽然没观察到明确的栈溢出症状（系统无输出是 volatile 缺失导致的，不是栈），但这个余量太危险——中断嵌套几层就可能爆。作为预防性优化，做了两处修改。&lt;/p&gt;
 &lt;h4 id=&#34;修复-2&#34;&gt;修复
-&lt;/h4&gt;&lt;p&gt;两步走：&lt;/p&gt;
-&lt;ol&gt;
+&lt;/h4&gt;&lt;ol&gt;
 &lt;li&gt;
 &lt;p&gt;&lt;strong&gt;大数组改 &lt;code&gt;static&lt;/code&gt;&lt;/strong&gt;：移到 BSS 段，函数不可重入但本来就是单线程调用，没问题。&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
@@ -647,95 +668,35 @@
 &lt;/div&gt;&lt;/li&gt;
 &lt;/ol&gt;
 &lt;blockquote class=&#34;alert alert-tip&#34;&gt;
-    &lt;p&gt;嵌入式 C 经验法则：&lt;strong&gt;任何超过 256 字节的局部数组都应该改 &lt;code&gt;static&lt;/code&gt;&lt;/strong&gt;。Cortex-M4 的栈本来就小，函数嵌套几层就紧张。&lt;code&gt;static&lt;/code&gt; 的代价是失去可重入性，但 90% 的场景下函数根本不会被并发调用。&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;54-dwt-cyccnt-失效被-cmsis-dsp-静默禁用&#34;&gt;5.4 DWT CYCCNT 失效：被 CMSIS-DSP 静默禁用
-&lt;/h3&gt;&lt;h4 id=&#34;症状-3&#34;&gt;症状
-&lt;/h4&gt;&lt;p&gt;想测试预处理和推理各花多少时间。按标准方法使能 DWT 周期计数器：&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
-&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
-&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
-&lt;td class=&#34;lntd&#34;&gt;
-&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;CoreDebug&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;DEMCR&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;|=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1u&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;24&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;    &lt;span class=&#34;cm&#34;&gt;/* TRCENA */&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;DWT&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CTRL&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;|=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1u&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;            &lt;span class=&#34;cm&#34;&gt;/* CYCCNTENA */&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;DWT&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CYCCNT&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* ... 跑一段代码 ... */&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ticks&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;DWT&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CYCCNT&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;      &lt;span class=&#34;cm&#34;&gt;/* 读出来永远是 0 或固定值 */&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;&lt;p&gt;读出来永远是 0，或者一个不变的固定值。&lt;/p&gt;
-&lt;h4 id=&#34;根因-3&#34;&gt;根因
-&lt;/h4&gt;&lt;p&gt;CMSIS-DSP 的某些函数（比如 &lt;code&gt;arm_rfft_q15&lt;/code&gt;）&lt;strong&gt;内部会修改 DWT CTRL 寄存器&lt;/strong&gt;来给自己做性能分析，调用结束后&lt;strong&gt;不会恢复 CYCCNTENA 位&lt;/strong&gt;，把计数器静默禁用了。&lt;/p&gt;
-&lt;p&gt;所以你的代码先使能 CYCCNT，然后调用 MFCC（里面调了 CMSIS-DSP），计数器就被关掉了，再读 CYCCNT 当然是 0 或固定值。&lt;/p&gt;
-&lt;h4 id=&#34;修复-3&#34;&gt;修复
-&lt;/h4&gt;&lt;p&gt;放弃 DWT，改用 TIM5（32-bit 定时器，APB1 时钟 84 MHz）：&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
-&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
-&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
-&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;21
-&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
-&lt;td class=&#34;lntd&#34;&gt;
-&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define TIM5_TIMER_CLOCK 84000000U
-&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;timing_init&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;__HAL_RCC_TIM5_CLK_ENABLE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;TIM5&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;PSC&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;            &lt;span class=&#34;cm&#34;&gt;/* 不分频，84 MHz 计数 */&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;TIM5&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ARR&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mh&#34;&gt;0xFFFFFFFFU&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;  &lt;span class=&#34;cm&#34;&gt;/* 32-bit 最大周期 */&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;TIM5&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CNT&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;TIM5&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CR1&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;TIM_CR1_CEN&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kr&#34;&gt;inline&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;float&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;ticks_to_us&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;ticks&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;float&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ticks&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;mf&#34;&gt;1000000.0f&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;/&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;float&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;TIM5_TIMER_CLOCK&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* 用法 */&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;t0&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;TIM5&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CNT&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nf&#34;&gt;run_inference&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;t1&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;TIM5&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CNT&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nf&#34;&gt;printf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;inf_us = %.1f&lt;/span&gt;&lt;span class=&#34;se&#34;&gt;\r\n&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;ticks_to_us&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;t1&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;t0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;));&lt;/span&gt;
-&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
-&lt;/div&gt;
-&lt;/div&gt;&lt;p&gt;TIM5 是独立的硬件定时器，CMSIS-DSP 改不到它。&lt;/p&gt;
-&lt;blockquote class=&#34;alert alert-warning&#34;&gt;
-    &lt;p&gt;不要相信&amp;quot;标准&amp;quot;性能测量方法在所有工程里都有效。一旦引入了第三方库（特别是 CMSIS-DSP 这种&amp;quot;上帝库&amp;quot;），它可能改你不知道的寄存器。实测永远比记忆可靠。&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;55-kws-误报up-的-int8-score-天生偏低&#34;&gt;5.5 KWS 误报：up 的 int8 score 天生偏低
-&lt;/h3&gt;&lt;h4 id=&#34;症状-4&#34;&gt;症状
-&lt;/h4&gt;&lt;p&gt;环境噪音被识别成 &lt;code&gt;up&lt;/code&gt;，score 15&lt;del&gt;18，连续多次触发。但真说 &amp;ldquo;up&amp;rdquo; 时 score 也只有 22&lt;/del&gt;23，和噪音误报重叠，单纯提高阈值没法区分。&lt;/p&gt;
+    &lt;p&gt;嵌入式 C 经验法则：&lt;strong&gt;任何超过 256 字节的局部数组都应该改 &lt;code&gt;static&lt;/code&gt;&lt;/strong&gt;。Cortex-M4 的栈本来就小，函数嵌套几层就紧张。&lt;code&gt;static&lt;/code&gt; 的代价是失去可重入性，但 90% 的场景下函数根本不会被并发调用。&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;54-kws-误报up-的-int8-score-天生偏低&#34;&gt;5.4 KWS 误报：up 的 int8 score 天生偏低
+&lt;/h3&gt;&lt;h4 id=&#34;症状-2&#34;&gt;症状
+&lt;/h4&gt;&lt;p&gt;&lt;img src=&#34;https://lingsir007.netlify.app/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C.png&#34;
+	width=&#34;1666&#34;
+	height=&#34;1012&#34;
+	srcset=&#34;https://lingsir007.netlify.app/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C_hu_869583ddc65e5b71.png 480w, https://lingsir007.netlify.app/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C_hu_aa08f257e238c416.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;电脑风扇噪声被误识别为 up&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;164&#34;
+		data-flex-basis=&#34;395px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;上图是系统稳定运行后的串口输出示例。即使没有说话，电脑风扇或环境噪声也会触发误识别（这里是 &lt;code&gt;up&lt;/code&gt;），score 在 15~18 之间。&lt;/p&gt;
+&lt;p&gt;环境噪音被识别成 &lt;code&gt;up&lt;/code&gt;，score 15-18，连续多次触发。但真说 &amp;ldquo;up&amp;rdquo; 时 score 也只有 22-23，和噪音误报重叠，单纯提高阈值没法区分。&lt;/p&gt;
 &lt;p&gt;更恶心的是，第一版 KWS 后处理里 cooldown 是 per-word 的，结果中间穿插的 &lt;code&gt;wow&lt;/code&gt;、&lt;code&gt;follow&lt;/code&gt; 误识别会重置 &lt;code&gt;up&lt;/code&gt; 的冷却计数器，让 &lt;code&gt;up&lt;/code&gt; 连续触发 9 次。&lt;/p&gt;
-&lt;h4 id=&#34;根因-4&#34;&gt;根因
+&lt;h4 id=&#34;根因-2&#34;&gt;根因
 &lt;/h4&gt;&lt;ol&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;strong&gt;模型本身问题&lt;/strong&gt;：micro_speech 的 int8 量化让 &lt;code&gt;up&lt;/code&gt; 这个词的 logit 天生偏低（22&lt;del&gt;23），与噪音误报（15&lt;/del&gt;18）只差 5。这种重叠是模型量化损失，软件层面无解。&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;模型本身问题&lt;/strong&gt;：micro_speech 的 int8 量化让 &lt;code&gt;up&lt;/code&gt; 这个词的 logit 天生偏低（22-23），与噪音误报（15-18）只差 5。这种重叠是模型量化损失，软件层面无解。&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
 &lt;p&gt;&lt;strong&gt;后处理设计缺陷&lt;/strong&gt;：per-word cooldown 假设不同词之间独立，但实际上一个长音节可能跨越多个滑动窗口，被模型分段识别成不同词（&amp;ldquo;foll&amp;rdquo; → follow，&amp;ldquo;ow&amp;rdquo; → wow），这些中间词会重置目标词的冷却。&lt;/p&gt;
 &lt;/li&gt;
 &lt;/ol&gt;
-&lt;h4 id=&#34;修复-4&#34;&gt;修复
+&lt;h4 id=&#34;修复-3&#34;&gt;修复
 &lt;/h4&gt;&lt;p&gt;KWS 后处理四件套：&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
 &lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
@@ -828,12 +789,12 @@
 &lt;li&gt;&lt;strong&gt;过滤 silence/unknown&lt;/strong&gt;：这两个标签会刷屏（噪音环境下 score 50+），对用户没用，直接丢弃。&lt;/li&gt;
 &lt;/ul&gt;
 &lt;blockquote class=&#34;alert alert-note&#34;&gt;
-    &lt;p&gt;模型本身的 score 重叠问题，软件没法完全解决。如果想根治，要么换更大的模型，要么做 fine-tune 时加更多 &lt;code&gt;up&lt;/code&gt; 的负样本（噪音）。本文方案是把误报频率从&amp;quot;每秒 5 次&amp;quot;降到&amp;quot;每几秒一次&amp;quot;，工程上可接受。&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;56-kernel_utilcpp-的隐藏依赖&#34;&gt;5.6 kernel_util.cpp 的隐藏依赖
-&lt;/h3&gt;&lt;h4 id=&#34;症状-5&#34;&gt;症状
+    &lt;p&gt;模型本身的 score 重叠问题，软件没法完全解决。如果想根治，要么换更大的模型，要么做 fine-tune 时加更多 &lt;code&gt;up&lt;/code&gt; 的负样本（噪音）。本文方案是把误报频率从&amp;quot;每秒 5 次&amp;quot;降到&amp;quot;每几秒一次&amp;quot;，工程上可接受。&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;55-kernel_utilcpp-的隐藏依赖&#34;&gt;5.5 kernel_util.cpp 的隐藏依赖
+&lt;/h3&gt;&lt;h4 id=&#34;症状-3&#34;&gt;症状
 &lt;/h4&gt;&lt;p&gt;链接时报 &lt;code&gt;undefined reference to tflite::...&lt;/code&gt; 一堆错误，全是 &lt;code&gt;kernel_util.cpp&lt;/code&gt; 里的符号。&lt;/p&gt;
-&lt;h4 id=&#34;根因-5&#34;&gt;根因
+&lt;h4 id=&#34;根因-3&#34;&gt;根因
 &lt;/h4&gt;&lt;p&gt;TFLite Micro 的 &lt;code&gt;kernel_util.cpp&lt;/code&gt; 依赖 upstream TensorFlow Lite 的 &lt;code&gt;array.h&lt;/code&gt; 和 &lt;code&gt;array.cc&lt;/code&gt;，这两个文件在 TFLM 的 &lt;code&gt;tensorflow/lite/&lt;/code&gt; 目录下，但默认不会被 TFLM 的 CMakeLists 收集进来。&lt;/p&gt;
-&lt;h4 id=&#34;修复-5&#34;&gt;修复
+&lt;h4 id=&#34;修复-4&#34;&gt;修复
 &lt;/h4&gt;&lt;p&gt;在 CMakeLists.txt 显式加上：&lt;/p&gt;
 &lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
 &lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
@@ -1094,9 +1055,127 @@
 &lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
 &lt;/div&gt;
 &lt;/div&gt;&lt;p&gt;注意 &lt;code&gt;-O3 -flto&lt;/code&gt; 也是 5.2 节 volatile 坑的&amp;quot;元凶&amp;quot;——优化越激进，对可见性要求越严格。但只要正确加了 &lt;code&gt;volatile&lt;/code&gt;，激进优化是好事，MFCC 预处理时间从 -O2 的 60 ms 降到 -O3 的 35 ms。&lt;/p&gt;
+&lt;h3 id=&#34;84-内存布局优化ccmram-充分利用&#34;&gt;8.4 内存布局优化：CCMRAM 充分利用
+&lt;/h3&gt;&lt;p&gt;STM32F407 除了 128 KB 主 RAM，还有 64 KB CCMRAM（Core Coupled Memory，CPU 专用紧耦合内存）。CCMRAM 的特点：&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;零等待访问&lt;/strong&gt;：CPU 专用，无 DMA 仲裁延迟，访问速度更快&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;DMA 无法访问&lt;/strong&gt;：不能放 DMA 缓冲，但纯 CPU 数据随便放&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;独立的地址空间&lt;/strong&gt;：0x10000000 开始，不占用主 RAM 空间&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;本工程把两个大缓冲都放进了 CCMRAM：&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* 环形缓冲 backing store（CPU-only，25.6 KB）*/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s_ring_backing&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;AS_RING_NB_SAMPLES&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AS_RING_NB_FRAMES&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nf&#34;&gt;__attribute__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;((&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;section&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;.ccmram&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)));&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* MFCC 滑动窗口上下文（CPU-only，~8 KB）*/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AudioFrontendStream&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;g_stream&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;__attribute__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;((&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;section&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;.ccmram&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)));&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;编译后的内存分布：&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;区域&lt;/th&gt;
+					&lt;th&gt;使用量&lt;/th&gt;
+					&lt;th&gt;总量&lt;/th&gt;
+					&lt;th&gt;占比&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;RAM&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;50576 B&lt;/td&gt;
+					&lt;td&gt;112 KB&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;44.1%&lt;/strong&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;CCMRAM&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;63144 B&lt;/td&gt;
+					&lt;td&gt;64 KB&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;96.4%&lt;/strong&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;FLASH&lt;/td&gt;
+					&lt;td&gt;348684 B&lt;/td&gt;
+					&lt;td&gt;1 MB&lt;/td&gt;
+					&lt;td&gt;33.2%&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;RAM 占用大头（50.6 KB）：&lt;/strong&gt;&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;数据结构&lt;/th&gt;
+					&lt;th&gt;大小&lt;/th&gt;
+					&lt;th&gt;占比&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;pool0&lt;/code&gt;（模型激活缓冲）&lt;/td&gt;
+					&lt;td&gt;25.4 KB&lt;/td&gt;
+					&lt;td&gt;50.3%&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;g_slide_buf&lt;/code&gt;（滑动缓冲）&lt;/td&gt;
+					&lt;td&gt;6.4 KB&lt;/td&gt;
+					&lt;td&gt;12.7%&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;其他 .bss/.data&lt;/td&gt;
+					&lt;td&gt;18.8 KB&lt;/td&gt;
+					&lt;td&gt;37.0%&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;CCMRAM 占用大头（63.1 KB）：&lt;/strong&gt;&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;数据结构&lt;/th&gt;
+					&lt;th&gt;大小&lt;/th&gt;
+					&lt;th&gt;说明&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;s_ring_backing&lt;/code&gt;（环形缓冲）&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;25.6 KB&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;从 RAM 移入，节省 22.6% RAM&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;g_stream&lt;/code&gt;（滑动窗口）&lt;/td&gt;
+					&lt;td&gt;~8 KB&lt;/td&gt;
+					&lt;td&gt;1 秒音频窗口 + MFCC 中间缓冲&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;s_mono&lt;/code&gt;（DMA 临时）&lt;/td&gt;
+					&lt;td&gt;320 B&lt;/td&gt;
+					&lt;td&gt;单声道去交错缓冲&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;其他缓冲&lt;/td&gt;
+					&lt;td&gt;~29 KB&lt;/td&gt;
+					&lt;td&gt;音频前端静态数组等&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;环形缓冲移到 CCMRAM 是后期优化。初期为了避免踩坑，先放主 RAM，等系统稳定后再搬迁。搬迁时只需加一行 &lt;code&gt;__attribute__((section(&amp;quot;.ccmram&amp;quot;)))&lt;/code&gt;，零风险——因为环形缓冲只有 CPU 访问，DMA 从不碰它。&lt;/p&gt;&lt;/blockquote&gt;&lt;p&gt;如果把环形缓冲留在主 RAM，RAM 占用会是 66.7%（76.2 KB），留给栈/堆的空间更紧张。搬到 CCMRAM 后，RAM 余量从 35.8 KB 提升到 61.4 KB，为将来加模型或功能留出更多空间。&lt;/p&gt;
 &lt;hr&gt;
 &lt;h2 id=&#34;九踩坑总结表&#34;&gt;九、踩坑总结表
-&lt;/h2&gt;&lt;p&gt;把六个坑汇总成一张表，方便回顾：&lt;/p&gt;
+&lt;/h2&gt;&lt;p&gt;把五个坑汇总成一张表，方便回顾：&lt;/p&gt;
 &lt;table&gt;
 	&lt;thead&gt;
 			&lt;tr&gt;
@@ -1124,27 +1203,20 @@
 			&lt;/tr&gt;
 			&lt;tr&gt;
 					&lt;td&gt;3&lt;/td&gt;
-					&lt;td&gt;栈溢出&lt;/td&gt;
-					&lt;td&gt;HardFault / 看门狗复位&lt;/td&gt;
-					&lt;td&gt;MFCC 大数组放栈上，2 KB 栈不够&lt;/td&gt;
+					&lt;td&gt;栈余量不足&lt;/td&gt;
+					&lt;td&gt;预防性优化（未观察到明确症状）&lt;/td&gt;
+					&lt;td&gt;MFCC 大数组放栈上，默认 2 KB 栈余量危险&lt;/td&gt;
 					&lt;td&gt;数组改 &lt;code&gt;static&lt;/code&gt;，栈 2 KB → 8 KB&lt;/td&gt;
 			&lt;/tr&gt;
 			&lt;tr&gt;
 					&lt;td&gt;4&lt;/td&gt;
-					&lt;td&gt;DWT CYCCNT 失效&lt;/td&gt;
-					&lt;td&gt;计数器读出固定值&lt;/td&gt;
-					&lt;td&gt;CMSIS-DSP 内部禁用了 CYCCNTENA&lt;/td&gt;
-					&lt;td&gt;改用 TIM5 (32-bit, 84 MHz)&lt;/td&gt;
-			&lt;/tr&gt;
-			&lt;tr&gt;
-					&lt;td&gt;5&lt;/td&gt;
 					&lt;td&gt;KWS 误报&lt;/td&gt;
 					&lt;td&gt;噪音识别成 up，连续触发&lt;/td&gt;
 					&lt;td&gt;per-word 冷却被中间词重置 + score 重叠&lt;/td&gt;
 					&lt;td&gt;全局冷却 + N-in-M + score 阈值 + 过滤 silence&lt;/td&gt;
 			&lt;/tr&gt;
 			&lt;tr&gt;
-					&lt;td&gt;6&lt;/td&gt;
+					&lt;td&gt;5&lt;/td&gt;
 					&lt;td&gt;kernel_util.cpp 链接错&lt;/td&gt;
 					&lt;td&gt;&lt;code&gt;undefined reference&lt;/code&gt;&lt;/td&gt;
 					&lt;td&gt;TFLM 漏了 &lt;code&gt;array.cc&lt;/code&gt; 隐藏依赖&lt;/td&gt;
@@ -1169,9 +1241,6 @@
 &lt;p&gt;&lt;strong&gt;大数组默认 &lt;code&gt;static&lt;/code&gt;&lt;/strong&gt;。嵌入式 C 的黄金法则，能避免 80% 的栈溢出问题。&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
-&lt;p&gt;&lt;strong&gt;不要相信&amp;quot;标准&amp;quot;性能测量&lt;/strong&gt;。DWT、SysTick、PMU 这些&amp;quot;标准&amp;quot;计数器，在引入第三方库后可能被静默修改。硬件定时器（TIMx）是独立外设，最可靠。&lt;/p&gt;
-&lt;/li&gt;
-&lt;li&gt;
 &lt;p&gt;&lt;strong&gt;模型量化损失无法用软件完全弥补&lt;/strong&gt;。int8 量化后某些类的 score 天生偏低（如本文的 &lt;code&gt;up&lt;/code&gt;），与噪音误报重叠。KWS 后处理只能降低误报频率，不能根治。要根治得换模型或加 fine-tune 负样本。&lt;/p&gt;
 &lt;/li&gt;
 &lt;li&gt;
@@ -1183,10 +1252,13 @@
 &lt;/ol&gt;
 &lt;hr&gt;
 &lt;h2 id=&#34;结语&#34;&gt;结语
-&lt;/h2&gt;&lt;p&gt;这个工程从&amp;quot;能跑但乱识别&amp;quot;到&amp;quot;流式稳定识别&amp;quot;，前前后后踩了六个坑，每个坑都是一两个小时。但回头看，每个坑都教会了我一条&lt;strong&gt;底层原理&lt;/strong&gt;——I2S 帧布局、内存可见性、栈管理、外设冲突、模型量化、依赖管理。这些原理换芯片、换工程都用得上。&lt;/p&gt;
+&lt;/h2&gt;&lt;p&gt;这个工程从&amp;quot;能跑但乱识别&amp;quot;到&amp;quot;流式稳定识别&amp;quot;，前前后后踩了五个坑，每个坑都是一两个小时。但回头看，每个坑都教会了我一条&lt;strong&gt;底层原理&lt;/strong&gt;——I2S 帧布局、内存可见性、栈管理、模型量化、依赖管理。这些原理换芯片、换工程都用得上。&lt;/p&gt;
 &lt;p&gt;写这篇文章的初衷，就是希望后来人能少绕几圈。如果按本文的架构和注意事项来，从零搭一个 STM32F4 + TFLM 流式 KWS，应该半天就能跑通。&lt;/p&gt;
 &lt;p&gt;完整工程文件结构：&lt;/p&gt;
-&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+
+&lt;details&gt;
+	&lt;summary&gt;Details&lt;/summary&gt;
+	&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
 &lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
 &lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
 &lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
@@ -1198,21 +1270,139 @@
 &lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
 &lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
 &lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;21
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;22
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;23
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;24
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;25
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;26
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;27
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;28
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;29
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;30
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;31
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;32
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;33
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;34
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;35
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;36
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;37
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;38
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;39
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;40
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;41
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;42
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;43
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;44
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;45
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;46
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;47
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;48
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;49
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;50
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;51
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;52
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;53
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;54
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;55
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;56
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;57
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;58
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;59
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;60
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;61
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;62
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;63
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;64
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;65
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;66
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;67
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;68
 &lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
 &lt;td class=&#34;lntd&#34;&gt;
-&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;STM32F407VGT6_TensorFlow-Lite-Micro/
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;├── audio/                  # ← 模块化音频链路
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│   ├── capture/            #   I2S DMA + 环形缓冲
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│   ├── frontend/           #   MFCC 滑动窗口
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│   └── kws/                #   KWS 后处理
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;├── X-CUBE-AI/App/          # ← CubeMX 模板（推理入口）
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;├── Core/                   # ← CubeMX 生成
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;├── Drivers/                # ← HAL + CMSIS
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;├── stm32f4_tflm_project/   # ← TFLM 源码
-&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;└── CMakeLists.txt          # ← 构建配置
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-gdscript3&#34; data-lang=&#34;gdscript3&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;STM32F407VGT6_TensorFlow&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Lite&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Micro&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;capture&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_capture_ring_buff&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_capture_ring_buff&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_stream&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_stream&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;frontend&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_frontend&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_frontend&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_params&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mel_filterbank_data&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;kws&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;kws_postprocess&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;kws_postprocess&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Debug&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;STM32F407VGT6_TensorFlow&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Lite&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Micro&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;bin&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;STM32F407VGT6_TensorFlow&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Lite&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Micro&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hex&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;编译产物&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;cmake&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stm32cubemx&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CMakeLists&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;txt&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CubeMX&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;生成&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Core&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Inc&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;gpio&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i2s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;usart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CubeMX&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;生成&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Src&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;gpio&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i2s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;usart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stm32f4xx_it&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CubeMX&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;生成&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Drivers&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CMSIS&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;STM32F4xx_HAL_Driver&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;HAL&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CMSIS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stm32f4_tflm_project&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;tensorflow&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;lite&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;micro&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;kernels&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;arena_allocator&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;memory_planner&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;TFLM&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;核心&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;core&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;signal&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;micro&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;kernels&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;src&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;third_party&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;cmsis_nn&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;kissfft&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;flatbuffers&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;TFLM&lt;/span&gt; &lt;span class=&#34;err&#34;&gt;源码&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;X&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CUBE&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;AI&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;App&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;app_x&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cube&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ai&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;app_x&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cube&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ai&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;micro_speech&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CMakeLists&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;txt&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;STM32F407XX_FLASH&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ld&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stm32f4_tflm_project&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;md&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;配置文件&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
 &lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
 &lt;/div&gt;
-&lt;/div&gt;&lt;p&gt;感谢阅读。如果踩过相同的坑，欢迎交流；如果正在踩坑，希望本文能给你一点启发。&lt;/p&gt;
+&lt;/div&gt;&lt;/details&gt;
+
+&lt;p&gt;感谢阅读。如果踩过相同的坑，欢迎交流；如果正在踩坑，希望本文能给你一点启发。&lt;/p&gt;
 </description>
         </item>
         <item>

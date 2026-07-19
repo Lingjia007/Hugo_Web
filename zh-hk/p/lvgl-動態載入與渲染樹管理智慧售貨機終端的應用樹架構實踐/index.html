@@ -10,7 +10,7 @@
 <meta property='og:description' content="基於立創·衡山派D133EBS開發板 + LVGL v9 + RT-Thread 的智慧售貨機終端，深入剖析應用樹（layout_node）如何管理 LVGL 渲染樹，涵蓋組合模式雙樹映射、Wrap 橋接機制、策略驅動的 Flex/Grid 佈局、控件工廠動態創建、事件驅動熱更新、靜態骨架到動態元件的替換流程等核心技術詳解">
 <meta property='og:url' content='https://lingsir007.netlify.app/zh-hk/p/lvgl-%E5%8B%95%E6%85%8B%E8%BC%89%E5%85%A5%E8%88%87%E6%B8%B2%E6%9F%93%E6%A8%B9%E7%AE%A1%E7%90%86%E6%99%BA%E6%85%A7%E5%94%AE%E8%B2%A8%E6%A9%9F%E7%B5%82%E7%AB%AF%E7%9A%84%E6%87%89%E7%94%A8%E6%A8%B9%E6%9E%B6%E6%A7%8B%E5%AF%A6%E8%B8%90/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='售貨機' /><meta property='article:tag' content='嵌入式UI' /><meta property='article:tag' content='設計模式' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-18T03:51:42&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='LVGL' /><meta property='article:tag' content='RT-Thread' /><meta property='article:tag' content='ArtInChip' /><meta property='article:tag' content='售貨機' /><meta property='article:tag' content='嵌入式UI' /><meta property='article:tag' content='設計模式' /><meta property='article:published_time' content='2026-07-02T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-19T13:28:50&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
 <meta name="twitter:title" content="LVGL 動態載入與渲染樹管理：智慧售貨機終端的應用樹架構實踐">
 <meta name="twitter:description" content="基於立創·衡山派D133EBS開發板 + LVGL v9 + RT-Thread 的智慧售貨機終端，深入剖析應用樹（layout_node）如何管理 LVGL 渲染樹，涵蓋組合模式雙樹映射、Wrap 橋接機制、策略驅動的 Flex/Grid 佈局、控件工廠動態創建、事件驅動熱更新、靜態骨架到動態元件的替換流程等核心技術詳解"><meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content='https://lingsir007.netlify.app/p/lvgl-%E5%8A%A8%E6%80%81%E5%8A%A0%E8%BD%BD%E4%B8%8E%E6%B8%B2%E6%9F%93%E6%A0%91%E7%AE%A1%E7%90%86%E6%99%BA%E8%83%BD%E5%94%AE%E8%B4%A7%E6%9C%BA%E7%BB%88%E7%AB%AF%E7%9A%84%E5%BA%94%E7%94%A8%E6%A0%91%E6%9E%B6%E6%9E%84%E5%AE%9E%E8%B7%B5/smart-vending-terminal.png' />
@@ -410,6 +410,8 @@
         <li><a href="#132-api-介面">13.2 API 介面</a></li>
         <li><a href="#133-安全措施">13.3 安全措施</a></li>
         <li><a href="#134-配置熱更新">13.4 配置熱更新</a></li>
+        <li><a href="#135-商品與導航分類系統">13.5 商品與導航分類系統</a></li>
+        <li><a href="#136-原始碼目錄組織">13.6 原始碼目錄組織</a></li>
       </ol>
     </li>
     <li><a href="#十四非同步載入機制">十四、非同步載入機制</a></li>
@@ -488,12 +490,12 @@
         <div class="article-lastmod">
                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
                 <time>
-                    Jul 18, 2026 03:51 &#43;0800
+                    Jul 19, 2026 13:28 &#43;0800
                 </time>
             </div><div id="wordCount">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
             <time class="article-wordcount">
-                9896  字
+                10833  字
             </time>
         </div>
 
@@ -2384,7 +2386,7 @@
 	
 ></p>
 <blockquote class="alert alert-note">
-    <p>想要查看原始碼？<a class="link" href="https://gitee.com/ling-sir007/luban-lite/blob/master/packages/artinchip/lvgl-ui/aic_demo/my_custom_init/web_config.html"  target="_blank" rel="noopener"
+    <p>想要查看原始碼？<a class="link" href="https://gitee.com/ling-sir007/luban-lite/blob/master/packages/artinchip/lvgl-ui/aic_demo/vending_demo/config/web_config.html"  target="_blank" rel="noopener"
     >web_config.html</a></p></blockquote><h3 id="131-架構">13.1 架構
 </h3><p>設備啟動 WiFi AP（SSID: <code>AIC-Banner-Config</code>，密碼: <code>12345678</code>，信道 6），IP 位址 192.168.1.1，執行 DHCP 伺服器，在 80 埠啟動 Mongoose HTTP 伺服器。</p>
 <h3 id="132-api-介面">13.2 API 介面
@@ -2463,6 +2465,168 @@
 <li>同時將 JSON 儲存到 SD 卡檔案實現持久化</li>
 <li>LVGL 計時器 200ms 輪詢偵測標誌 → 發布事件 → 各元件執行熱更新</li>
 </ol>
+<h3 id="135-商品與導航分類系統">13.5 商品與導航分類系統
+</h3><p>商品卡片的 <code>tag</code> 和 <code>navi_tag</code> 是兩個獨立維度，分別服務於不同目的：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>欄位</th>
+					<th>用途</th>
+					<th>取值範圍</th>
+					<th>來源</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>tag</code></td>
+					<td>商品卡片左上角<strong>顯示圖示</strong></td>
+					<td><code>hot</code>/<code>new</code>/<code>recommend</code>/<code>none</code></td>
+					<td>Web 配置手動選擇</td>
+			</tr>
+			<tr>
+					<td><code>navi_tag</code></td>
+					<td>導航欄<strong>分類篩選</strong>歸屬</td>
+					<td>各手動建立的 navi 項 tag</td>
+					<td>Web 配置分類下拉</td>
+			</tr>
+	</tbody>
+</table></div>
+<p><strong>導航項管理規則</strong>：</p>
+<ol>
+<li>預設存在「全部」項（tag=<code>all</code>），不可刪除、不可編輯</li>
+<li>使用者手動新增導航項（最多 10 個），tag 由 label 自動產生（如 label=&ldquo;飲料&rdquo; → tag=&ldquo;飲料&rdquo;）</li>
+<li>導航項變更（增/刪/改）時，立即重新整理商品卡片的分類下拉選項</li>
+</ol>
+<p><strong>商品卡片分類歸屬</strong>：</p>
+<ul>
+<li>每個商品卡片在 Web 配置頁面中顯示「分類」下拉框，選項為目前所有 navi 項（排除「全部」），外加「無」選項</li>
+<li>選擇後寫入 <code>navi_tag</code> 欄位，用於執行時篩選</li>
+<li>點擊導航欄某項時，<code>commodity_apply_filter()</code> 按 <code>navi_tag</code> 過濾商品列表</li>
+</ul>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* commodity_card_priv_t 中的關鍵欄位 */</span>
+</span></span><span class="line"><span class="cl"><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="c1">// ...
+</span></span></span><span class="line"><span class="cl">    <span class="kt">commodity_tag_t</span> <span class="n">tag</span><span class="p">;</span>       <span class="cm">/* 顯示圖示：熱賣/新品/推薦/無 */</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">char</span> <span class="n">navi_tag</span><span class="p">[</span><span class="mi">32</span><span class="p">];</span>         <span class="cm">/* 導航分類標籤，用於篩選 */</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="kt">commodity_card_priv_t</span><span class="p">;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>執行時篩選邏輯</strong>（<code>commodity_apply_filter</code>）：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* 按 navi_tag 過濾商品 */</span>
+</span></span><span class="line"><span class="cl"><span class="n">cJSON</span> <span class="o">*</span><span class="n">filtered</span> <span class="o">=</span> <span class="nf">cJSON_CreateArray</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="n">count</span> <span class="o">=</span> <span class="nf">cJSON_GetArraySize</span><span class="p">(</span><span class="n">items</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">count</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cJSON</span> <span class="o">*</span><span class="n">item</span> <span class="o">=</span> <span class="nf">cJSON_GetArrayItem</span><span class="p">(</span><span class="n">items</span><span class="p">,</span> <span class="n">i</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="n">cJSON</span> <span class="o">*</span><span class="n">navi_tag</span> <span class="o">=</span> <span class="nf">cJSON_GetObjectItem</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="s">&#34;navi_tag&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="nf">cJSON_IsString</span><span class="p">(</span><span class="n">navi_tag</span><span class="p">)</span> <span class="o">&amp;&amp;</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">strcmp</span><span class="p">(</span><span class="n">navi_tag</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">,</span> <span class="n">filter_tag</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="nf">cJSON_AddItemToArray</span><span class="p">(</span><span class="n">filtered</span><span class="p">,</span> <span class="nf">cJSON_Duplicate</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="mi">1</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>資料繫結安全性</strong>：當商品卡片欄位為空時，必須清除舊的顯示值，避免殘影：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* 圖片為空時清空舊值 */</span>
+</span></span><span class="line"><span class="cl"><span class="n">cJSON</span> <span class="o">*</span><span class="n">image</span> <span class="o">=</span> <span class="nf">cJSON_GetObjectItem</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s">&#34;image&#34;</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="p">(</span><span class="nf">cJSON_IsString</span><span class="p">(</span><span class="n">image</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="n">image</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="sc">&#39;\0&#39;</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_img_set_src</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">img</span><span class="p">,</span> <span class="n">image</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">strncpy</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">image</span><span class="p">,</span> <span class="n">image</span><span class="o">-&gt;</span><span class="n">valuestring</span><span class="p">,</span> <span class="k">sizeof</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">image</span><span class="p">)</span> <span class="o">-</span> <span class="mi">1</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">lv_img_set_src</span><span class="p">(</span><span class="n">p</span><span class="o">-&gt;</span><span class="n">img</span><span class="p">,</span> <span class="nb">NULL</span><span class="p">);</span>   <span class="cm">/* 清除殘影 */</span>
+</span></span><span class="line"><span class="cl">    <span class="n">p</span><span class="o">-&gt;</span><span class="n">image</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="sc">&#39;\0&#39;</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="136-原始碼目錄組織">13.6 原始碼目錄組織
+</h3><p>原始碼從扁平的 <code>my_custom_init/</code> 重構為按功能分類的 <code>vending_demo/</code> 目錄樹：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="n">vending_demo</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">core</span><span class="o">/</span>          <span class="c1"># event_bus.c/h, async_loader.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">layout</span><span class="o">/</span>        <span class="c1"># layout_node.c/h, layout_strategy.c/h, widget_factory.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">banner</span><span class="o">/</span>        <span class="c1"># banner_item.c/h, banner_carousel.c/h, banner_types.h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">commodity</span><span class="o">/</span>     <span class="c1"># commodity_card.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">cart</span><span class="o">/</span>          <span class="c1"># cart_item.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">navi</span><span class="o">/</span>          <span class="c1"># navi_item.c/h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">config</span><span class="o">/</span>        <span class="c1"># web_config.c/h, web_config.html → web_config_html.c</span>
+</span></span><span class="line"><span class="cl"><span class="err">└──</span> <span class="n">payment</span><span class="o">/</span>       <span class="c1"># uart3_payment.c/h, qr_scanner.c/h</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>SConscript 使用 <code>os.walk()</code> 遞迴掃描 <code>vending_demo/</code> 及其子目錄，收集 <code>.c</code> 檔案和標頭檔路徑：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-python" data-lang="python"><span class="line"><span class="cl"><span class="n">vending_path</span> <span class="o">=</span> <span class="n">cwd</span> <span class="o">+</span> <span class="s1">&#39;/vending_demo&#39;</span>
+</span></span><span class="line"><span class="cl"><span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">vending_path</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">root</span><span class="p">,</span> <span class="n">dirs</span><span class="p">,</span> <span class="n">files</span> <span class="ow">in</span> <span class="n">os</span><span class="o">.</span><span class="n">walk</span><span class="p">(</span><span class="n">vending_path</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">        <span class="n">rela_path</span> <span class="o">=</span> <span class="n">root</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">cwd</span> <span class="o">+</span> <span class="s1">&#39;/&#39;</span><span class="p">,</span> <span class="s1">&#39;&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="n">src</span> <span class="o">=</span> <span class="n">src</span> <span class="o">+</span> <span class="n">Glob</span><span class="p">(</span><span class="n">rela_path</span> <span class="o">+</span> <span class="s1">&#39;/*.c&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">        <span class="k">if</span> <span class="n">check_h_hpp_exist</span><span class="p">(</span><span class="n">root</span><span class="p">):</span>
+</span></span><span class="line"><span class="cl">            <span class="n">inc</span> <span class="o">=</span> <span class="n">inc</span> <span class="o">+</span> <span class="p">[</span><span class="n">root</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="n">html_src</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cwd</span><span class="p">,</span> <span class="s1">&#39;vending_demo&#39;</span><span class="p">,</span> <span class="s1">&#39;config&#39;</span><span class="p">,</span> <span class="s1">&#39;web_config.html&#39;</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">html_c</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cwd</span><span class="p">,</span> <span class="s1">&#39;vending_demo&#39;</span><span class="p">,</span> <span class="s1">&#39;config&#39;</span><span class="p">,</span> <span class="s1">&#39;web_config_html.c&#39;</span><span class="p">)</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>web_config_html.c</code> 由 <code>web_config.html</code> 在建構時自動產生，包含嵌入式 HTML 字串常數，供 Mongoose HTTP 伺服器直接回傳，無需檔案系統讀取。</p>
 <hr>
 <h2 id="十四非同步載入機制">十四、非同步載入機制
 </h2><p>基於 RT-Thread 執行緒 + 雙訊息佇列實現：</p>
@@ -2526,6 +2690,12 @@
 <li>
 <p><strong>攝像頭視圖硬體加速</strong>：DVP 緩衝區零拷貝推送到視頻層，UI 層半透明實現畫中畫效果。</p>
 </li>
+<li>
+<p><strong>tag/navi_tag 雙維度分類</strong>：tag 控制商品卡片顯示圖示，navi_tag 控制導航欄篩選歸屬，兩個維度獨立管理、互不干擾，分類變更即時重新整理商品選項。</p>
+</li>
+<li>
+<p><strong>遞迴目錄建構</strong>：SConscript 透過 <code>os.walk()</code> 遞迴掃描 <code>vending_demo/</code> 子目錄，支援按功能歸檔的目錄結構，<code>web_config_html.c</code> 建構時自動產生。</p>
+</li>
 </ol>
 
 </section>
@@ -2572,7 +2742,7 @@
 
 
         <span>
-            上次改過於 Jul 18, 2026 03:51 &#43;0800
+            上次改過於 Jul 19, 2026 13:28 &#43;0800
         </span>
     </section></footer>
 
@@ -2787,7 +2957,7 @@
             
                 
             
-        本網站已穩定運行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;總計<span id="articleCount">&lt; 9 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 55.16 k ></span>字
+        本網站已穩定運行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;總計<span id="articleCount">&lt; 9 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 56.10 k ></span>字
     </section>
     <section class="powerby">
         使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 構建 <br />
