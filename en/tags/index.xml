@@ -7,7 +7,119 @@
         <generator>Hugo -- gohugo.io</generator>
         <language>en</language>
         <copyright>lingsir007</copyright>
-        <lastBuildDate>Tue, 21 Jul 2026 20:38:44 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/en/tags/index.xml" rel="self" type="application/rss+xml" /><item>
+        <lastBuildDate>Wed, 22 Jul 2026 10:33:36 +0800</lastBuildDate><atom:link href="https://lingjia007.github.io/Hugo_Web/en/tags/index.xml" rel="self" type="application/rss+xml" /><item>
+        <title>AI</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/ai/</link>
+        <pubDate>Sun, 19 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/ai/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Embedded</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/embedded/</link>
+        <pubDate>Sun, 19 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/embedded/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Engineering Thinking</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/engineering-thinking/</link>
+        <pubDate>Sun, 19 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/engineering-thinking/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Methodology</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/methodology/</link>
+        <pubDate>Sun, 19 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/methodology/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>DMA</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/dma/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/dma/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>I2S</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/i2s/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/i2s/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>INMP441</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/inmp441/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/inmp441/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Keyword Spotting</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/keyword-spotting/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/keyword-spotting/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>KWS</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/kws/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/kws/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Micro_speech</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/micro_speech/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/micro_speech/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Modular</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/modular/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/modular/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>STM32</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/stm32/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/stm32/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>TensorFlow-Lite-Micro</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/tensorflow-lite-micro/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/tensorflow-lite-micro/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Volatile</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/volatile/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/volatile/</guid>
+        <description></description>
+        </item>
+        <item>
         <title>Assembly</title>
         <link>https://lingjia007.github.io/Hugo_Web/en/tags/assembly/</link>
         <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
@@ -40,14 +152,6 @@
         <description></description>
         </item>
         <item>
-        <title>STM32</title>
-        <link>https://lingjia007.github.io/Hugo_Web/en/tags/stm32/</link>
-        <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
-        
-        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/stm32/</guid>
-        <description></description>
-        </item>
-        <item>
         <title>Vector Table</title>
         <link>https://lingjia007.github.io/Hugo_Web/en/tags/vector-table/</link>
         <pubDate>Sat, 11 Jul 2026 00:00:00 +0000</pubDate>
@@ -56,11 +160,51 @@
         <description></description>
         </item>
         <item>
-        <title>DMA</title>
-        <link>https://lingjia007.github.io/Hugo_Web/en/tags/dma/</link>
-        <pubDate>Sun, 05 Jul 2026 00:00:00 +0000</pubDate>
+        <title>Docker</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/docker/</link>
+        <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
         
-        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/dma/</guid>
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/docker/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Edge AI</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/edge-ai/</link>
+        <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/edge-ai/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>Model Training</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/model-training/</link>
+        <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/model-training/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>TensorBoard</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/tensorboard/</link>
+        <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/tensorboard/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>TensorFlow</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/tensorflow/</link>
+        <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/tensorflow/</guid>
+        <description></description>
+        </item>
+        <item>
+        <title>WSL2</title>
+        <link>https://lingjia007.github.io/Hugo_Web/en/tags/wsl2/</link>
+        <pubDate>Mon, 06 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/wsl2/</guid>
         <description></description>
         </item>
         <item>
@@ -120,14 +264,6 @@
         <description></description>
         </item>
         <item>
-        <title>Embedded</title>
-        <link>https://lingjia007.github.io/Hugo_Web/en/tags/embedded/</link>
-        <pubDate>Fri, 03 Jul 2026 00:00:00 +0000</pubDate>
-        
-        <guid>https://lingjia007.github.io/Hugo_Web/en/tags/embedded/</guid>
-        <description></description>
-        </item>
-        <item>
         <title>Layered-Architecture</title>
         <link>https://lingjia007.github.io/Hugo_Web/en/tags/layered-architecture/</link>
         <pubDate>Fri, 03 Jul 2026 00:00:00 +0000</pubDate>
@@ -160,7 +296,7 @@
         <description></description>
         </item>
         <item>
-        <title>Platform-Abstraction</title>
+        <title>Platform Abstraction</title>
         <link>https://lingjia007.github.io/Hugo_Web/en/tags/platform-abstraction/</link>
         <pubDate>Fri, 03 Jul 2026 00:00:00 +0000</pubDate>
         

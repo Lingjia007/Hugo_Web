@@ -1,0 +1,2997 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+    <head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="A complete record of running micro_speech streaming keyword spotting on STM32F407VGT6: INMP441 I2S MEMS microphone, DMA ping-pong, ring buffer, MFCC sliding window, int8 quantized inference, KWS smart merge post-processing. Detailed analysis of five pitfalls including stride frame layout trap, volatile visibility, stack margin optimization, KWS false positives, hidden dependencies, and the final audio/capture+frontend+kws modular layered architecture">
+<title>STM32F407 Streaming Voice Keyword Spotting: Full Pipeline Design &amp; Five Pitfall Deep Dives</title>
+
+<link rel='canonical' href='https://lingjia007.github.io/Hugo_Web/en/p/stm32f407-streaming-voice-keyword-spotting-full-pipeline-design-five-pitfall-deep-dives/'>
+
+<link rel="stylesheet" href="/Hugo_Web/scss/style.min.553d9fc5cc86a8c9deb4211c02fd07c2210fc13d76ef772a58388b83939349ab.css"><meta property='og:title' content="STM32F407 Streaming Voice Keyword Spotting: Full Pipeline Design & Five Pitfall Deep Dives">
+<meta property='og:description' content="A complete record of running micro_speech streaming keyword spotting on STM32F407VGT6: INMP441 I2S MEMS microphone, DMA ping-pong, ring buffer, MFCC sliding window, int8 quantized inference, KWS smart merge post-processing. Detailed analysis of five pitfalls including stride frame layout trap, volatile visibility, stack margin optimization, KWS false positives, hidden dependencies, and the final audio/capture+frontend+kws modular layered architecture">
+<meta property='og:url' content='https://lingjia007.github.io/Hugo_Web/en/p/stm32f407-streaming-voice-keyword-spotting-full-pipeline-design-five-pitfall-deep-dives/'>
+<meta property='og:site_name' content='lingsir007'>
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='TensorFlow-Lite-Micro' /><meta property='article:tag' content='micro_speech' /><meta property='article:tag' content='INMP441' /><meta property='article:tag' content='I2S' /><meta property='article:tag' content='DMA' /><meta property='article:tag' content='Keyword Spotting' /><meta property='article:tag' content='KWS' /><meta property='article:tag' content='volatile' /><meta property='article:tag' content='Modular' /><meta property='article:published_time' content='2026-07-17T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-22T10:33:36&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/STM32F407-TFLM-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E8%AF%86%E5%88%AB.png' />
+<meta name="twitter:title" content="STM32F407 Streaming Voice Keyword Spotting: Full Pipeline Design & Five Pitfall Deep Dives">
+<meta name="twitter:description" content="A complete record of running micro_speech streaming keyword spotting on STM32F407VGT6: INMP441 I2S MEMS microphone, DMA ping-pong, ring buffer, MFCC sliding window, int8 quantized inference, KWS smart merge post-processing. Detailed analysis of five pitfalls including stride frame layout trap, volatile visibility, stack margin optimization, KWS false positives, hidden dependencies, and the final audio/capture+frontend+kws modular layered architecture"><meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content='https://lingjia007.github.io/Hugo_Web/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/STM32F407-TFLM-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E8%AF%86%E5%88%AB.png' />
+    <link rel="shortcut icon" href="/Hugo_Web/icons/favicon.ico" />
+
+    </head>
+    <body class="
+    article-page
+    ">
+    <script>
+        (function() {
+            const colorSchemeKey = 'StackColorScheme';
+            if(!localStorage.getItem(colorSchemeKey)){
+                localStorage.setItem(colorSchemeKey, "dark");
+            }
+        })();
+    </script><script>
+    (function() {
+        const colorSchemeKey = 'StackColorScheme';
+        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+
+        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
+            
+
+            document.documentElement.dataset.scheme = 'dark';
+        } else {
+            document.documentElement.dataset.scheme = 'light';
+        }
+    })();
+</script>
+<div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky ">
+    <button class="hamburger hamburger--spin" type="button" id="toggle-menu" aria-label="Toggle Menu">
+        <span class="hamburger-box">
+            <span class="hamburger-inner"></span>
+        </span>
+    </button>
+
+    <header>
+        
+            
+            <figure class="site-avatar">
+                <a href="/Hugo_Web/en/">
+                
+                    
+                    
+                    
+                        
+                        <img src="/Hugo_Web/img/avatar_hu_49d0a8f5a8c62cc5.png" width="300"
+                            height="300" class="site-logo" loading="lazy" alt="Avatar">
+                    
+                
+                </a>
+                
+                    <span class="emoji">🤔</span>
+                
+            </figure>
+            
+        
+        
+        <div class="site-meta">
+            <h1 class="site-name"><a href="/Hugo_Web/en">lingsir007</a></h1>
+            <h2 class="site-description">Welcome to my blog. I share embedded systems, Bootloader, GUI, Edge AI and AI-assisted development from time to time.</h2>
+        </div>
+    </header><ol class="menu-social">
+            
+                <li>
+                    <a 
+                        href='https://github.com/Lingjia007?tab=repositories'
+                        target="_blank"
+                        title="GitHub"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+                <li>
+                    <a 
+                        href='https://twitter.com'
+                        target="_blank"
+                        title="Twitter"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M22 4.01c-1 .49 -1.98 .689 -3 .99c-1.121 -1.265 -2.783 -1.335 -4.38 -.737s-2.643 2.06 -2.62 3.737v1c-3.245 .083 -6.135 -1.395 -8 -4c0 0 -4.182 7.433 4 11c-1.872 1.247 -3.739 2.088 -6 2c3.308 1.803 6.913 2.423 10.034 1.517c3.58 -1.04 6.522 -3.723 7.651 -7.742a13.84 13.84 0 0 0 .497 -3.753c-.002 -.249 1.51 -2.772 1.818 -4.013z" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+        </ol><ol class="menu" id="main-menu">
+        
+        
+        
+        <li >
+            <a href='/Hugo_Web/en/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <polyline points="5 12 3 12 12 3 21 12 19 12" />
+  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+  <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+</svg>
+
+
+
+                
+                <span>Home</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/en/about/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="7" r="4" />
+  <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+</svg>
+
+
+
+                
+                <span>About</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/en/archives/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <rect x="3" y="4" width="18" height="4" rx="2" />
+  <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10" />
+  <line x1="10" y1="12" x2="14" y2="12" />
+</svg>
+
+
+
+                
+                <span>Archives</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/en/search/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="10" cy="10" r="7" />
+  <line x1="21" y1="21" x2="15" y2="15" />
+</svg>
+
+
+
+                
+                <span>Search</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/en/links/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5" />
+  <path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5" />
+</svg>
+
+
+
+                
+                <span>Links</span>
+            </a>
+        </li>
+        
+        <li class="menu-bottom-section">
+            <ol class="menu">
+                    
+                        <li id="i18n-switch">  
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M4 5h7" />
+  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
+  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+</svg>
+
+
+
+                            <select name="language" title="language" onchange="window.location.href = this.selectedOptions[0].value">
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/" >简体中文</option>
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/zh-hk/" >繁體中文</option>
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/en/" selected>English</option>
+                                
+                            </select>
+                        </li>
+                    
+                
+
+                
+                    <li id="dark-mode-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="8" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="16" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <span>Dark Mode</span>
+                    </li>
+                
+            </ol>
+        </li>
+    </ol>
+</aside>
+
+    <aside class="sidebar right-sidebar sticky">
+        
+        
+
+        
+            
+                
+    <section class="widget archives">
+        <div class="widget-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <line x1="5" y1="9" x2="19" y2="9" />
+  <line x1="5" y1="15" x2="19" y2="15" />
+  <line x1="11" y1="4" x2="7" y2="20" />
+  <line x1="17" y1="4" x2="13" y2="20" />
+</svg>
+
+
+
+        </div>
+        <h2 class="widget-title section-title">Table of contents</h2>
+        
+        <div class="widget--toc">
+            <nav id="TableOfContents">
+  <ol>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#1-project-overview">1. Project Overview</a>
+      <ol>
+        <li><a href="#11-hardware-configuration">1.1 Hardware Configuration</a></li>
+        <li><a href="#12-software-data-flow">1.2 Software Data Flow</a></li>
+      </ol>
+    </li>
+    <li><a href="#2-layer-1-i2s-dma-ping-pong-capture">2. Layer 1: I2S DMA Ping-Pong Capture</a>
+      <ol>
+        <li><a href="#21-why-16b_extended-instead-of-24b32b">2.1 Why 16B_EXTENDED Instead of 24B/32B?</a></li>
+        <li><a href="#22-dma-double-buffering-and-callbacks">2.2 DMA Double Buffering and Callbacks</a></li>
+        <li><a href="#23-de-interleaving-and-dc-removal">2.3 De-interleaving and DC Removal</a></li>
+      </ol>
+    </li>
+    <li><a href="#3-layer-2-ring-buffer-lock-free">3. Layer 2: Ring Buffer (Lock-Free)</a>
+      <ol>
+        <li><a href="#31-why-a-ring-buffer">3.1 Why a Ring Buffer?</a></li>
+        <li><a href="#32-atomic-counter-and-visibility">3.2 Atomic Counter and Visibility</a></li>
+        <li><a href="#33-simple-critical-section-on-consumer-side">3.3 Simple Critical Section on Consumer Side</a></li>
+      </ol>
+    </li>
+    <li><a href="#4-layer-3-mfcc-sliding-window">4. Layer 3: MFCC Sliding Window</a>
+      <ol>
+        <li><a href="#41-key-parameters">4.1 Key Parameters</a></li>
+        <li><a href="#42-sliding-window-mechanism">4.2 Sliding Window Mechanism</a></li>
+        <li><a href="#43-ccmram-fitting-the-1-second-window">4.3 CCMRAM: Fitting the 1-Second Window</a></li>
+      </ol>
+    </li>
+    <li><a href="#5-pitfall-deep-dives-the-main-event">5. Pitfall Deep Dives (The Main Event)</a>
+      <ol>
+        <li><a href="#51-stride-bug-16b_extended-frame-layout-trap">5.1 Stride Bug: 16B_EXTENDED Frame Layout Trap</a>
+          <ol>
+            <li><a href="#symptom">Symptom</a></li>
+            <li><a href="#root-cause">Root Cause</a></li>
+            <li><a href="#fix">Fix</a></li>
+          </ol>
+        </li>
+        <li><a href="#52-volatile-missing-atomic--visibility">5.2 Volatile Missing: Atomic ≠ Visibility</a>
+          <ol>
+            <li><a href="#symptom-1">Symptom</a></li>
+            <li><a href="#root-cause-1">Root Cause</a></li>
+            <li><a href="#fix-1">Fix</a></li>
+          </ol>
+        </li>
+        <li><a href="#53-preventive-stack-optimization-large-arrays-to-static--stack-expansion">5.3 Preventive Stack Optimization: Large Arrays to Static + Stack Expansion</a>
+          <ol>
+            <li><a href="#background">Background</a></li>
+            <li><a href="#fix-2">Fix</a></li>
+          </ol>
+        </li>
+        <li><a href="#54-kws-false-positives-ups-int8-score-is-naturally-low">5.4 KWS False Positives: up&rsquo;s int8 Score Is Naturally Low</a>
+          <ol>
+            <li><a href="#symptom-2">Symptom</a></li>
+            <li><a href="#root-cause-2">Root Cause</a></li>
+            <li><a href="#fix-3">Fix</a></li>
+          </ol>
+        </li>
+        <li><a href="#55-kernel_utilcpps-hidden-dependency">5.5 kernel_util.cpp&rsquo;s Hidden Dependency</a>
+          <ol>
+            <li><a href="#symptom-3">Symptom</a></li>
+            <li><a href="#root-cause-3">Root Cause</a></li>
+            <li><a href="#fix-4">Fix</a></li>
+          </ol>
+        </li>
+      </ol>
+    </li>
+    <li><a href="#6-layers-45-inference-and-kws-post-processing">6. Layers 4+5: Inference and KWS Post-Processing</a>
+      <ol>
+        <li><a href="#61-inference-entry-point">6.1 Inference Entry Point</a></li>
+        <li><a href="#62-final-form-of-post_process">6.2 Final Form of post_process</a></li>
+      </ol>
+    </li>
+    <li><a href="#7-modular-refactoring-audio-three-layer-directory">7. Modular Refactoring: audio/ Three-Layer Directory</a></li>
+    <li><a href="#8-performance-and-latency-analysis">8. Performance and Latency Analysis</a>
+      <ol>
+        <li><a href="#81-streaming-vs-direct-input-latency-difference">8.1 Streaming vs Direct Input Latency Difference</a></li>
+        <li><a href="#82-optimization-opportunities">8.2 Optimization Opportunities</a></li>
+        <li><a href="#83-compiler-options">8.3 Compiler Options</a></li>
+        <li><a href="#84-memory-layout-optimization-making-full-use-of-ccmram">8.4 Memory Layout Optimization: Making Full Use of CCMRAM</a></li>
+      </ol>
+    </li>
+    <li><a href="#9-pitfall-summary-table">9. Pitfall Summary Table</a></li>
+    <li><a href="#10-lessons-learned">10. Lessons Learned</a></li>
+    <li><a href="#conclusion">Conclusion</a></li>
+  </ol>
+</nav>
+        </div>
+    </section>
+
+            
+        
+    </aside>
+
+
+            <main class="main full-width">
+    <article class="has-image main-article">
+    <header class="article-header">
+        <div class="article-image">
+            <a href="/Hugo_Web/en/p/stm32f407-streaming-voice-keyword-spotting-full-pipeline-design-five-pitfall-deep-dives/">
+                <img src="/Hugo_Web/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/STM32F407-TFLM-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E8%AF%86%E5%88%AB_hu_f46257520ad116ab.png"
+                        srcset="/Hugo_Web/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/STM32F407-TFLM-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E8%AF%86%E5%88%AB_hu_f46257520ad116ab.png 800w, /Hugo_Web/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/STM32F407-TFLM-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E8%AF%86%E5%88%AB_hu_3b691074188b30f.png 1600w"
+                        width="800" 
+                        height="442" 
+                        loading="lazy"
+                        alt="Featured image of post STM32F407 Streaming Voice Keyword Spotting: Full Pipeline Design &amp; Five Pitfall Deep Dives" />
+                
+            </a>
+        </div>
+    
+
+    <div class="article-details">
+    
+    <header class="article-category">
+        
+            <a href="/Hugo_Web/en/categories/embedded/" >
+                Embedded
+            </a>
+        
+            <a href="/Hugo_Web/en/categories/edge-ai/" >
+                Edge AI
+            </a>
+        
+    </header>
+    
+
+    <div class="article-title-wrapper">
+        <h2 class="article-title">
+            <a href="/Hugo_Web/en/p/stm32f407-streaming-voice-keyword-spotting-full-pipeline-design-five-pitfall-deep-dives/">STM32F407 Streaming Voice Keyword Spotting: Full Pipeline Design &amp; Five Pitfall Deep Dives</a>
+        </h2>
+    
+        
+        <h3 class="article-subtitle">
+            A complete record of running micro_speech streaming keyword spotting on STM32F407VGT6: INMP441 I2S MEMS microphone, DMA ping-pong, ring buffer, MFCC sliding window, int8 quantized inference, KWS smart merge post-processing. Detailed analysis of five pitfalls including stride frame layout trap, volatile visibility, stack margin optimization, KWS false positives, hidden dependencies, and the final audio/capture&#43;frontend&#43;kws modular layered architecture
+        </h3>
+        
+    </div>
+
+    
+    
+    
+    
+    <footer class="article-time">
+        
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4" />
+  <circle cx="18" cy="18" r="4" />
+  <path d="M15 3v4" />
+  <path d="M7 3v4" />
+  <path d="M3 11h16" />
+  <path d="M18 16.496v1.504l1 1" />
+</svg>
+                <time class="article-time--published">Jul 17, 2026</time>
+            </div>
+        <div class="article-lastmod">
+                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
+                <time>
+                    Jul 22, 2026 10:33 &#43;0800
+                </time>
+            </div><div id="wordCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
+            <time class="article-wordcount">
+                5842  words
+            </time>
+        </div>
+
+        
+
+        <div id="viewCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
+            <time class="article-time--reading">
+                
+                <span id="vercount_value_page_pv">loading... </span> views
+            </time>
+        </div>
+
+    </footer>
+    
+
+    
+        <footer class="article-translations">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M4 5h7" />
+  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
+  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+</svg>
+
+
+
+            <div>
+                
+                    <a href="https://lingjia007.github.io/Hugo_Web/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/" class="link">简体中文</a>
+                
+                    <a href="https://lingjia007.github.io/Hugo_Web/zh-hk/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AA%9E%E9%9F%B3%E9%97%9C%E9%8D%B5%E8%A9%9E%E6%AA%A2%E6%B8%AC%E5%85%A8%E9%8F%88%E8%B7%AF%E8%A8%AD%E8%A8%88%E8%88%87%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/" class="link">繁體中文</a>
+                
+            </div>
+        </footer>
+    
+</div>
+
+</header>
+
+    <section class="article-content">
+    
+    
+    <h2 id="introduction">Introduction
+</h2><p>The goal of this project: run micro_speech model&rsquo;s <strong>streaming</strong> keyword spotting on STM32F407VGT6 with an INMP441 I2S MEMS microphone — the user speaks at any time, and the system recognizes yes/no/up/down/&hellip; in real time, without needing to pre-record and feed the entire clip to the model.</p>
+<p>The reference project is ST&rsquo;s official <a class="link" href="file:///d:/edgedownload/STM32N6-GettingStarted-Audio" >STM32N6-GettingStarted-Audio</a>, which already implements a complete streaming acquisition + inference pipeline. But when porting it to STM32F407 + INMP441, I encountered five pitfalls, each with completely different symptoms:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>#</th>
+					<th>Pitfall</th>
+					<th>Symptom</th>
+					<th>Root Cause</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>1</td>
+					<td>stride error</td>
+					<td>Recognition results randomly jump, score 14~30</td>
+					<td>STM32F4 I2S 16B_EXTENDED frame layout doesn&rsquo;t match assumptions</td>
+			</tr>
+			<tr>
+					<td>2</td>
+					<td>volatile missing</td>
+					<td>Deleting one printf line kills all output</td>
+					<td>ISR/main shared variable cached in register by <code>-O3 -flto</code></td>
+			</tr>
+			<tr>
+					<td>3</td>
+					<td>Insufficient stack margin</td>
+					<td>Preventive optimization (no clear symptoms observed)</td>
+					<td>Large arrays on stack, default 2KB stack margin is dangerous</td>
+			</tr>
+			<tr>
+					<td>4</td>
+					<td>KWS false positives</td>
+					<td>Noise recognized as up, continuous triggers</td>
+					<td>int8 quantized score has low discrimination + per-word cooldown reset</td>
+			</tr>
+			<tr>
+					<td>5</td>
+					<td>Hidden dependency</td>
+					<td>Compile error: cannot find array.h</td>
+					<td>kernel_util.cpp depends on upstream TFL&rsquo;s array.cc</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>This article first covers the architecture top-down following the data flow, then debugging in chronological order of encountering pitfalls. Each pitfall includes a <strong>Symptom → Root Cause → Fix</strong> three-part analysis, so readers with similar issues can quickly find their match.</p>
+<blockquote class="alert alert-note">
+    <p>This is not a step-by-step tutorial; it assumes readers are familiar with STM32 HAL, I2S, DMA, and TFLite basics. The focus is on <strong>pitfalls and architecture</strong>, not building from scratch. For model training, see my previous post <a class="link" href="../wsl2-docker-tensorflow/" >WSL2 + Docker + TensorFlow Tutorial</a>.</p></blockquote><hr>
+<h2 id="1-project-overview">1. Project Overview
+</h2><h3 id="11-hardware-configuration">1.1 Hardware Configuration
+</h3><div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Component</th>
+					<th>Model / Configuration</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>MCU</td>
+					<td>STM32F407VGT6 (Cortex-M4F, 168 MHz, 1 MB Flash, 192 KB RAM incl. 64 KB CCMRAM)</td>
+			</tr>
+			<tr>
+					<td>Microphone</td>
+					<td>INMP441 I2S MEMS (24-bit, L/R pin grounded = left channel)</td>
+			</tr>
+			<tr>
+					<td>I2S Interface</td>
+					<td>I2S2, Philips standard, 16B_EXTENDED, 16 kHz stereo</td>
+			</tr>
+			<tr>
+					<td>DMA</td>
+					<td>DMA1_Stream3 / Channel0, Circular, half-word aligned</td>
+			</tr>
+			<tr>
+					<td>Debugger</td>
+					<td>J-Link</td>
+			</tr>
+			<tr>
+					<td>Model</td>
+					<td>micro_speech int8 quantized (36 labels)</td>
+			</tr>
+			<tr>
+					<td>Inference Framework</td>
+					<td>TensorFlow-Lite-Micro + X-CUBE-AI integration</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="12-software-data-flow">1.2 Software Data Flow
+</h3><p>The entire streaming KWS pipeline is divided into five layers, from microphone to keyword output:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">[INMP441]
+</span></span><span class="line"><span class="cl">   │ I2S2 24-bit @ 16 kHz
+</span></span><span class="line"><span class="cl">   ▼
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">audio/capture/                       ← Layer 1: I2S DMA ping-pong
+</span></span><span class="line"><span class="cl">  • DMA double buffer (640 halfwords)
+</span></span><span class="line"><span class="cl">  • Half/Full IRQ every 10 ms
+</span></span><span class="line"><span class="cl">  • Left channel de-interleaving [L,R] → [L]
+</span></span><span class="line"><span class="cl">  • Per-block mean subtraction for DC removal
+</span></span><span class="line"><span class="cl">   ▼ feed (160 samples / 10 ms)
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">audio/capture/                       ← Layer 2: Ring buffer
+</span></span><span class="line"><span class="cl">  AudioCaptureRingBuff_t
+</span></span><span class="line"><span class="cl">  4 × 3200 = 12800 samples (25.6 KB, stored in CCMRAM)
+</span></span><span class="line"><span class="cl">  LDREX/STREX atomic counter
+</span></span><span class="line"><span class="cl">  volatile ensures ISR/main visibility
+</span></span><span class="line"><span class="cl">   ▼ consume (3200 samples / 200 ms)
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">audio/frontend/                      ← Layer 3: MFCC sliding window
+</span></span><span class="line"><span class="cl">  • 1-second window (16000 samples)
+</span></span><span class="line"><span class="cl">  • SLIDE_COLS=10 (200 ms)
+</span></span><span class="line"><span class="cl">  • CMSIS-DSP RFFT Q15
+</span></span><span class="line"><span class="cl">  • 40-channel Mel filterbank
+</span></span><span class="line"><span class="cl">  • Stored in CCMRAM (along with ring buffer)
+</span></span><span class="line"><span class="cl">   ▼ 49×40 int8 features
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">X-CUBE-AI                            ← Layer 4: int8 inference
+</span></span><span class="line"><span class="cl">  micro_speech model (~50 ms)
+</span></span><span class="line"><span class="cl">   ▼ 36 int8 logits
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">audio/kws/                           ← Layer 5: KWS post-processing
+</span></span><span class="line"><span class="cl">  • Filter _silence_/_unknown_
+</span></span><span class="line"><span class="cl">  • N-in-M debouncing (3/5)
+</span></span><span class="line"><span class="cl">  • Global cooldown (5 frames ≈ 1 s)
+</span></span><span class="line"><span class="cl">  • Score threshold (&gt;= 20)
+</span></span><span class="line"><span class="cl">  • Softmax probability display
+</span></span><span class="line"><span class="cl">   ▼
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">[KWS N] yes (100.0%, score=83)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Each layer is an independent <code>.c/.h</code> module, ultimately wired together through <code>X-CUBE-AI/App/app_x-cube-ai.c</code>, the CubeMX template file.</p>
+<blockquote class="alert alert-tip">
+    <p>Why layer? Because 80% of streaming KWS bugs occur at &ldquo;interfaces between layers&rdquo;: wrong DMA frame layout, wrong ring buffer visibility, wrong sliding window stride&hellip; With layers, each can be verified independently, and bugs can be traced layer by layer.</p></blockquote><hr>
+<h2 id="2-layer-1-i2s-dma-ping-pong-capture">2. Layer 1: I2S DMA Ping-Pong Capture
+</h2><h3 id="21-why-16b_extended-instead-of-24b32b">2.1 Why 16B_EXTENDED Instead of 24B/32B?
+</h3><p>INMP441 is a 24-bit MEMS microphone, so logically a 24-bit or 32-bit I2S format would be the &ldquo;correct&rdquo; choice. However, the micro_speech model only needs 16-bit input, and STM32F4&rsquo;s I2S 24B/32B modes cause DMA to transfer 4 halfwords (2 per channel), moving 50% more data and wasting bandwidth and CPU de-interleaving time.</p>
+<p>The <code>16B_EXTENDED</code> mode is a compromise: <strong>32-bit time slot + 16-bit data</strong>, each channel only transfers 1 halfword, and DMA receives already-aligned 16-bit samples.</p>
+<blockquote class="alert alert-warning">
+    <p>This is the source of the first major pitfall — the original STM32N6 project <strong>doesn&rsquo;t use I2S at all</strong> (it uses the MDF digital microphone interface + BSP monaural abstraction), so there&rsquo;s no de-interleaving logic to reference. When writing new de-interleaving code for STM32F4, a misunderstanding of the <code>16B_EXTENDED</code> frame layout led to the stride=4 error. See <a class="link" href="#51-stride-bug-16b_extended-frame-layout-trap" >Section 5.1</a> for details.</p></blockquote><h3 id="22-dma-double-buffering-and-callbacks">2.2 DMA Double Buffering and Callbacks
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* DMA double buffer: must be in regular RAM, DMA cannot access CCMRAM */</span>
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">uint16_t</span> <span class="n">s_dma_buf</span><span class="p">[</span><span class="n">AS_DMA_BUF_HALFWORDS</span><span class="p">];</span>  <span class="cm">/* 640 halfwords */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* Start circular mode DMA: triggers Half / Full callbacks */</span>
+</span></span><span class="line"><span class="cl"><span class="nf">HAL_I2S_Receive_DMA</span><span class="p">(</span><span class="o">&amp;</span><span class="n">hi2s2</span><span class="p">,</span> <span class="p">(</span><span class="kt">uint16_t</span> <span class="o">*</span><span class="p">)</span><span class="n">s_dma_buf</span><span class="p">,</span> <span class="n">AS_DMA_BUF_HALFWORDS</span><span class="p">);</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>AS_DMA_HALF_FRAMES = 160</code> means each half-buffer holds 10 ms of mono samples (16000 Hz × 10 ms = 160). <code>HAL_I2S_RxHalfCpltCallback</code> fires when DMA reaches the halfway point, <code>HAL_I2S_RxCpltCallback</code> fires when it completes a full cycle. The two callbacks process the first and second halves of <code>s_dma_buf</code> respectively, forming a seamless ping-pong.</p>
+<h3 id="23-de-interleaving-and-dc-removal">2.3 De-interleaving and DC Removal
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">void</span> <span class="nf">AudioStream_process_half</span><span class="p">(</span><span class="kt">uint8_t</span> <span class="n">half_id</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">const</span> <span class="kt">uint16_t</span> <span class="o">*</span><span class="n">src</span> <span class="o">=</span> <span class="n">s_dma_buf</span> <span class="o">+</span> <span class="n">half_id</span> <span class="o">*</span> <span class="n">AS_DMA_HALFWORDS</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* STM32F4 16B_EXTENDED: each frame 2 halfwords [L, R]
+</span></span></span><span class="line"><span class="cl"><span class="cm">   * INMP441 L/R=GND → left channel, AUDIO_CHANNEL_INDEX=0 */</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int32_t</span> <span class="n">sum</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">for</span> <span class="p">(</span><span class="kt">uint32_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">AS_DMA_HALF_FRAMES</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">  <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="kt">int16_t</span> <span class="n">v</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int16_t</span><span class="p">)</span><span class="n">src</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">AUDIO_CHANNEL_INDEX</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">    <span class="n">s_mono</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="n">v</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="n">sum</span> <span class="o">+=</span> <span class="n">v</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* Per-block mean subtraction for DC removal: MEMS microphones have tens to hundreds of DC offset */</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int16_t</span> <span class="n">dc</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int16_t</span><span class="p">)(</span><span class="n">sum</span> <span class="o">/</span> <span class="p">(</span><span class="kt">int32_t</span><span class="p">)</span><span class="n">AS_DMA_HALF_FRAMES</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">for</span> <span class="p">(</span><span class="kt">uint32_t</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">AS_DMA_HALF_FRAMES</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="n">s_mono</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int16_t</span><span class="p">)(</span><span class="n">s_mono</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">-</span> <span class="n">dc</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="nf">AudioCaptureRingBuff_feed</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s_ring</span><span class="p">,</span> <span class="p">(</span><span class="k">const</span> <span class="kt">uint8_t</span> <span class="o">*</span><span class="p">)</span><span class="n">s_mono</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                            <span class="p">(</span><span class="kt">uint16_t</span><span class="p">)</span><span class="n">AS_DMA_HALF_FRAMES</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><strong>Why remove DC?</strong> INMP441 outputs a fixed DC offset after power-up (measured at tens to hundreds). If not removed, the downstream MFCC energy spectrum will be uniformly elevated, and the model&rsquo;s quantized int8 features will shift. Subtracting the mean per 10 ms block is simple and stable, much cheaper than a first-order IIR high-pass filter.</p>
+<hr>
+<h2 id="3-layer-2-ring-buffer-lock-free">3. Layer 2: Ring Buffer (Lock-Free)
+</h2><h3 id="31-why-a-ring-buffer">3.1 Why a Ring Buffer?
+</h3><p>DMA interrupts produce 160 samples every 10 ms, but the consumer (MFCC) needs 3200 samples every 200 ms. Producer and consumer rates are severely mismatched, requiring a FIFO for decoupling.</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Path</th>
+					<th>Frequency</th>
+					<th>Rate</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Producer (DMA IRQ)</td>
+					<td>100 Hz</td>
+					<td>160 samples/time</td>
+			</tr>
+			<tr>
+					<td>Consumer (main loop)</td>
+					<td>5 Hz</td>
+					<td>3200 samples/time</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="32-atomic-counter-and-visibility">3.2 Atomic Counter and Visibility
+</h3><p>The core field of the ring buffer is <code>availableSamples</code>, written by ISR and read by main loop. These two contexts are truly concurrent, requiring solutions for two issues:</p>
+<ol>
+<li>
+<p><strong>Atomicity</strong>: 32-bit read/write is naturally atomic on Cortex-M4, but &ldquo;read-modify-write&rdquo; (<code>+=</code>) is not. Use <code>LDREX/STREX</code> exclusive access:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">static</span> <span class="kr">inline</span> <span class="kt">void</span> <span class="nf">atomic_add</span><span class="p">(</span><span class="k">volatile</span> <span class="kt">uint32_t</span> <span class="o">*</span><span class="n">p32</span><span class="p">,</span> <span class="kt">int32_t</span> <span class="n">inc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">do</span> <span class="p">{</span> <span class="p">}</span> <span class="k">while</span> <span class="p">(</span><span class="nf">__STREXW</span><span class="p">(</span><span class="nf">__LDREXW</span><span class="p">(</span><span class="n">p32</span><span class="p">)</span> <span class="o">+</span> <span class="n">inc</span><span class="p">,</span> <span class="n">p32</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div></li>
+<li>
+<p><strong>Visibility</strong>: This is the second major pitfall (see <a class="link" href="#52-volatile-missing-atomic--visibility" >Section 5.2</a>). In short, <code>volatile</code> must be added:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">uint8_t</span>  <span class="o">*</span><span class="n">pData</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">...</span>
+</span></span><span class="line"><span class="cl">  <span class="k">volatile</span> <span class="kt">uint32_t</span> <span class="n">availableSamples</span><span class="p">;</span>  <span class="cm">/* ISR/main shared, must be volatile */</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="n">AudioCaptureRingBuff_t</span><span class="p">;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div></li>
+</ol>
+<h3 id="33-simple-critical-section-on-consumer-side">3.3 Simple Critical Section on Consumer Side
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">uint8_t</span> <span class="o">*</span><span class="nf">AudioCaptureRingBuff_consume</span><span class="p">(</span><span class="kt">uint8_t</span> <span class="o">*</span><span class="n">pData</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                                      <span class="n">AudioCaptureRingBuff_t</span> <span class="o">*</span><span class="n">pHdle</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                                      <span class="kt">uint32_t</span> <span class="n">nbSamples</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="cm">/* Consumer is in main loop, brief IRQ masking keeps indexes consistent */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">__disable_irq</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">pHdle</span><span class="o">-&gt;</span><span class="n">availableSamples</span> <span class="o">&gt;=</span> <span class="p">(</span><span class="kt">int32_t</span><span class="p">)</span><span class="n">nbSamples</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="cm">/* ... two-segment copy handling wraparound ... */</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">atomic_add</span><span class="p">(</span><span class="o">&amp;</span><span class="n">pHdle</span><span class="o">-&gt;</span><span class="n">availableSamples</span><span class="p">,</span> <span class="o">-</span><span class="p">(</span><span class="kt">int32_t</span><span class="p">)</span><span class="n">nbSamples</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">__enable_irq</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="n">pData</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>The producer cannot use <code>__disable_irq()</code> (would jitter DMA timing), so it uses LDREX/STREX; the consumer is in the main loop, where disabling interrupts for a few microseconds is fine, so direct IRQ masking is simpler.</p>
+<blockquote class="alert alert-note">
+    <p>This asymmetric design of &ldquo;atomic producer, interrupt-disabled consumer&rdquo; is a classic pattern for bare-metal ring buffers. If using FreeRTOS, you should use <code>xStreamBuffer</code> or a mutex-protected queue instead.</p></blockquote><hr>
+<h2 id="4-layer-3-mfcc-sliding-window">4. Layer 3: MFCC Sliding Window
+</h2><h3 id="41-key-parameters">4.1 Key Parameters
+</h3><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#define SAMPLE_RATE          16000     </span><span class="c1">// Sample rate
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define FRAME_LEN            480       </span><span class="c1">// 30 ms window = 480 samples
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define WINDOW_STRIDE        320       </span><span class="c1">// 20 ms stride = 320 samples
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define FFT_LENGTH           512       </span><span class="c1">// Next 2^n &gt;= 480
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define NUM_CHANNELS         40        </span><span class="c1">// Mel filterbank channels
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define SPECTROGRAM_LENGTH   49        </span><span class="c1">// (16000-480)/320 + 1
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cp">#define SLIDE_COLS           10        </span><span class="c1">// Slide 10 spectrogram columns per step
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define SLIDE_SAMPLES        3200      </span><span class="c1">// = 10 × 320 = 200 ms
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="42-sliding-window-mechanism">4.2 Sliding Window Mechanism
+</h3><p>The micro_speech model&rsquo;s input is a 1-second (16000 samples) spectrogram with shape <code>49 × 40</code>. If we compute the full 1-second MFCC window from scratch each time, the CPU overhead is too high.</p>
+<p><strong>Sliding window strategy</strong>: Maintain a 1-second circular audio window. Every 200 ms of new audio (3200 samples), the window slides 10 spectrogram columns, computing only those 10 new columns while reusing the old 39. This reduces pre-processing overhead per inference from ~200 ms to ~30 ms.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">Window state (49-column spectrogram):
+</span></span><span class="line"><span class="cl">┌──────────────────────────────────────────────────────┐
+</span></span><span class="line"><span class="cl">│ [Old 39 cols]                            │ [New 10 cols] │
+</span></span><span class="line"><span class="cl">└──────────────────────────────────────────────────────┘
+</span></span><span class="line"><span class="cl">                                                  ▲
+</span></span><span class="line"><span class="cl">                                  After 200 ms:    │
+</span></span><span class="line"><span class="cl">                                                  ▼
+</span></span><span class="line"><span class="cl">┌──────────────────────────────────────────────────────┐
+</span></span><span class="line"><span class="cl">│          │ [Old 39 cols]                  │ [New 10 cols] │
+</span></span><span class="line"><span class="cl">└──────────────────────────────────────────────────────┘
+</span></span><span class="line"><span class="cl">   ← Discarded
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="43-ccmram-fitting-the-1-second-window">4.3 CCMRAM: Fitting the 1-Second Window
+</h3><p>The <code>AudioFrontendStream</code> struct contains 16000 <code>int16_t</code> audio window samples (32 KB) plus spectrogram cache, totaling ~37 KB. STM32F407&rsquo;s main RAM is only 128 KB (including stack and heap), while CCMRAM has 64 KB dedicated for data, and DMA cannot access CCMRAM.</p>
+<p>So the strategy is: <strong>DMA buffers in main RAM, frontend window in CCMRAM</strong>.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* 1-second window + feature cache in CCMRAM, main RAM left for stack/heap/model activations */</span>
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="n">AudioFrontendStream</span> <span class="n">g_stream</span> <span class="nf">__attribute__</span><span class="p">((</span><span class="nf">section</span><span class="p">(</span><span class="s">&#34;.ccmram&#34;</span><span class="p">)));</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Final memory usage:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">RAM:    82320 B / 112 KB  (71.78%)
+</span></span><span class="line"><span class="cl">CCMRAM: 37544 B / 64 KB   (57.29%)
+</span></span><span class="line"><span class="cl">FLASH:  348684 B / 1 MB   (33.25%)
+</span></span></code></pre></td></tr></table>
+</div>
+</div><blockquote class="alert alert-tip">
+    <p>CCMRAM (Core Coupled Memory) is a zero-wait-state SRAM on Cortex-M4, significantly faster than main RAM for access, especially suited for frequently accessed large arrays. The trade-off is that DMA cannot use it, so choosing what to place there requires careful consideration.</p></blockquote><hr>
+<h2 id="5-pitfall-deep-dives-the-main-event">5. Pitfall Deep Dives (The Main Event)
+</h2><p>Below are pitfalls, each costing at least an hour to diagnose. Listed in the order they were encountered.</p>
+<h3 id="51-stride-bug-16b_extended-frame-layout-trap">5.1 Stride Bug: 16B_EXTENDED Frame Layout Trap
+</h3><h4 id="symptom">Symptom
+</h4><p>Streaming inference results were completely wrong — saying &ldquo;yes&rdquo; into the microphone was recognized as &ldquo;up&rdquo;, saying &ldquo;one&rdquo; as &ldquo;cat&rdquo;, with scores only 14~30. But using the same model with a full pre-recorded clip, recognition worked perfectly.</p>
+<h4 id="root-cause">Root Cause
+</h4><p>The code was ported from the STM32N6 project. STM32N6&rsquo;s I2S in 16B_EXTENDED mode transfers <strong>4 halfwords</strong> per stereo frame <code>[L_pad, L, R_pad, R]</code> (24-bit slot + padding). But STM32F4&rsquo;s 16B_EXTENDED is <strong>2 halfwords</strong> <code>[L, R]</code> (pure 16-bit data, no padding).</p>
+<p>When porting, I didn&rsquo;t change the stride. The DMA de-interleaving code was:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* ❌ Wrong: STM32N6&#39;s stride=4, equivalent to downsampling on STM32F4 */</span>
+</span></span><span class="line"><span class="cl"><span class="kt">int16_t</span> <span class="n">v</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int16_t</span><span class="p">)</span><span class="n">src</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="mi">4</span> <span class="o">+</span> <span class="mi">2</span><span class="p">];</span>  <span class="cm">/* Take R channel */</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>On STM32F4, <code>src[i*4+2]</code> actually spans 2 stereo frames, effectively <strong>taking only half the left channel samples</strong>. This is equivalent to downsampling 16 kHz to 8 kHz, causing all frequency components to shift by half. The model sees a distorted downsampled version of &ldquo;yes&rdquo;&rsquo;s spectrogram, so it naturally misidentifies it.</p>
+<h4 id="fix">Fix
+</h4><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* ✅ Correct: STM32F4 16B_EXTENDED has 2 halfwords per frame [L, R] */</span>
+</span></span><span class="line"><span class="cl"><span class="cp">#define AS_DMA_HALFWORDS (AS_DMA_HALF_FRAMES * 2)   </span><span class="cm">/* 320, not 640 */</span><span class="cp">
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">int16_t</span> <span class="n">v</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int16_t</span><span class="p">)</span><span class="n">src</span><span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="mi">2</span> <span class="o">+</span> <span class="n">AUDIO_CHANNEL_INDEX</span><span class="p">];</span>  <span class="cm">/* stride=2 */</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>After the fix, scores jumped from 14<del>30 to **42</del>100**, and &ldquo;yes/no/up/down&rdquo; were all correctly recognized.</p>
+<blockquote class="alert alert-warning">
+    <p>The true root cause of this stride bug is not &ldquo;different configurations&rdquo; but that <strong>STM32N6 and STM32F4 use completely different audio peripheral architectures</strong> — the N6 original project doesn&rsquo;t use I2S at all! When porting, the data acquisition layer must be rewritten, not copied.</p></blockquote><p><strong>Audio path comparison: STM32N6 (original) vs STM32F407 (this project):</strong></p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Dimension</th>
+					<th>STM32N6 (Original)</th>
+					<th>STM32F407 (This Project)</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>Audio peripheral</td>
+					<td><strong>MDF</strong> (Multi-function Digital Filter, digital mic interface)</td>
+					<td><strong>I2S2</strong> (SPI2 multiplexed)</td>
+			</tr>
+			<tr>
+					<td>Driver abstraction</td>
+					<td><code>BSP_AUDIO_IN_*</code> high-level API</td>
+					<td>Bare <code>HAL_I2S_*</code></td>
+			</tr>
+			<tr>
+					<td>Channel configuration</td>
+					<td><code>ChannelsNbr = 1</code> (monaural)</td>
+					<td>I2S protocol <strong>mandates stereo</strong> (WS toggles between L/R)</td>
+			</tr>
+			<tr>
+					<td>DMA buffer content</td>
+					<td>Pure mono int16 sequence</td>
+					<td><code>[L, R, L, R, ...]</code> stereo interleaved</td>
+			</tr>
+			<tr>
+					<td>16B_EXTENDED frame layout</td>
+					<td>Not applicable (MDF doesn&rsquo;t use I2S frame format)</td>
+					<td>2 halfwords per frame <code>[L, R]</code></td>
+			</tr>
+			<tr>
+					<td>De-interleaving code</td>
+					<td><strong>Not needed</strong> (BSP configured mono, feed directly to ring)</td>
+					<td><strong>Must be written new</strong> (extract L from <code>[L,R]</code>)</td>
+			</tr>
+	</tbody>
+</table></div>
+<p>The N6 project&rsquo;s initialization code looks like this:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="n">AudioInit</span><span class="p">.</span><span class="n">Device</span>        <span class="o">=</span> <span class="n">AUDIO_IN_DEVICE_DIGITAL_MIC</span><span class="p">;</span>  <span class="cm">/* MDF connected to digital microphone */</span>
+</span></span><span class="line"><span class="cl"><span class="n">AudioInit</span><span class="p">.</span><span class="n">BitsPerSample</span> <span class="o">=</span> <span class="n">AUDIO_RESOLUTION_16B</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="n">AudioInit</span><span class="p">.</span><span class="n">ChannelsNbr</span>   <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>                            <span class="cm">/* Monaural, key! */</span>
+</span></span><span class="line"><span class="cl"><span class="nf">BSP_AUDIO_IN_Init</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="o">&amp;</span><span class="n">AudioInit</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="nf">BSP_AUDIO_IN_Record</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="p">(</span><span class="kt">uint8_t</span> <span class="o">*</span><span class="p">)</span><span class="n">acq_buf</span><span class="p">,</span> <span class="n">CAPTURE_BUFFER_SIZE</span> <span class="o">*</span> <span class="k">sizeof</span><span class="p">(</span><span class="kt">int16_t</span><span class="p">));</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>In the DMA completion interrupt, it directly calls <code>AudioCapture_ring_buff_feed(acq_buf, ring, len)</code> — <strong>no stride processing whatsoever</strong> — because the buffer is already monaural.</p>
+<p>On STM32F4, the I2S protocol is physically stereo (WS=LOW transmits left, WS=HIGH transmits right). INMP441 outputs a stereo stream even with only one microphone, so it must be received as <code>[L,R]</code> and half must be discarded. <strong>The N6 project has no such logic to reference</strong>, and the de-interleaving code written during porting fell into the stride=4 trap due to misunderstanding the <code>16B_EXTENDED</code> frame layout.</p>
+<blockquote class="alert alert-tip">
+    <p>Porting lesson: When porting audio code across chips, <strong>first confirm the audio peripheral types on both sides</strong> (I2S / SAI / MDF / SPDIFRX), rather than just looking at sample rate and bit width. Different peripheral types may mean completely different DMA buffer layouts, and de-interleaving logic must be rewritten based on the target chip&rsquo;s reference manual. You can use a logic analyzer to capture WS + SD timing and directly count how many 16-bit slots are in one WS period — faster than reading the manual.</p></blockquote><h3 id="52-volatile-missing-atomic--visibility">5.2 Volatile Missing: Atomic ≠ Visibility
+</h3><h4 id="symptom-1">Symptom
+</h4><p>After fixing the stride bug, recognition worked normally. I thought the code was stable, so I deleted all diagnostic <code>printf</code> statements — and the result was <strong>no output at all</strong>, only the startup banner.</p>
+<p>Even more bizarrely, adding back one unrelated <code>printf</code> (printing ring available sample count every 2 seconds) made the system work again. Deleting it killed it again. This <code>printf</code> had nothing to do with the recognition logic, yet it &ldquo;fixed&rdquo; the bug.</p>
+<h4 id="root-cause-1">Root Cause
+</h4><p>The <code>availableSamples</code> field was missing <code>volatile</code>:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* ❌ Wrong: missing volatile */</span>
+</span></span><span class="line"><span class="cl"><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="p">...</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">uint32_t</span> <span class="n">availableSamples</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="n">AudioCaptureRingBuff_t</span><span class="p">;</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Under <code>-O3 -flto</code> optimization, the compiler inlined the main loop&rsquo;s <code>while (ring-&gt;availableSamples &lt; SLIDE_SAMPLES) break;</code> and <strong>cached <code>availableSamples</code> into a register</strong>, never re-reading from memory. The ISR&rsquo;s writes were never visible to the main loop, so <code>availableSamples</code> appeared to always be 0, the loop kept breaking, and inference never executed.</p>
+<p>Why did adding <code>printf</code> &ldquo;revive&rdquo; it? Because <code>printf</code> is a function call that acts as a <strong>compiler barrier</strong>, forcing the compiler to write registers back to memory before the call and re-read from memory after. So <code>printf</code> inadvertently bypassed the visibility issue.</p>
+<h4 id="fix-1">Fix
+</h4><div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* ✅ Correct: ISR/main shared variables must be volatile */</span>
+</span></span><span class="line"><span class="cl"><span class="k">typedef</span> <span class="k">struct</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="p">...</span>
+</span></span><span class="line"><span class="cl">  <span class="k">volatile</span> <span class="kt">uint32_t</span> <span class="n">availableSamples</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span> <span class="n">AudioCaptureRingBuff_t</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* atomic_add parameter must also be updated */</span>
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kr">inline</span> <span class="kt">void</span> <span class="nf">atomic_add</span><span class="p">(</span><span class="k">volatile</span> <span class="kt">uint32_t</span> <span class="o">*</span><span class="n">p32</span><span class="p">,</span> <span class="kt">int32_t</span> <span class="n">inc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">do</span> <span class="p">{</span> <span class="p">}</span> <span class="k">while</span> <span class="p">(</span><span class="nf">__STREXW</span><span class="p">(</span><span class="nf">__LDREXW</span><span class="p">(</span><span class="n">p32</span><span class="p">)</span> <span class="o">+</span> <span class="n">inc</span><span class="p">,</span> <span class="n">p32</span><span class="p">));</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><blockquote class="alert alert-important">
+    <p>This is one of the most classic pitfalls in embedded C: <strong>LDREX/STREX only guarantees atomicity, not visibility</strong>. Atomic operations solve &ldquo;read-modify-write indivisibility&rdquo;; visibility solves &ldquo;modifications are visible to other contexts&rdquo;. These are orthogonal concepts — both are required.</p>
+<p>In the Linux kernel, <code>atomic_t</code> internally wraps memory barriers, so users don&rsquo;t need to worry. But when writing your own atomic operations on bare metal, <strong>volatile is still mandatory</strong>.</p></blockquote><h3 id="53-preventive-stack-optimization-large-arrays-to-static--stack-expansion">5.3 Preventive Stack Optimization: Large Arrays to Static + Stack Expansion
+</h3><h4 id="background">Background
+</h4><p>After the volatile fix, the system was running. But looking back at <code>audio_frontend_process_frame()</code>, I noticed several large arrays declared as local variables:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">audio_frontend_process_frame</span><span class="p">(...)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int16_t</span> <span class="n">window</span><span class="p">[</span><span class="n">FRAME_LEN</span><span class="p">];</span>           <span class="cm">/* 480 × 2 = 960 B */</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int16_t</span> <span class="n">fft_input</span><span class="p">[</span><span class="n">FFT_LENGTH</span><span class="p">];</span>       <span class="cm">/* 512 × 2 = 1024 B */</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int16_t</span> <span class="n">fft_output</span><span class="p">[</span><span class="n">FFT_LENGTH</span> <span class="o">*</span> <span class="mi">2</span><span class="p">];</span>  <span class="cm">/* 2048 B */</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">q15_t</span> <span class="n">mel_output</span><span class="p">[</span><span class="n">NUM_CHANNELS</span><span class="p">];</span>      <span class="cm">/* 80 B */</span>
+</span></span><span class="line"><span class="cl">  <span class="cm">/* ... plus a few more ... */</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>These total ~5 KB of stack per frame call. STM32F4&rsquo;s default stack is only 2 KB. Although no clear stack overflow symptoms were observed (the no-output issue was caused by missing volatile, not stack), this margin is dangerously tight — a few levels of nested interrupts could blow it. As a preventive optimization, two changes were made.</p>
+<h4 id="fix-2">Fix
+</h4><ol>
+<li>
+<p><strong>Large arrays changed to <code>static</code></strong>: Moved to BSS segment. Function is not reentrant, but it&rsquo;s only called from a single thread anyway, so this is fine.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">audio_frontend_process_frame</span><span class="p">(...)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">static</span> <span class="kt">int16_t</span> <span class="n">window</span><span class="p">[</span><span class="n">FRAME_LEN</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">  <span class="k">static</span> <span class="kt">int16_t</span> <span class="n">fft_input</span><span class="p">[</span><span class="n">FFT_LENGTH</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">  <span class="k">static</span> <span class="kt">int16_t</span> <span class="n">fft_output</span><span class="p">[</span><span class="n">FFT_LENGTH</span> <span class="o">*</span> <span class="mi">2</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">  <span class="cm">/* ... */</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div></li>
+<li>
+<p><strong>Stack size increased from 0x800 to 0x2000</strong>: In <code>STM32F407XX_FLASH.ld</code>:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">_Min_Stack_Size = 0x2000 ;  /* 8 KB, originally 0x800 = 2 KB */
+</span></span></code></pre></td></tr></table>
+</div>
+</div></li>
+</ol>
+<blockquote class="alert alert-tip">
+    <p>Embedded C rule of thumb: <strong>Any local array larger than 256 bytes should be made <code>static</code></strong>. Cortex-M4&rsquo;s stack is already small, and a few levels of function nesting make it tight. The cost of <code>static</code> is losing reentrancy, but in 90% of cases the function will never be called concurrently.</p></blockquote><h3 id="54-kws-false-positives-ups-int8-score-is-naturally-low">5.4 KWS False Positives: up&rsquo;s int8 Score Is Naturally Low
+</h3><h4 id="symptom-2">Symptom
+</h4><p><img src="/Hugo_Web/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C.png"
+	width="1666"
+	height="1012"
+	srcset="/Hugo_Web/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C_hu_869583ddc65e5b71.png 480w, /Hugo_Web/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C_hu_aa08f257e238c416.png 1024w"
+	loading="lazy"
+	
+		alt="Computer fan noise misrecognized as up"
+	
+	
+		class="gallery-image" 
+		data-flex-grow="164"
+		data-flex-basis="395px"
+	
+></p>
+<p>The above is a serial output example after the system stabilized. Even without speaking, computer fan or environmental noise can trigger false recognition (here <code>up</code>), with scores between 15~18.</p>
+<p>Environmental noise was being recognized as <code>up</code> with scores of 15-18, triggering multiple times consecutively. But when actually saying &ldquo;up&rdquo;, scores were only 22-23, overlapping with noise false positives — simply raising the threshold couldn&rsquo;t separate them.</p>
+<p>Even worse, the first version of KWS post-processing used per-word cooldown, and intermediate <code>wow</code>/<code>follow</code> misrecognitions would reset <code>up</code>&rsquo;s cooldown counter, causing <code>up</code> to trigger 9 times in a row.</p>
+<h4 id="root-cause-2">Root Cause
+</h4><ol>
+<li>
+<p><strong>Model-level issue</strong>: micro_speech&rsquo;s int8 quantization makes <code>up</code>&rsquo;s logit naturally low (22-23), only 5 away from noise false positives (15-18). This overlap is a model quantization loss that can&rsquo;t be solved at the software level.</p>
+</li>
+<li>
+<p><strong>Post-processing design flaw</strong>: Per-word cooldown assumes different words are independent, but a long syllable can span multiple sliding windows, being segmented by the model into different words (&ldquo;foll&rdquo; → follow, &ldquo;ow&rdquo; → wow), and these intermediate words reset the target word&rsquo;s cooldown.</p>
+</li>
+</ol>
+<h4 id="fix-3">Fix
+</h4><p>KWS post-processing four-part suite:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cp">#define KWS_HISTORY_M   5    </span><span class="cm">/* Look back at the last 5 inference frames (≈ 1 s) */</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define KWS_REQUIRED_N  3    </span><span class="cm">/* Same label must appear &gt;= 3 times in window to confirm */</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define KWS_COOLDOWN    5    </span><span class="cm">/* Global suppression for 5 frames after any trigger (≈ 1 s) */</span><span class="cp">
+</span></span></span><span class="line"><span class="cl"><span class="cp">#define KWS_MIN_SCORE   20   </span><span class="cm">/* Below 20, discard directly (noise is typically 15~18) */</span><span class="cp">
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">kws_postprocess_feed</span><span class="p">(</span><span class="kt">kws_state_t</span> <span class="o">*</span><span class="n">s</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                         <span class="k">const</span> <span class="kt">int8_t</span> <span class="o">*</span><span class="n">logits</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                         <span class="kt">uint8_t</span> <span class="n">num_labels</span><span class="p">,</span>
+</span></span><span class="line"><span class="cl">                         <span class="k">const</span> <span class="kt">char</span> <span class="o">*</span><span class="k">const</span> <span class="o">*</span><span class="n">label_names</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="cm">/* 1) argmax */</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">max_idx</span> <span class="o">=</span> <span class="nf">argmax</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">num_labels</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* 2) Discard _silence_/_unknown_ (labels 0/1) */</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">max_idx</span> <span class="o">&lt;=</span> <span class="mi">1</span><span class="p">)</span> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* 3) Record history */</span>
+</span></span><span class="line"><span class="cl">  <span class="n">s</span><span class="o">-&gt;</span><span class="n">hist</span><span class="p">[</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">hist_idx</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="kt">int8_t</span><span class="p">)</span><span class="n">max_idx</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="n">s</span><span class="o">-&gt;</span><span class="n">hist_idx</span> <span class="o">=</span> <span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">hist_idx</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">%</span> <span class="n">KWS_HISTORY_M</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* 4) Global cooldown (not per-word!) */</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">cooldown_remaining</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="n">s</span><span class="o">-&gt;</span><span class="n">cooldown_remaining</span><span class="o">--</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">    <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* 5) Score threshold */</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">max_val</span> <span class="o">&lt;</span> <span class="n">KWS_MIN_SCORE</span><span class="p">)</span> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* 6) N-in-M debouncing */</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">uint8_t</span> <span class="n">hits</span> <span class="o">=</span> <span class="nf">count_hits</span><span class="p">(</span><span class="n">s</span><span class="o">-&gt;</span><span class="n">hist</span><span class="p">,</span> <span class="n">max_idx</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">if</span> <span class="p">(</span><span class="n">hits</span> <span class="o">&lt;</span> <span class="n">KWS_REQUIRED_N</span><span class="p">)</span> <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* 7) Trigger: print softmax + set global cooldown + clear history */</span>
+</span></span><span class="line"><span class="cl">  <span class="nf">print_softmax</span><span class="p">(</span><span class="n">logits</span><span class="p">,</span> <span class="n">num_labels</span><span class="p">,</span> <span class="n">label_names</span><span class="p">,</span> <span class="n">max_idx</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="n">s</span><span class="o">-&gt;</span><span class="n">cooldown_remaining</span> <span class="o">=</span> <span class="n">KWS_COOLDOWN</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">for</span> <span class="p">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">KWS_HISTORY_M</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="n">s</span><span class="o">-&gt;</span><span class="n">hist</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">1</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Key improvements:</p>
+<ul>
+<li><strong>Global cooldown</strong> replaces per-word cooldown: After any keyword triggers, <strong>all</strong> keywords are suppressed for 1 second, preventing a single word from spamming.</li>
+<li><strong>N-in-M debouncing</strong>: Requires the same label to appear at least 3 times within 1 second, filtering out single-frame transient misrecognitions.</li>
+<li><strong>Filter silence/unknown</strong>: These two labels would spam (50+ score in noisy environments) and are useless to the user, so they&rsquo;re discarded directly.</li>
+</ul>
+<blockquote class="alert alert-note">
+    <p>The model&rsquo;s score overlap problem can&rsquo;t be fully solved by software. For a true fix, either switch to a larger model or add more <code>up</code> negative samples (noise) during fine-tuning. This approach reduces false positive frequency from &ldquo;5 times per second&rdquo; to &ldquo;once every few seconds&rdquo; — acceptable in practice.</p></blockquote><h3 id="55-kernel_utilcpps-hidden-dependency">5.5 kernel_util.cpp&rsquo;s Hidden Dependency
+</h3><h4 id="symptom-3">Symptom
+</h4><p>At link time, a bunch of <code>undefined reference to tflite::...</code> errors appeared, all from symbols in <code>kernel_util.cpp</code>.</p>
+<h4 id="root-cause-3">Root Cause
+</h4><p>TFLite Micro&rsquo;s <code>kernel_util.cpp</code> depends on upstream TensorFlow Lite&rsquo;s <code>array.h</code> and <code>array.cc</code>. These files are in TFLM&rsquo;s <code>tensorflow/lite/</code> directory but aren&rsquo;t collected by TFLM&rsquo;s CMakeLists by default.</p>
+<h4 id="fix-4">Fix
+</h4><p>Explicitly add them in CMakeLists.txt:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cmake" data-lang="cmake"><span class="line"><span class="cl"><span class="nb">set</span><span class="p">(</span><span class="s">TFLM_SOURCES</span>
+</span></span><span class="line"><span class="cl">    <span class="s">...</span>
+</span></span><span class="line"><span class="cl">    <span class="c"># TFLite core (hidden dependency of kernel_util.cpp)
+</span></span></span><span class="line"><span class="cl">    <span class="o">${</span><span class="nv">TFLM_BASE</span><span class="o">}</span><span class="s">/tensorflow/lite/array.cc</span>
+</span></span><span class="line"><span class="cl">    <span class="o">${</span><span class="nv">TFLM_BASE</span><span class="o">}</span><span class="s">/tensorflow/lite/core/c/common.cpp</span>
+</span></span><span class="line"><span class="cl">    <span class="s">...</span>
+</span></span><span class="line"><span class="cl">    <span class="o">${</span><span class="nv">TFLM_BASE</span><span class="o">}</span><span class="s">/tensorflow/lite/kernels/kernel_util.cpp</span>
+</span></span><span class="line"><span class="cl">    <span class="s">...</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span><span class="err">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><blockquote class="alert alert-tip">
+    <p>TFLM&rsquo;s official CMake templates are incomplete. When assembling your own project and encountering <code>undefined reference</code>, first check <code>tensorflow/lite/</code> for a same-named <code>.cc</code> file. The directory structure is TFLM (<code>tensorflow/lite/micro/</code>) calling TFLite core (<code>tensorflow/lite/</code>), and the latter frequently has missing files.</p></blockquote><hr>
+<h2 id="6-layers-45-inference-and-kws-post-processing">6. Layers 4+5: Inference and KWS Post-Processing
+</h2><h3 id="61-inference-entry-point">6.1 Inference Entry Point
+</h3><p><code>X-CUBE-AI</code>-generated <code>app_x-cube-ai.c</code> is a CubeMX template file that <strong>must not be moved</strong> (moving it breaks CubeMX regeneration capability). So this file stays in <code>X-CUBE-AI/App/</code>, but the KWS post-processing logic has been extracted into an independent <code>audio/kws/</code> module.</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">MX_X_CUBE_AI_Process</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="kt">int</span> <span class="n">res</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">  <span class="k">do</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="cm">/* 1) Get 200 ms data from ring buffer + sliding window + MFCC */</span>
+</span></span><span class="line"><span class="cl">    <span class="n">res</span> <span class="o">=</span> <span class="nf">acquire_and_process_data</span><span class="p">(</span><span class="n">data_ins</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">res</span> <span class="o">==</span> <span class="o">-</span><span class="mi">2</span><span class="p">)</span> <span class="k">break</span><span class="p">;</span>  <span class="cm">/* Not enough data or window not filled */</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* 2) Inference */</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">res</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">res</span> <span class="o">=</span> <span class="nf">ai_run</span><span class="p">();</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">    <span class="cm">/* 3) KWS post-processing (debounce + cooldown + softmax print) */</span>
+</span></span><span class="line"><span class="cl">    <span class="k">if</span> <span class="p">(</span><span class="n">res</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">      <span class="n">res</span> <span class="o">=</span> <span class="nf">post_process</span><span class="p">(</span><span class="n">data_outs</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="p">}</span> <span class="k">while</span> <span class="p">(</span><span class="n">res</span> <span class="o">==</span> <span class="mi">0</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h3 id="62-final-form-of-post_process">6.2 Final Form of post_process
+</h3><p>After modular refactoring, <code>post_process</code> shrank from 75 lines to a single function call:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">post_process</span><span class="p">(</span><span class="n">ai_i8</span> <span class="o">*</span><span class="n">data</span><span class="p">[])</span>
+</span></span><span class="line"><span class="cl"><span class="p">{</span>
+</span></span><span class="line"><span class="cl">  <span class="k">const</span> <span class="kt">int8_t</span> <span class="o">*</span><span class="n">out</span> <span class="o">=</span> <span class="p">(</span><span class="k">const</span> <span class="kt">int8_t</span> <span class="o">*</span><span class="p">)</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+</span></span><span class="line"><span class="cl">  <span class="n">g_inference_cnt</span><span class="o">++</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">  <span class="cm">/* KWS logic fully encapsulated in audio/kws/kws_postprocess.c */</span>
+</span></span><span class="line"><span class="cl">  <span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="nf">kws_postprocess_feed</span><span class="p">(</span><span class="o">&amp;</span><span class="n">g_kws</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="n">NUM_LABELS</span><span class="p">,</span> <span class="n">kLabelNames</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl">  <span class="k">return</span> <span class="mi">0</span><span class="p">;</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><hr>
+<h2 id="7-modular-refactoring-audio-three-layer-directory">7. Modular Refactoring: audio/ Three-Layer Directory
+</h2><p>After fixing all the pitfalls, code was scattered across <code>audio_app/</code>, <code>preprocess/</code>, and <code>app_x-cube-ai.c</code>, with KWS logic mixed into template code. The refactored directory structure:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">audio/
+</span></span><span class="line"><span class="cl">├── capture/                       ← Layers 1+2
+</span></span><span class="line"><span class="cl">│   ├── audio_capture_ring_buff.c  │  Ring buffer (lock-free, volatile)
+</span></span><span class="line"><span class="cl">│   ├── audio_capture_ring_buff.h  │
+</span></span><span class="line"><span class="cl">│   ├── audio_stream.c             │  I2S DMA ping-pong + de-interleaving + DC removal
+</span></span><span class="line"><span class="cl">│   └── audio_stream.h             │
+</span></span><span class="line"><span class="cl">│
+</span></span><span class="line"><span class="cl">├── frontend/                      ← Layer 3
+</span></span><span class="line"><span class="cl">│   ├── audio_frontend.c           │  MFCC sliding window (CCMRAM)
+</span></span><span class="line"><span class="cl">│   ├── audio_frontend.h           │
+</span></span><span class="line"><span class="cl">│   ├── audio_params.h             │  Sample rate/window length/stride/quantization params
+</span></span><span class="line"><span class="cl">│   └── mel_filterbank_data.h      │  40-channel Mel filterbank coefficient table
+</span></span><span class="line"><span class="cl">│
+</span></span><span class="line"><span class="cl">└── kws/                           ← Layer 5
+</span></span><span class="line"><span class="cl">    ├── kws_postprocess.c          │  Debouncing + cooldown + score threshold + softmax
+</span></span><span class="line"><span class="cl">    └── kws_postprocess.h          │
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p><code>X-CUBE-AI/App/app_x-cube-ai.c</code> stays in place (CubeMX constraint), but only retains the model IO template and top-level dispatch. All KWS logic goes through <code>kws_postprocess_feed()</code> calls.</p>
+<p>Corresponding CMakeLists.txt:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cmake" data-lang="cmake"><span class="line"><span class="cl"><span class="nb">target_sources</span><span class="p">(</span><span class="o">${</span><span class="nv">CMAKE_PROJECT_NAME</span><span class="o">}</span> <span class="s">PRIVATE</span>
+</span></span><span class="line"><span class="cl">    <span class="c"># Audio frontend preprocessing (MFCC / sliding window features)
+</span></span></span><span class="line"><span class="cl">    <span class="o">${</span><span class="nv">CMAKE_SOURCE_DIR</span><span class="o">}</span><span class="s">/audio/frontend/audio_frontend.c</span>
+</span></span><span class="line"><span class="cl">    <span class="c"># Audio stream capture (I2S DMA + ring buffer)
+</span></span></span><span class="line"><span class="cl">    <span class="o">${</span><span class="nv">CMAKE_SOURCE_DIR</span><span class="o">}</span><span class="s">/audio/capture/audio_capture_ring_buff.c</span>
+</span></span><span class="line"><span class="cl">    <span class="o">${</span><span class="nv">CMAKE_SOURCE_DIR</span><span class="o">}</span><span class="s">/audio/capture/audio_stream.c</span>
+</span></span><span class="line"><span class="cl">    <span class="c"># KWS post-processing (debouncing + cooldown)
+</span></span></span><span class="line"><span class="cl">    <span class="o">${</span><span class="nv">CMAKE_SOURCE_DIR</span><span class="o">}</span><span class="s">/audio/kws/kws_postprocess.c</span>
+</span></span><span class="line"><span class="cl">    <span class="s">...</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="nb">target_include_directories</span><span class="p">(</span><span class="o">${</span><span class="nv">CMAKE_PROJECT_NAME</span><span class="o">}</span> <span class="s">PRIVATE</span>
+</span></span><span class="line"><span class="cl">    <span class="s">...</span>
+</span></span><span class="line"><span class="cl">    <span class="c"># Audio modules (capture / frontend / KWS)
+</span></span></span><span class="line"><span class="cl">    <span class="o">${</span><span class="nv">CMAKE_SOURCE_DIR</span><span class="o">}</span><span class="s">/audio/capture</span>
+</span></span><span class="line"><span class="cl">    <span class="o">${</span><span class="nv">CMAKE_SOURCE_DIR</span><span class="o">}</span><span class="s">/audio/frontend</span>
+</span></span><span class="line"><span class="cl">    <span class="o">${</span><span class="nv">CMAKE_SOURCE_DIR</span><span class="o">}</span><span class="s">/audio/kws</span>
+</span></span><span class="line"><span class="cl">    <span class="s">...</span>
+</span></span><span class="line"><span class="cl"><span class="p">)</span><span class="err">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><blockquote class="alert alert-tip">
+    <p>The benefit of modular layering isn&rsquo;t just &ldquo;cleaner code&rdquo;. After this refactoring, when I later wanted to try a <code>yes/no</code> binary classification model, <strong>I only changed <code>NUM_LABELS</code> and <code>kLabelNames</code> in <code>app_x-cube-ai.c</code></strong> — capture and frontend were completely untouched. With clear module boundaries, iteration speed increased significantly.</p></blockquote><hr>
+<h2 id="8-performance-and-latency-analysis">8. Performance and Latency Analysis
+</h2><h3 id="81-streaming-vs-direct-input-latency-difference">8.1 Streaming vs Direct Input Latency Difference
+</h3><p>Many readers ask: how much slower is streaming inference compared to feeding a pre-recorded clip? Measured breakdown:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Stage</th>
+					<th>Latency</th>
+					<th>Description</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>DMA half-buffer</td>
+					<td>10 ms</td>
+					<td>160 samples / 16 kHz</td>
+			</tr>
+			<tr>
+					<td>Sliding window wait</td>
+					<td>0~200 ms</td>
+					<td>SLIDE_SAMPLES=3200 (200 ms); first time also needs to fill 1-second window</td>
+			</tr>
+			<tr>
+					<td>MFCC feature extraction</td>
+					<td>30~50 ms</td>
+					<td>CMSIS-DSP RFFT Q15 + Mel filter</td>
+			</tr>
+			<tr>
+					<td>int8 inference</td>
+					<td>~50 ms</td>
+					<td>micro_speech model</td>
+			</tr>
+			<tr>
+					<td>KWS N-in-M debounce</td>
+					<td>+200~600 ms</td>
+					<td>Requires 3/5 hits to confirm</td>
+			</tr>
+			<tr>
+					<td><strong>End-to-end total lag</strong></td>
+					<td><strong>500~850 ms</strong></td>
+					<td></td>
+			</tr>
+	</tbody>
+</table></div>
+<p>Direct pre-recorded clip testing only involves &ldquo;inference 50 ms&rdquo;, so <strong>streaming is <del>10</del>17× slower than direct testing</strong>. The main overhead comes from sliding window filling and KWS debouncing — this is the <strong>inherent cost</strong> of streaming KWS: trading latency for stability.</p>
+<h3 id="82-optimization-opportunities">8.2 Optimization Opportunities
+</h3><p>If 800 ms feels too slow, you can adjust:</p>
+<ul>
+<li><strong><code>SLIDE_COLS</code> from 10 to 5</strong>: Slide interval 200 ms → 100 ms, but CPU overhead doubles</li>
+<li><strong><code>KWS_REQUIRED_N</code> from 3 to 2</strong>: More lenient debouncing, but more false positives</li>
+<li><strong><code>KWS_COOLDOWN</code> from 5 to 3</strong>: Shorter cooldown, but same word may fire repeatedly</li>
+<li><strong>Switch to a smaller model</strong>: SVDF or compact DS-CNN, inference under 20 ms</li>
+</ul>
+<p>Engineering is always about trade-offs.</p>
+<h3 id="83-compiler-options">8.3 Compiler Options
+</h3><p>The entire project uses <code>-O3 -flto -funroll-loops</code> global optimization, with <code>-u _printf_float</code> linker flag for floating-point printf:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-cmake" data-lang="cmake"><span class="line"><span class="cl"><span class="nb">add_compile_options</span><span class="p">(</span>
+</span></span><span class="line"><span class="cl">    <span class="s">-O3</span>                  <span class="c"># Highest optimization level
+</span></span></span><span class="line"><span class="cl">    <span class="s">-flto</span>                <span class="c"># Link-time optimization (cross-module inlining)
+</span></span></span><span class="line"><span class="cl">    <span class="s">-funroll-loops</span>       <span class="c"># Explicit loop unrolling
+</span></span></span><span class="line"><span class="cl"><span class="p">)</span><span class="err">
+</span></span></span><span class="line"><span class="cl"><span class="nb">target_link_options</span><span class="p">(</span><span class="o">${</span><span class="nv">CMAKE_PROJECT_NAME</span><span class="o">}</span> <span class="s">PRIVATE</span> <span class="s">-flto</span> <span class="s">-u</span> <span class="s">_printf_float</span><span class="p">)</span><span class="err">
+</span></span></span></code></pre></td></tr></table>
+</div>
+</div><p>Note that <code>-O3 -flto</code> is also the &ldquo;culprit&rdquo; behind the Section 5.2 volatile pitfall — the more aggressive the optimization, the stricter the visibility requirements. But as long as <code>volatile</code> is correctly applied, aggressive optimization is beneficial: MFCC pre-processing time dropped from 60 ms at -O2 to 35 ms at -O3.</p>
+<h3 id="84-memory-layout-optimization-making-full-use-of-ccmram">8.4 Memory Layout Optimization: Making Full Use of CCMRAM
+</h3><p>STM32F407 has 128 KB main RAM plus 64 KB CCMRAM (Core Coupled Memory, CPU-dedicated tightly-coupled memory). CCMRAM characteristics:</p>
+<ul>
+<li><strong>Zero-wait access</strong>: CPU-dedicated, no DMA arbitration delay, faster access</li>
+<li><strong>DMA cannot access</strong>: Cannot hold DMA buffers, but pure CPU data is fine</li>
+<li><strong>Separate address space</strong>: Starting at 0x10000000, does not occupy main RAM space</li>
+</ul>
+<p>This project placed both large buffers into CCMRAM:</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-c" data-lang="c"><span class="line"><span class="cl"><span class="cm">/* Ring buffer backing store (CPU-only, 25.6 KB) */</span>
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="kt">int16_t</span> <span class="n">s_ring_backing</span><span class="p">[</span><span class="n">AS_RING_NB_SAMPLES</span> <span class="o">*</span> <span class="n">AS_RING_NB_FRAMES</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl">    <span class="nf">__attribute__</span><span class="p">((</span><span class="nf">section</span><span class="p">(</span><span class="s">&#34;.ccmram&#34;</span><span class="p">)));</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="cm">/* MFCC sliding window context (CPU-only, ~8 KB) */</span>
+</span></span><span class="line"><span class="cl"><span class="k">static</span> <span class="n">AudioFrontendStream</span> <span class="n">g_stream</span> <span class="nf">__attribute__</span><span class="p">((</span><span class="nf">section</span><span class="p">(</span><span class="s">&#34;.ccmram&#34;</span><span class="p">)));</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>Memory distribution after compilation:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Region</th>
+					<th>Usage</th>
+					<th>Total</th>
+					<th>Percentage</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>RAM</strong></td>
+					<td>50576 B</td>
+					<td>112 KB</td>
+					<td><strong>44.1%</strong></td>
+			</tr>
+			<tr>
+					<td><strong>CCMRAM</strong></td>
+					<td>63144 B</td>
+					<td>64 KB</td>
+					<td><strong>96.4%</strong></td>
+			</tr>
+			<tr>
+					<td>FLASH</td>
+					<td>348684 B</td>
+					<td>1 MB</td>
+					<td>33.2%</td>
+			</tr>
+	</tbody>
+</table></div>
+<p><strong>RAM major consumers (50.6 KB):</strong></p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Data Structure</th>
+					<th>Size</th>
+					<th>Percentage</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>pool0</code> (model activation buffer)</td>
+					<td>25.4 KB</td>
+					<td>50.3%</td>
+			</tr>
+			<tr>
+					<td><code>g_slide_buf</code> (sliding buffer)</td>
+					<td>6.4 KB</td>
+					<td>12.7%</td>
+			</tr>
+			<tr>
+					<td>Other .bss/.data</td>
+					<td>18.8 KB</td>
+					<td>37.0%</td>
+			</tr>
+	</tbody>
+</table></div>
+<p><strong>CCMRAM major consumers (63.1 KB):</strong></p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>Data Structure</th>
+					<th>Size</th>
+					<th>Description</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><code>s_ring_backing</code> (ring buffer)</td>
+					<td><strong>25.6 KB</strong></td>
+					<td>Moved from RAM, saving 22.6% RAM</td>
+			</tr>
+			<tr>
+					<td><code>g_stream</code> (sliding window)</td>
+					<td>~8 KB</td>
+					<td>1-second audio window + MFCC intermediate buffer</td>
+			</tr>
+			<tr>
+					<td><code>s_mono</code> (DMA temporary)</td>
+					<td>320 B</td>
+					<td>Mono de-interleaving buffer</td>
+			</tr>
+			<tr>
+					<td>Other buffers</td>
+					<td>~29 KB</td>
+					<td>Audio frontend static arrays, etc.</td>
+			</tr>
+	</tbody>
+</table></div>
+<blockquote class="alert alert-tip">
+    <p>Moving the ring buffer to CCMRAM was a later optimization. Initially, to avoid pitfalls, it was placed in main RAM, and only moved after the system stabilized. Moving only requires adding one line <code>__attribute__((section(&quot;.ccmram&quot;)))</code>, zero risk — because the ring buffer is only accessed by the CPU, DMA never touches it.</p></blockquote><p>If the ring buffer stayed in main RAM, RAM usage would be 66.7% (76.2 KB), leaving even less room for stack/heap. After moving to CCMRAM, RAM headroom increased from 35.8 KB to 61.4 KB, leaving more space for future model or feature additions.</p>
+<hr>
+<h2 id="9-pitfall-summary-table">9. Pitfall Summary Table
+</h2><p>Summarizing all five pitfalls into one table for easy review:</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>#</th>
+					<th>Pitfall Name</th>
+					<th>Symptom</th>
+					<th>Root Cause</th>
+					<th>Fix</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td>1</td>
+					<td>stride bug</td>
+					<td>Recognition all wrong, score 14~30</td>
+					<td>STM32F4 16B_EXTENDED has 2 halfwords per frame, not 4</td>
+					<td><code>i*4+2</code> → <code>i*2+idx</code>, DMA size halved</td>
+			</tr>
+			<tr>
+					<td>2</td>
+					<td>volatile missing</td>
+					<td>Delete printf → system dies, add printf → revives</td>
+					<td><code>-O3 -flto</code> caches ISR shared variable to register</td>
+					<td>Add <code>volatile</code> to <code>availableSamples</code></td>
+			</tr>
+			<tr>
+					<td>3</td>
+					<td>Insufficient stack margin</td>
+					<td>Preventive optimization (no clear symptoms observed)</td>
+					<td>Large MFCC arrays on stack, default 2 KB stack margin is dangerous</td>
+					<td>Arrays to <code>static</code>, stack 2 KB → 8 KB</td>
+			</tr>
+			<tr>
+					<td>4</td>
+					<td>KWS false positives</td>
+					<td>Noise recognized as up, continuous triggers</td>
+					<td>Per-word cooldown reset by intermediate words + score overlap</td>
+					<td>Global cooldown + N-in-M + score threshold + filter silence</td>
+			</tr>
+			<tr>
+					<td>5</td>
+					<td>kernel_util.cpp link error</td>
+					<td><code>undefined reference</code></td>
+					<td>TFLM missing <code>array.cc</code> hidden dependency</td>
+					<td>Explicitly add <code>tensorflow/lite/array.cc</code> in CMakeLists</td>
+			</tr>
+	</tbody>
+</table></div>
+<hr>
+<h2 id="10-lessons-learned">10. Lessons Learned
+</h2><p>After completing this project, several lessons are worth recording:</p>
+<ol>
+<li>
+<p><strong>Never assume &ldquo;it should be the same&rdquo; when porting code</strong>. Even for same-vendor (ST) peripherals with the same name (I2S), details may differ across chip generations. Trust the manual over memory.</p>
+</li>
+<li>
+<p><strong>Atomic operations ≠ visibility</strong>. LDREX/STREX solves atomicity; <code>volatile</code> solves visibility — they are orthogonal. When writing your own concurrency primitives on bare metal, <strong>you need both</strong>. The Linux kernel&rsquo;s <code>atomic_t</code> doesn&rsquo;t need explicit volatile because it internally wraps memory barriers.</p>
+</li>
+<li>
+<p><strong>printf &ldquo;fixing&rdquo; a bug indicates a visibility problem</strong>. If adding an unrelated printf makes a bug disappear or appear, suspect compiler optimization + shared variable visibility first, not the printf itself.</p>
+</li>
+<li>
+<p><strong>Large arrays should default to <code>static</code></strong>. This is the golden rule of embedded C — it avoids 80% of stack overflow problems.</p>
+</li>
+<li>
+<p><strong>Model quantization loss cannot be fully compensated by software</strong>. After int8 quantization, some classes have naturally low scores (e.g., <code>up</code> in this article), overlapping with noise false positives. KWS post-processing can only reduce false positive frequency, not eliminate it. True fixes require changing the model or adding fine-tuning negative samples.</p>
+</li>
+<li>
+<p><strong>Modularity isn&rsquo;t for aesthetics — it&rsquo;s for replaceability</strong>. After this refactoring, changing the model only requires modifying <code>app_x-cube-ai.c</code>, with capture and frontend untouched. If PDM microphone support is needed in the future, only <code>audio/capture/</code> changes — frontend and KWS stay the same. <strong>Module boundaries = replacement boundaries</strong>.</p>
+</li>
+<li>
+<p><strong>Don&rsquo;t move CubeMX-generated files</strong>. Files like <code>app_x-cube-ai.c</code> are CubeMX templates; moving them breaks CubeMX regeneration capability. Keep them in place and extract business logic into independent module calls.</p>
+</li>
+</ol>
+<hr>
+<h2 id="conclusion">Conclusion
+</h2><p>This project went from &ldquo;runs but misrecognizes&rdquo; to &ldquo;stable streaming recognition&rdquo; through five pitfalls, each taking an hour or two. But looking back, each pitfall taught a <strong>fundamental principle</strong> — I2S frame layout, memory visibility, stack management, model quantization, dependency management. These principles apply across chips and projects.</p>
+<p>The motivation for writing this article is to help others avoid going in circles. If you follow the architecture and precautions in this article, you should be able to get STM32F4 + TFLM streaming KWS running within half a day from scratch.</p>
+<p>Complete project file structure:</p>
+
+<details>
+	<summary>Details</summary>
+	<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span><span class="lnt">41
+</span><span class="lnt">42
+</span><span class="lnt">43
+</span><span class="lnt">44
+</span><span class="lnt">45
+</span><span class="lnt">46
+</span><span class="lnt">47
+</span><span class="lnt">48
+</span><span class="lnt">49
+</span><span class="lnt">50
+</span><span class="lnt">51
+</span><span class="lnt">52
+</span><span class="lnt">53
+</span><span class="lnt">54
+</span><span class="lnt">55
+</span><span class="lnt">56
+</span><span class="lnt">57
+</span><span class="lnt">58
+</span><span class="lnt">59
+</span><span class="lnt">60
+</span><span class="lnt">61
+</span><span class="lnt">62
+</span><span class="lnt">63
+</span><span class="lnt">64
+</span><span class="lnt">65
+</span><span class="lnt">66
+</span><span class="lnt">67
+</span><span class="lnt">68
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="n">STM32F407VGT6_TensorFlow</span><span class="o">-</span><span class="n">Lite</span><span class="o">-</span><span class="n">Micro</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">audio</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">├──</span> <span class="n">capture</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">audio_capture_ring_buff</span><span class="o">.</span><span class="n">c</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">audio_capture_ring_buff</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">audio_stream</span><span class="o">.</span><span class="n">c</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">└──</span> <span class="n">audio_stream</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">├──</span> <span class="n">frontend</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">audio_frontend</span><span class="o">.</span><span class="n">c</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">audio_frontend</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">audio_params</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">└──</span> <span class="n">mel_filterbank_data</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">└──</span> <span class="n">kws</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">├──</span> <span class="n">kws_postprocess</span><span class="o">.</span><span class="n">c</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">└──</span> <span class="n">kws_postprocess</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">build</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">└──</span> <span class="n">Debug</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">├──</span> <span class="n">STM32F407VGT6_TensorFlow</span><span class="o">-</span><span class="n">Lite</span><span class="o">-</span><span class="n">Micro</span><span class="o">.</span><span class="n">bin</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">├──</span> <span class="n">STM32F407VGT6_TensorFlow</span><span class="o">-</span><span class="n">Lite</span><span class="o">-</span><span class="n">Micro</span><span class="o">.</span><span class="n">hex</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">└──</span> <span class="o">...</span> <span class="p">(</span><span class="n">build</span> <span class="n">artifacts</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">cmake</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">└──</span> <span class="n">stm32cubemx</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">├──</span> <span class="n">CMakeLists</span><span class="o">.</span><span class="n">txt</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">└──</span> <span class="o">...</span> <span class="p">(</span><span class="n">CubeMX</span> <span class="n">generated</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">Core</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">├──</span> <span class="n">Inc</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">main</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">gpio</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">i2s</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">usart</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">└──</span> <span class="o">...</span> <span class="p">(</span><span class="n">CubeMX</span> <span class="n">generated</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">└──</span> <span class="n">Src</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">├──</span> <span class="n">main</span><span class="o">.</span><span class="n">c</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">├──</span> <span class="n">gpio</span><span class="o">.</span><span class="n">c</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">├──</span> <span class="n">i2s</span><span class="o">.</span><span class="n">c</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">├──</span> <span class="n">usart</span><span class="o">.</span><span class="n">c</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">├──</span> <span class="n">stm32f4xx_it</span><span class="o">.</span><span class="n">c</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">└──</span> <span class="o">...</span> <span class="p">(</span><span class="n">CubeMX</span> <span class="n">generated</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">Drivers</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">├──</span> <span class="n">CMSIS</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">├──</span> <span class="n">STM32F4xx_HAL_Driver</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">└──</span> <span class="o">...</span> <span class="p">(</span><span class="n">HAL</span> <span class="o">+</span> <span class="n">CMSIS</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">stm32f4_tflm_project</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">├──</span> <span class="n">tensorflow</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">└──</span> <span class="n">lite</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>       <span class="err">├──</span> <span class="n">micro</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>       <span class="err">│</span>   <span class="err">├──</span> <span class="n">kernels</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>       <span class="err">│</span>   <span class="err">├──</span> <span class="n">arena_allocator</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>       <span class="err">│</span>   <span class="err">├──</span> <span class="n">memory_planner</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>       <span class="err">│</span>   <span class="err">└──</span> <span class="o">...</span> <span class="p">(</span><span class="n">TFLM</span> <span class="n">core</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>       <span class="err">└──</span> <span class="n">core</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">├──</span> <span class="k">signal</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">micro</span><span class="o">/</span><span class="n">kernels</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">└──</span> <span class="n">src</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">├──</span> <span class="n">third_party</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">cmsis_nn</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">├──</span> <span class="n">kissfft</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">│</span>   <span class="err">└──</span> <span class="n">flatbuffers</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">└──</span> <span class="o">...</span> <span class="p">(</span><span class="n">TFLM</span> <span class="n">source</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">X</span><span class="o">-</span><span class="n">CUBE</span><span class="o">-</span><span class="n">AI</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>   <span class="err">└──</span> <span class="n">App</span><span class="o">/</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">├──</span> <span class="n">app_x</span><span class="o">-</span><span class="n">cube</span><span class="o">-</span><span class="n">ai</span><span class="o">.</span><span class="n">c</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">├──</span> <span class="n">app_x</span><span class="o">-</span><span class="n">cube</span><span class="o">-</span><span class="n">ai</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">│</span>       <span class="err">└──</span> <span class="n">micro_speech</span><span class="o">.</span><span class="n">h</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">CMakeLists</span><span class="o">.</span><span class="n">txt</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">STM32F407XX_FLASH</span><span class="o">.</span><span class="n">ld</span>
+</span></span><span class="line"><span class="cl"><span class="err">├──</span> <span class="n">stm32f4_tflm_project</span><span class="o">.</span><span class="n">md</span>
+</span></span><span class="line"><span class="cl"><span class="err">└──</span> <span class="o">...</span> <span class="p">(</span><span class="n">configuration</span> <span class="n">files</span><span class="p">)</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div></details>
+
+<p>Thanks for reading. If you&rsquo;ve hit the same pitfalls, feel free to share; if you&rsquo;re currently stuck, I hope this article provides some inspiration.</p>
+
+</section>
+
+
+    <footer class="article-footer">
+    
+    <section class="article-tags">
+        
+            <a href="/Hugo_Web/en/tags/stm32/">STM32</a>
+        
+            <a href="/Hugo_Web/en/tags/tensorflow-lite-micro/">TensorFlow-Lite-Micro</a>
+        
+            <a href="/Hugo_Web/en/tags/micro_speech/">Micro_speech</a>
+        
+            <a href="/Hugo_Web/en/tags/inmp441/">INMP441</a>
+        
+            <a href="/Hugo_Web/en/tags/i2s/">I2S</a>
+        
+            <a href="/Hugo_Web/en/tags/dma/">DMA</a>
+        
+            <a href="/Hugo_Web/en/tags/keyword-spotting/">Keyword Spotting</a>
+        
+            <a href="/Hugo_Web/en/tags/kws/">KWS</a>
+        
+            <a href="/Hugo_Web/en/tags/volatile/">Volatile</a>
+        
+            <a href="/Hugo_Web/en/tags/modular/">Modular</a>
+        
+    </section>
+
+
+    
+    <section class="article-copyright">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <path d="M14.5 9a3.5 4 0 1 0 0 6" />
+</svg>
+
+
+
+        <span>Licensed under CC BY-NC-SA 4.0</span>
+    </section>
+    <section class="article-lastmod">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <polyline points="12 7 12 12 15 15" />
+</svg>
+
+
+
+        <span>
+            Last updated on Jul 22, 2026 10:33 &#43;0800
+        </span>
+    </section></footer>
+
+
+    
+        <link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI&#43;WdtXRGWt2kTvGFasHpSy3SV"crossorigin="anonymous"
+            ><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG&#43;vnGctmUb0ZY0l8"crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"integrity="sha384-&#43;VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4&#43;/RRE05"crossorigin="anonymous"
+                defer
+                >
+            </script><script>
+  window.addEventListener("DOMContentLoaded", () => {
+    const mainArticleElement = document.querySelector(".main-article");
+    renderMathInElement(mainArticleElement, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  });
+</script>
+<div class="math-katex"></div>
+
+    
+</article>
+
+    
+
+    
+
+<aside class="related-content--wrapper">
+    <h2 class="section-title">Related content</h2>
+    <div class="related-content">
+        <div class="flex article-list--tile">
+            
+                
+<article class="has-image">
+    <a href="/Hugo_Web/en/p/efficient-uart-dma-with-ring-buffer-zero-copy-verified-on-stm32-and-gd32-dual-platforms/">
+        
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/uart-dma-%E9%AB%98%E6%95%88%E6%94%B6%E5%8F%91%E7%8E%AF%E5%BD%A2%E7%BC%93%E5%86%B2%E5%8C%BA%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98stm32-%E4%B8%8E-gd32-%E5%8F%8C%E8%8A%AF%E7%89%87%E9%AA%8C%E8%AF%81/UART%20DMA%20%E9%9B%B6%E6%8B%B7%E8%B4%9D%E5%AE%9E%E6%88%98.aa17ac05ece23fe492616d826bed0cc3_hu_c370f2443c0623d6.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms"
+                        
+                        data-hash="md5-qhesBeziP&#43;SSYW2Ca&#43;0Mww==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Efficient UART DMA with Ring Buffer Zero-Copy: Verified on STM32 and GD32 Dual Platforms</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/Hugo_Web/en/p/deep-dive-into-the-stm32f407-assembly-startup-file-the-complete-journey-from-reset-vector-to-c-main/">
+        
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/stm32f407-%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E4%BB%8E%E5%A4%8D%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AF%AD%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/STM32F407%E6%B1%87%E7%BC%96%E5%90%AF%E5%8A%A8%E6%96%87%E4%BB%B6%E8%A7%A3%E6%9E%90.e726a00e31475d23ed99e8f219216ba5_hu_a8f1b2361cc9ecf4.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post Deep Dive into the STM32F407 Assembly Startup File: The Complete Journey from Reset Vector to C main()"
+                        
+                        data-hash="md5-5yagDjFHXSPtmejyGSFrpQ==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">Deep Dive into the STM32F407 Assembly Startup File: The Complete Journey from Reset Vector to C main()</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/Hugo_Web/en/p/wsl2--docker--tensorflow-complete-tutorial-from-environment-setup-to-stm32f407-model-deployment/">
+        
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/wsl2--docker--tensorflow%E4%BB%8E%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA%E5%88%B0-stm32f407-%E6%A8%A1%E5%9E%8B%E9%83%A8%E7%BD%B2%E5%AE%8C%E6%95%B4%E6%95%99%E7%A8%8B/WSL2&#43;Docker&#43;TensorFlow%E6%95%99%E7%A8%8B%E5%8D%9A%E5%AE%A2%E5%B0%81%E9%9D%A2.b5f6c2c289d40f8c4baabeb56eeb666d_hu_a1ca0bdcb854d776.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post WSL2 &#43; Docker &#43; TensorFlow: Complete Tutorial from Environment Setup to STM32F407 Model Deployment"
+                        
+                        data-hash="md5-tfbCwonUD4xLqr61butmbQ==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">WSL2 &#43; Docker &#43; TensorFlow: Complete Tutorial from Environment Setup to STM32F407 Model Deployment</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/Hugo_Web/en/p/a-taste-of-bootloader-five-layer-architecture-oop-object-design-model-from-platform-abstraction-to-app-orchestration/">
+        
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop.845ad1bc14f6864ea3e8db6e61af4b4f_hu_7dfd5ddb3e7a77a7.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post A Taste of Bootloader Five-Layer Architecture: OOP Object Design Model from Platform Abstraction to App Orchestration"
+                        
+                        data-hash="md5-hFrRvBT2hk6j6NtuYa9LTw==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">A Taste of Bootloader Five-Layer Architecture: OOP Object Design Model from Platform Abstraction to App Orchestration</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
+    <a href="/Hugo_Web/en/p/gnu-ld-linker-script-in-depth-dissecting-embedded-memory-layout-and-section-relocation-via-an-stm32f407-example/">
+        
+        
+            <div class="article-image">
+                <img src="/Hugo_Web/p/gnu-ld-%E9%93%BE%E6%8E%A5%E8%84%9A%E6%9C%AC%E8%AF%A6%E8%A7%A3%E4%BB%8E-stm32f407-%E5%AE%9E%E4%BE%8B%E5%89%96%E6%9E%90%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80%E4%B8%8E%E6%AE%B5%E9%87%8D%E5%AE%9A%E4%BD%8D/gnu-ld-linker-script.fcad4f3ea326a9f595ecedb86073a2db_hu_604e604f3f084745.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post GNU LD Linker Script in Depth: Dissecting Embedded Memory Layout and Section Relocation via an STM32F407 Example"
+                        
+                        data-hash="md5-/K1PPqMmqfWV7O24YHOi2w==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">GNU LD Linker Script in Depth: Dissecting Embedded Memory Layout and Section Relocation via an STM32F407 Example</h2>
+        </div>
+    </a>
+</article>
+
+            
+        </div>
+    </div>
+</aside>
+
+     
+    
+        
+    
+    <div class="comment"></div>
+
+    
+
+    <footer class="site-footer">
+    <section class="copyright">
+        &copy; 
+        
+            2025 - 
+        
+        2026 lingsir007
+    </section>
+    
+    <section class="running-time">
+        
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+        This website has been running stably<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;A total of <span id="articleCount">&lt; 12 ></span> articles <span style="font-weight: bold;">·</span> Total <span id="articlewordCount">&lt; 43.91 k ></span> words
+    </section>
+    <section class="powerby">
+        Built with <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> <br />
+        Theme <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.30.0">Stack</a></b> designed by <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a>
+    </section>
+</footer>
+
+
+    
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    
+    <div class="pswp__bg"></div>
+
+    
+    <div class="pswp__scroll-wrap">
+
+        
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                
+                
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo="crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU="crossorigin="anonymous"
+                defer
+                >
+            </script><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css"crossorigin="anonymous"
+            ><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css"crossorigin="anonymous"
+            >
+
+            </main>
+        </div>
+        <script 
+                src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z&#43;KMkF24hUW8WePSA9HM="crossorigin="anonymous"
+                
+                >
+            </script><script type="text/javascript" src="/Hugo_Web/ts/main.99ce1801c4bad426a42fc436add4721e149159dbb598636e9578fd59cf778c83.js" defer></script> <script>
+    (function () {
+        const customFont = document.createElement('link');
+        customFont.href = "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap";
+
+        customFont.type = "text/css";
+        customFont.rel = "stylesheet";
+
+        document.head.appendChild(customFont);
+    }());
+</script> <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css"
+/>
+
+<script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
+<script>
+  var pjax = new Pjax({
+    selectors: ["title", ".main-container", ".js-Pjax1", ".js-Pjax2"],
+  });
+</script>
+
+<div id="aplayer"></div>
+<script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
+
+<script>
+  const staticDir = "https://lingjia007.github.io/Hugo_Web/en/";
+  const ap = new APlayer({
+    container: document.getElementById("aplayer"),
+    audio: [
+      {
+        name: "Keil Generic Key",
+        artist: "EDGE",
+        url: staticDir + "music/Keil Generic Key-EDGE/song.mp3",
+        cover: staticDir + "music/Keil Generic Key-EDGE/cover.png",
+        lrc: staticDir + "music/Keil Generic Key-EDGE/lyric.lrc",
+      },
+      {
+        name: "查无此字",
+        artist: "林奕匡",
+        url: staticDir + "music/查无此字-林奕匡/song.mp3",
+        cover: staticDir + "music/查无此字-林奕匡/cover.jpg",
+        lrc: staticDir + "music/查无此字-林奕匡/lyric.lrc",
+      },
+      {
+        name: "爱别等",
+        artist: "洪卓立",
+        url: staticDir + "music/爱别等-洪卓立/song.mp3",
+        cover: staticDir + "music/爱别等-洪卓立/cover.jpg",
+        lrc: staticDir + "music/爱别等-洪卓立/lyric.lrc",
+      },
+      {
+        name: "乖乖报到",
+        artist: "MC 张天赋",
+        url: staticDir + "music/乖乖报到-MC 张天赋/song.mp3",
+        cover: staticDir + "music/乖乖报到-MC 张天赋/cover.jpg",
+        lrc: staticDir + "music/乖乖报到-MC 张天赋/lyric.lrc",
+      },
+      {
+        name: "指纹",
+        artist: "胡歌",
+        url: staticDir + "music/指纹-胡歌/song.mp3",
+        cover: staticDir + "music/指纹-胡歌/cover.jpg",
+        lrc: staticDir + "music/指纹-胡歌/lyric.lrc",
+      },
+      {
+        name: "还记得",
+        artist: "周柏豪",
+        url: staticDir + "music/还记得-周柏豪/song.mp3",
+        cover: staticDir + "music/还记得-周柏豪/cover.jpg",
+        lrc: staticDir + "music/还记得-周柏豪/lyric.lrc",
+      },
+      {
+        name: "摄氏零度",
+        artist: "张敬轩",
+        url: staticDir + "music/摄氏零度-张敬轩/song.mp3",
+        cover: staticDir + "music/摄氏零度-张敬轩/cover.jpg",
+        lrc: staticDir + "music/摄氏零度-张敬轩/lyric.lrc",
+      },
+      {
+        name: "下一位前度",
+        artist: "林家谦",
+        url: staticDir + "music/下一位前度-林家谦/song.mp3",
+        cover: staticDir + "music/下一位前度-林家谦/cover.jpg",
+        lrc: staticDir + "music/下一位前度-林家谦/lyric.lrc",
+      },
+      {
+        name: "初初",
+        artist: "古巨基",
+        url: staticDir + "music/初初-古巨基/song.mp3",
+        cover: staticDir + "music/初初-古巨基/cover.jpg",
+        lrc: staticDir + "music/初初-古巨基/lyric.lrc",
+      },
+      {
+        name: "这个故事教训我们",
+        artist: "李克勤",
+        url: staticDir + "music/这个故事教训我们-李克勤/song.mp3",
+        cover: staticDir + "music/这个故事教训我们-李克勤/cover.jpg",
+        lrc: staticDir + "music/这个故事教训我们-李克勤/lyric.lrc",
+      },
+      {
+        name: "最后祝福",
+        artist: "黄宗泽",
+        url: staticDir + "music/最后祝福-黄宗泽/song.mp3",
+        cover: staticDir + "music/最后祝福-黄宗泽/cover.jpg",
+        lrc: staticDir + "music/最后祝福-黄宗泽/lyric.lrc",
+      }
+    ],
+    lrcType: 3,
+    fixed: true
+  });
+</script>
+
+<script>
+  
+  function calculateRunningDays(startDateStr, elementId) {
+    let s1 = new Date(startDateStr.replace(/-/g, "/"));
+    let s2 = new Date();
+    let timeDifference = s2.getTime() - s1.getTime();
+
+    let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+    let hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    let minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+
+    
+    let dayText = "d "; 
+    let hourText = "h ";
+    let minuteText = "m ";
+
+    let result = `<span>< ${days} ${dayText} ${hours} ${hourText} ${minutes} ${minuteText} ></span>`;
+    document.getElementById(elementId).innerHTML = result;
+    }
+
+    document.addEventListener("pjax:complete", () => {
+        calculateRunningDays('2025-3-14', 'runningdays');
+    });
+    calculateRunningDays('2025-3-14', 'runningdays');
+</script>
+
+<script>
+  pjax._handleResponse = pjax.handleResponse;
+  pjax.handleResponse = function (responseText, request, href, options) {
+    if (request.responseText.match("<html")) {
+      if (responseText) {
+        
+        let newDom = new DOMParser().parseFromString(responseText, "text/html");
+        
+        let bodyClass = newDom.body.className;
+        document.body.setAttribute("class", bodyClass);
+      }
+      
+      pjax._handleResponse(responseText, request, href, options);
+    } else {
+      
+    }
+  };
+</script>
+
+<script>
+  
+  function initClock() {
+    
+    var hr = document.getElementById("hr"); 
+    var mn = document.getElementById("mn"); 
+    var sc = document.getElementById("sc"); 
+    if (!hr || !mn || !sc) return;
+
+    
+    var date = new Date();
+    var HH = date.getHours();
+    var MM = date.getMinutes();
+    var SS = date.getSeconds();
+
+    
+    var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+    var minuteAngle = MM * 6 + (SS / 60) * 6;
+    var secondAngle = SS * 6;
+
+    
+    hr.style.transition = "none";
+    mn.style.transition = "none";
+    sc.style.transition = "none";
+
+    
+    hr.style.transform = "rotate(0deg)";
+    mn.style.transform = "rotate(0deg)";
+    sc.style.transform = "rotate(0deg)";
+
+    
+    setTimeout(() => {
+      hr.style.transition = "";
+      mn.style.transition = "";
+      sc.style.transition = "";
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 0);
+
+    
+    setInterval(function () {
+      var date = new Date();
+      var HH = date.getHours();
+      var MM = date.getMinutes();
+      var SS = date.getSeconds();
+
+      
+      var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+      var minuteAngle = MM * 6 + (SS / 60) * 6;
+      var secondAngle = SS * 6;
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 1000);
+  }
+
+  
+  window.onload = function () {
+    initClock();
+  };
+
+  
+  document.addEventListener("pjax:complete", () => {
+    initClock();
+  });
+</script>
+
+<script>
+  document.addEventListener("pjax:complete", () => {
+    
+    window.Stack.init();
+  });
+</script>
+
+<script>
+  async function renderKaTeX() {
+    
+    let katex = document.querySelector(".math-katex");
+    if (!katex) {
+      return;
+    }
+    
+    while (typeof renderMathInElement !== "function") {
+      await delay(500);
+    }
+    
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  }
+
+  
+
+  function delay(time) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, time);
+    });
+  }
+
+  document.addEventListener("pjax:complete", () => {
+    renderKaTeX();
+  });
+</script>
+
+<script src="https://lingjia007.github.io/Hugo_Web/en/js/topbar.min.js"></script>
+
+<script>
+  
+  topbar.config({
+    barColors: {
+      0: "rgba(255,  255, 255, 1)", 
+      "1.0": "rgba(0, 149, 234,  1)", 
+    },
+  });
+
+  document.addEventListener("pjax:send", () => {
+    
+    topbar.show();
+  });
+
+  document.addEventListener("pjax:complete", () => {
+    
+    topbar.hide();
+  });
+</script>
+
+<script>
+  const cdnPath =
+    "https://cdn.jsdelivr.net/gh/Lingjia007/live2d-widget-v3@main";
+  const config = {
+    
+    path: {
+      homePath: "/",
+      modelPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/live2d-moc3/",
+      cssPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/js/waifu.css",
+      tipsJsonPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/js/my-waifu-tips.json",
+      tipsJsPath: cdnPath + "/waifu-tips.js",
+      live2dCorePath: "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/js/live2dcubismcore.js",
+      live2dSdkPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/js/live2d-sdk.js",
+    },
+    
+    tools: [
+      "hitokoto",
+      "asteroids",
+      "express",
+      "switch-model",
+      "switch-texture",
+      "photo",
+      "info",
+      "quit",
+    ],
+    
+    drag: {
+      enable: true,
+      direction: ["x", 0],
+    },
+    
+    switchType: "order",
+  };
+
+  
+  if (screen.width >= 10) {
+    Promise.all([
+      loadExternalResource(config.path.cssPath, "css"),
+      loadExternalResource(config.path.live2dCorePath, "js"),
+      loadExternalResource(config.path.live2dSdkPath, "js"),
+      loadExternalResource(config.path.tipsJsPath, "js"),
+    ]).then(() => {
+      initWidget({
+        homePath: config.path.homePath,
+        waifuPath: config.path.tipsJsonPath,
+        cdnPath: config.path.modelPath,
+        tools: config.tools,
+        dragEnable: config.drag.enable,
+        dragDirection: config.drag.direction,
+        switchType: config.switchType,
+      });
+      
+      if (window.innerWidth <= 768) {
+        setTimeout(function () {
+          var waifu = document.getElementById("waifu");
+          var toggle = document.getElementById("waifu-toggle");
+          if (waifu) waifu.style.display = "none";
+          if (toggle) toggle.classList.add("waifu-toggle-active");
+        }, 100);
+      }
+    });
+    function waitForElement(selector, callback) {
+      new MutationObserver(function (mutations) {
+        if (document.querySelector(selector)) {
+          callback();
+          this.disconnect();
+        }
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    }
+  }
+
+  
+  function loadExternalResource(url, type) {
+    return new Promise((resolve, reject) => {
+      let tag;
+      if (type === "css") {
+        tag = document.createElement("link");
+        tag.rel = "stylesheet";
+        tag.href = url;
+      } else if (type === "js") {
+        tag = document.createElement("script");
+        tag.src = url;
+      }
+      if (tag) {
+        tag.onload = () => resolve(url);
+        tag.onerror = () => reject(url);
+        document.head.appendChild(tag);
+      }
+    });
+  }
+</script>
+
+<style>
+  .highlight {
+     
+    max-height: 400px;
+    overflow: hidden;
+  }
+
+  .code-show {
+    max-height: none !important;
+  }
+
+  .code-more-box {
+    width: 100%;
+    padding-top: 78px;
+    background-image: -webkit-gradient(
+      linear,
+      left top,
+      left bottom,
+      from(rgba(255, 255, 255, 0)),
+      to(#fff)
+    );
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+  }
+
+  .code-more-btn {
+    display: block;
+    margin: auto;
+    width: 44px;
+    height: 22px;
+    background: #f0f0f5;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding-top: 6px;
+    cursor: pointer;
+  }
+
+  .code-more-img {
+    cursor: pointer !important;
+    display: block;
+    margin: auto;
+    width: 22px;
+    height: 16px;
+  }
+</style>
+
+<script>
+  function initCodeMoreBox() {
+    let codeBlocks = document.querySelectorAll(".highlight");
+    if (!codeBlocks) {
+      return;
+    }
+    codeBlocks.forEach((codeBlock) => {
+      
+      if (codeBlock.scrollHeight <= codeBlock.clientHeight) {
+        return;
+      }
+      
+      
+      let codeMoreBox = document.createElement("div");
+      codeMoreBox.classList.add("code-more-box");
+      
+      let codeMoreBtn = document.createElement("span");
+      codeMoreBtn.classList.add("code-more-btn");
+      codeMoreBtn.addEventListener("click", () => {
+        codeBlock.classList.add("code-show");
+        codeMoreBox.style.display = "none";
+        
+        window.dispatchEvent(new Event("resize"));
+      });
+      
+      let img = document.createElement("img");
+      img.classList.add("code-more-img");
+      img.src = "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/icons/codeMore.png";
+      
+      codeMoreBtn.appendChild(img);
+      codeMoreBox.appendChild(codeMoreBtn);
+      codeBlock.appendChild(codeMoreBox);
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initCodeMoreBox();
+  });
+  initCodeMoreBox();
+</script>
+
+<div id="particles-js"></div>
+
+<script src="https://lingjia007.github.io/Hugo_Web/en/background/particles.min.js"></script>
+<script>
+  particlesJS.load(
+    "particles-js",
+    "https:\/\/lingjia007.github.io\/Hugo_Web\/en\/background/particlesjs-config.json",
+    function () {
+      console.log("particles.js loaded - callback");
+    },
+  );
+</script>
+
+<style>
+  #particles-js {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: -1;
+  }
+</style>
+
+<style>
+  #TableOfContents > ul,
+  ol {
+    ul,
+    ol {
+      display: none;
+    }
+    .open {
+      display: block;
+    }
+  }
+</style>
+
+<script>
+  function initTocHide() {
+    
+    let toc = document.querySelector(".widget--toc");
+    if (!toc) {
+      return;
+    }
+    
+    window.addEventListener("scroll", function () {
+      
+      let openUl = document.querySelectorAll(".open");
+      if (openUl.length > 0) {
+        openUl.forEach((ul) => {
+          ul.classList.remove("open");
+        });
+      }
+      
+      let currentLi = document.querySelector(".active-class");
+      if (!currentLi) {
+        return;
+      }
+      
+      if (currentLi.children.length > 1) {
+        currentLi.children[1].classList.add("open");
+      }
+      
+      let ul = currentLi.parentElement;
+      do {
+        ul.classList.add("open");
+        ul = ul.parentElement.parentElement;
+      } while (
+        ul !== undefined &&
+        (ul.localName === "ul" || ul.localName === "ol")
+      );
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initTocHide();
+  });
+  initTocHide();
+</script>
+
+<style>
+  @font-face {
+    font-family: "AlibabaPuHuiTi-3-65-Medium";
+    src: url(https://lingjia007.github.io/Hugo_Web/font/AlibabaPuHuiTi-3-65-Medium.ttf)
+      format("truetype");
+  }
+
+  :root {
+    --base-font-family: "AlibabaPuHuiTi-3-65-Medium";
+    --code-font-family: "AlibabaPuHuiTi-3-65-Medium";
+  }
+</style>
+
+<style>
+  #backTopBtn {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    z-index: 99;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    background-image: url("https://lingjia007.github.io/Hugo_Web/en/icons/backTop.svg");
+  }
+</style>
+
+<script>
+  
+
+  function initScrollTop() {
+    let rightSideBar = document.querySelector(".right-sidebar");
+    if (!rightSideBar) {
+      return;
+    }
+    
+    let btn = document.createElement("div");
+    btn.id = "backTopBtn";
+    btn.onclick = backToTop;
+    rightSideBar.appendChild(btn);
+    
+    window.onscroll = function () {
+      
+      if (
+        document.body.scrollTop > 20 ||
+        document.documentElement.scrollTop > 20
+      ) {
+        btn.style.display = "block";
+      } else {
+        btn.style.display = "none";
+      }
+    };
+  }
+
+  
+
+  function backToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initScrollTop();
+  });
+  initScrollTop();
+</script>
+
+<div class="js-Pjax2">
+  
+  <script>
+    (function () {
+      
+      const verScript = document.createElement("script");
+      verScript.defer = true;
+      verScript.src = "https://cn.vercount.one/js";
+      document.body.appendChild(verScript);
+
+      
+      function showHideView() {
+        const viewCounts = document.querySelectorAll("#viewCount");
+        if (viewCounts) {
+          const isArticle = !!document.querySelector(".article-page");
+          viewCounts.forEach((ele) => {
+            ele.style.display = isArticle ? "" : "none";
+          });
+        }
+      }
+      
+      showHideView();
+      
+      document.addEventListener("pjax:complete", function () {
+        showHideView();
+      });
+    })();
+  </script>
+</div><script>
+  (function () {
+    var giscusConfig = {
+      repo: "Lingjia007\/Hugo_Web",
+      repoId: "R_kgDOTNf24g",
+      category: "Announcements",
+      categoryId: "DIC_kwDOTNf24s4DAe9e",
+      mapping: 'title',
+      strict: "0",
+      reactionsEnabled: "1",
+      emitMetadata: "0",
+      inputPosition: 'top',
+      theme: 'light',
+      loading: "lazy",
+    };
+    var giscusLightTheme = 'light';
+    var giscusDarkTheme = 'dark_dimmed';
+
+    function getGiscusLang() {
+      var path = window.location.pathname;
+      if (path.indexOf("/zh-hk") !== -1) return "zh-HK";
+      if (path.indexOf("/en") !== -1) return "en";
+      return "zh-CN";
+    }
+
+    function getGiscusTheme() {
+      if (document.documentElement.dataset.scheme === "light") {
+        return giscusLightTheme;
+      }
+      return giscusDarkTheme;
+    }
+
+    function setGiscusTheme(theme) {
+      var giscus = document.querySelector("iframe.giscus-frame");
+      if (giscus) {
+        giscus.contentWindow.postMessage(
+          { giscus: { setConfig: { theme: theme } } },
+          "https://giscus.app",
+        );
+      }
+    }
+
+    function loadGiscus() {
+      var comment = document.querySelector(".comment");
+      if (!comment) return;
+      comment.innerHTML = "";
+      var lang = getGiscusLang();
+      var script = document.createElement("script");
+      script.src = "https://giscus.app/client.js";
+      script.setAttribute("data-repo", giscusConfig.repo);
+      script.setAttribute("data-repo-id", giscusConfig.repoId);
+      script.setAttribute("data-category", giscusConfig.category);
+      script.setAttribute("data-category-id", giscusConfig.categoryId);
+      script.setAttribute("data-mapping", giscusConfig.mapping);
+      script.setAttribute("data-strict", giscusConfig.strict);
+      script.setAttribute(
+        "data-reactions-enabled",
+        giscusConfig.reactionsEnabled,
+      );
+      script.setAttribute("data-emit-metadata", giscusConfig.emitMetadata);
+      script.setAttribute("data-input-position", giscusConfig.inputPosition);
+      script.setAttribute("data-theme", giscusConfig.theme);
+      script.setAttribute("data-lang", lang);
+      script.setAttribute("data-loading", giscusConfig.loading);
+      script.setAttribute("crossorigin", "anonymous");
+      script.async = true;
+      comment.appendChild(script);
+    }
+
+    window.addEventListener("message", function (e) {
+      if (e.origin !== "https://giscus.app") return;
+      setGiscusTheme(getGiscusTheme());
+    });
+    window.addEventListener("onColorSchemeChange", function () {
+      setGiscusTheme(getGiscusTheme());
+    });
+
+    loadGiscus();
+    document.addEventListener("pjax:complete", loadGiscus);
+  })();
+</script>
+
+    </body>
+</html>

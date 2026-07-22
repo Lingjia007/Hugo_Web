@@ -1,0 +1,1803 @@
+<!DOCTYPE html>
+<html lang="zh-hk" dir="ltr">
+    <head><meta charset='utf-8'>
+<meta name='viewport' content='width=device-width, initial-scale=1'><meta name='description' content="當外行驚呼 AI 將取代程式設計師時，最狂熱使用 AI 的恰恰是程式設計師自己。從空虛感到掌控感，一條將借來的力量內化為自身能力的道路">
+<title>AI 時代的嵌入式工程師：在空虛與掌控之間重塑自我</title>
+
+<link rel='canonical' href='https://lingjia007.github.io/Hugo_Web/zh-hk/p/ai-%E6%99%82%E4%BB%A3%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%AB%E5%9C%A8%E7%A9%BA%E8%99%9B%E8%88%87%E6%8E%8C%E6%8E%A7%E4%B9%8B%E9%96%93%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91/'>
+
+<link rel="stylesheet" href="/Hugo_Web/scss/style.min.553d9fc5cc86a8c9deb4211c02fd07c2210fc13d76ef772a58388b83939349ab.css"><meta property='og:title' content="AI 時代的嵌入式工程師：在空虛與掌控之間重塑自我">
+<meta property='og:description' content="當外行驚呼 AI 將取代程式設計師時，最狂熱使用 AI 的恰恰是程式設計師自己。從空虛感到掌控感，一條將借來的力量內化為自身能力的道路">
+<meta property='og:url' content='https://lingjia007.github.io/Hugo_Web/zh-hk/p/ai-%E6%99%82%E4%BB%A3%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%AB%E5%9C%A8%E7%A9%BA%E8%99%9B%E8%88%87%E6%8E%8C%E6%8E%A7%E4%B9%8B%E9%96%93%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91/'>
+<meta property='og:site_name' content='lingsir007'>
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='AI' /><meta property='article:tag' content='嵌入式' /><meta property='article:tag' content='工程思維' /><meta property='article:tag' content='方法論' /><meta property='article:published_time' content='2026-07-19T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-22T10:33:36&#43;08:00'/><meta property='og:image' content='https://lingjia007.github.io/Hugo_Web/p/ai-%E6%97%B6%E4%BB%A3%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E5%9C%A8%E7%A9%BA%E8%99%9A%E4%B8%8E%E6%8E%8C%E6%8E%A7%E4%B9%8B%E9%97%B4%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91/AI%E6%97%B6%E4%BB%A3%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91.png' />
+<meta name="twitter:title" content="AI 時代的嵌入式工程師：在空虛與掌控之間重塑自我">
+<meta name="twitter:description" content="當外行驚呼 AI 將取代程式設計師時，最狂熱使用 AI 的恰恰是程式設計師自己。從空虛感到掌控感，一條將借來的力量內化為自身能力的道路"><meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content='https://lingjia007.github.io/Hugo_Web/p/ai-%E6%97%B6%E4%BB%A3%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E5%9C%A8%E7%A9%BA%E8%99%9A%E4%B8%8E%E6%8E%8C%E6%8E%A7%E4%B9%8B%E9%97%B4%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91/AI%E6%97%B6%E4%BB%A3%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91.png' />
+    <link rel="shortcut icon" href="/Hugo_Web/icons/favicon.ico" />
+
+    </head>
+    <body class="
+    article-page
+    ">
+    <script>
+        (function() {
+            const colorSchemeKey = 'StackColorScheme';
+            if(!localStorage.getItem(colorSchemeKey)){
+                localStorage.setItem(colorSchemeKey, "dark");
+            }
+        })();
+    </script><script>
+    (function() {
+        const colorSchemeKey = 'StackColorScheme';
+        const colorSchemeItem = localStorage.getItem(colorSchemeKey);
+        const supportDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches === true;
+
+        if (colorSchemeItem == 'dark' || colorSchemeItem === 'auto' && supportDarkMode) {
+            
+
+            document.documentElement.dataset.scheme = 'dark';
+        } else {
+            document.documentElement.dataset.scheme = 'light';
+        }
+    })();
+</script>
+<div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky ">
+    <button class="hamburger hamburger--spin" type="button" id="toggle-menu" aria-label="切換選單">
+        <span class="hamburger-box">
+            <span class="hamburger-inner"></span>
+        </span>
+    </button>
+
+    <header>
+        
+            
+            <figure class="site-avatar">
+                <a href="/Hugo_Web/zh-hk/">
+                
+                    
+                    
+                    
+                        
+                        <img src="/Hugo_Web/img/avatar_hu_49d0a8f5a8c62cc5.png" width="300"
+                            height="300" class="site-logo" loading="lazy" alt="Avatar">
+                    
+                
+                </a>
+                
+                    <span class="emoji">🤔</span>
+                
+            </figure>
+            
+        
+        
+        <div class="site-meta">
+            <h1 class="site-name"><a href="/Hugo_Web/zh-hk">lingsir007</a></h1>
+            <h2 class="site-description">歡迎來到我的博客，不時分享嵌入式、Bootloader、GUI、邊緣 AI 與 AI 輔助開發等內容。</h2>
+        </div>
+    </header><ol class="menu-social">
+            
+                <li>
+                    <a 
+                        href='https://github.com/Lingjia007?tab=repositories'
+                        target="_blank"
+                        title="GitHub"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+                <li>
+                    <a 
+                        href='https://twitter.com'
+                        target="_blank"
+                        title="Twitter"
+                        rel="me"
+                    >
+                        
+                        
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M22 4.01c-1 .49 -1.98 .689 -3 .99c-1.121 -1.265 -2.783 -1.335 -4.38 -.737s-2.643 2.06 -2.62 3.737v1c-3.245 .083 -6.135 -1.395 -8 -4c0 0 -4.182 7.433 4 11c-1.872 1.247 -3.739 2.088 -6 2c3.308 1.803 6.913 2.423 10.034 1.517c3.58 -1.04 6.522 -3.723 7.651 -7.742a13.84 13.84 0 0 0 .497 -3.753c-.002 -.249 1.51 -2.772 1.818 -4.013z" />
+</svg>
+
+
+
+                        
+                    </a>
+                </li>
+            
+        </ol><ol class="menu" id="main-menu">
+        
+        
+        
+        <li >
+            <a href='/Hugo_Web/zh-hk/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <polyline points="5 12 3 12 12 3 21 12 19 12" />
+  <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+  <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+</svg>
+
+
+
+                
+                <span>主頁</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/zh-hk/%E9%97%9C%E6%96%BC/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-user" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="7" r="4" />
+  <path d="M6 21v-2a4 4 0 0 1 4 -4h4a4 4 0 0 1 4 4v2" />
+</svg>
+
+
+
+                
+                <span>關於</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/zh-hk/archives/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <rect x="3" y="4" width="18" height="4" rx="2" />
+  <path d="M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-10" />
+  <line x1="10" y1="12" x2="14" y2="12" />
+</svg>
+
+
+
+                
+                <span>歸檔</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/zh-hk/search/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="10" cy="10" r="7" />
+  <line x1="21" y1="21" x2="15" y2="15" />
+</svg>
+
+
+
+                
+                <span>搜尋</span>
+            </a>
+        </li>
+        
+        
+        <li >
+            <a href='/Hugo_Web/zh-hk/%E5%8F%8B%E6%83%85%E9%8F%88%E6%8E%A5/' >
+                
+                
+                
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M10 14a3.5 3.5 0 0 0 5 0l4 -4a3.5 3.5 0 0 0 -5 -5l-.5 .5" />
+  <path d="M14 10a3.5 3.5 0 0 0 -5 0l-4 4a3.5 3.5 0 0 0 5 5l.5 -.5" />
+</svg>
+
+
+
+                
+                <span>友情鏈接</span>
+            </a>
+        </li>
+        
+        <li class="menu-bottom-section">
+            <ol class="menu">
+                    
+                        <li id="i18n-switch">  
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M4 5h7" />
+  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
+  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+</svg>
+
+
+
+                            <select name="language" title="language" onchange="window.location.href = this.selectedOptions[0].value">
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/" >简体中文</option>
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/zh-hk/" selected>繁體中文</option>
+                                
+                                    <option value="https://lingjia007.github.io/Hugo_Web/en/" >English</option>
+                                
+                            </select>
+                        </li>
+                    
+                
+
+                
+                    <li id="dark-mode-toggle">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="8" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="16" cy="12" r="2" />
+  <rect x="2" y="6" width="20" height="12" rx="6" />
+</svg>
+
+
+
+                        <span>深色模式</span>
+                    </li>
+                
+            </ol>
+        </li>
+    </ol>
+</aside>
+
+    <aside class="sidebar right-sidebar sticky">
+        
+        
+
+        
+            
+                
+    <section class="widget archives">
+        <div class="widget-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <line x1="5" y1="9" x2="19" y2="9" />
+  <line x1="5" y1="15" x2="19" y2="15" />
+  <line x1="11" y1="4" x2="7" y2="20" />
+  <line x1="17" y1="4" x2="13" y2="20" />
+</svg>
+
+
+
+        </div>
+        <h2 class="widget-title section-title">目錄</h2>
+        
+        <div class="widget--toc">
+            <nav id="TableOfContents">
+  <ol>
+    <li><a href="#前言被借來的力量裹挾的空虛感">前言：被借來的力量裹挾的空虛感</a></li>
+    <li><a href="#一價值重構冰山下的真相">一、價值重構：冰山下的真相</a>
+      <ol>
+        <li><a href="#1-擺脫勤奮的陷阱">1. 擺脫「勤奮的陷阱」</a></li>
+        <li><a href="#2-程式碼實作的貶值與思維的升值">2. 程式碼實作的貶值與思維的升值</a></li>
+      </ol>
+    </li>
+    <li><a href="#二專案經驗的新解從實作者到管理者">二、專案經驗的新解：從「實作者」到「管理者」</a>
+      <ol>
+        <li><a href="#1-警惕功能搬運工">1. 警惕「功能搬運工」</a></li>
+        <li><a href="#2-專案經驗的真諦決策與控制">2. 專案經驗的真諦：決策與控制</a></li>
+      </ol>
+    </li>
+    <li><a href="#三方法論升級如何高效使用-ai-解決嵌入式問題">三、方法論升級：如何高效使用 AI 解決嵌入式問題</a>
+      <ol>
+        <li><a href="#1-核心策略上下文工程">1. 核心策略：上下文工程</a></li>
+        <li><a href="#2-決策輔助用-ai-做頭腦風暴">2. 決策輔助：用 AI 做「頭腦風暴」</a></li>
+        <li><a href="#3-避坑指南讓-ai-做紅隊測試">3. 避坑指南：讓 AI 做「紅隊測試」</a></li>
+        <li><a href="#4-關鍵的紅線人必須在哪裡介入">4. 關鍵的「紅線」：人必須在哪裡介入？</a></li>
+        <li><a href="#5-嵌入式-ai-的阿喀琉斯之踵現狀與侷限">5. 嵌入式 AI 的「阿喀琉斯之踵」：現狀與侷限</a></li>
+      </ol>
+    </li>
+    <li><a href="#四工程工件化把設計變成-ai-可執行輸入">四、工程工件化：把設計變成 AI 可執行輸入</a>
+      <ol>
+        <li><a href="#1-核心工程工件">1. 核心工程工件</a></li>
+        <li><a href="#2-實戰將斷網重連與資料快取邏輯工件化">2. 實戰：將「斷網重連與資料快取」邏輯工件化</a></li>
+      </ol>
+    </li>
+    <li><a href="#3-state-machine-業務邏輯狀態機">3. State Machine (業務邏輯狀態機)</a></li>
+    <li><a href="#五能力沉澱從-prompt-到-skill-的跨越">五、能力沉澱：從 Prompt 到 Skill 的跨越</a>
+      <ol>
+        <li><a href="#1-什麼樣的動作適合沉澱成-skill">1. 什麼樣的動作適合沉澱成 Skill？</a></li>
+        <li><a href="#2-實戰建構-embedded_protocol_parser_generator-skill">2. 實戰：建構 <code>Embedded_Protocol_Parser_Generator</code> Skill</a></li>
+      </ol>
+    </li>
+    <li><a href="#六成長路徑從路邊到高手的四個階段">六、成長路徑：從「路邊」到「高手」的四個階段</a>
+      <ol>
+        <li><a href="#1-本質路邊新手玩票">1. 本質路邊（新手/玩票）</a></li>
+        <li><a href="#2-本質不是高手初級工程師">2. 本質不是高手（初級工程師）</a></li>
+        <li><a href="#3-本質不是路邊專業工程師使用者">3. 本質不是路邊（專業工程師/使用者）</a></li>
+        <li><a href="#4-本質是高手ai-架構師頂級玩家">4. 本質是高手（AI 架構師/頂級玩家）</a></li>
+      </ol>
+    </li>
+    <li><a href="#七結語在浪潮中重新定義自我">七、結語：在浪潮中重新定義自我</a></li>
+  </ol>
+</nav>
+        </div>
+    </section>
+
+            
+        
+    </aside>
+
+
+            <main class="main full-width">
+    <article class="has-image main-article">
+    <header class="article-header">
+        <div class="article-image">
+            <a href="/Hugo_Web/zh-hk/p/ai-%E6%99%82%E4%BB%A3%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%AB%E5%9C%A8%E7%A9%BA%E8%99%9B%E8%88%87%E6%8E%8C%E6%8E%A7%E4%B9%8B%E9%96%93%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91/">
+                <img src="/Hugo_Web/p/ai-%E6%97%B6%E4%BB%A3%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E5%9C%A8%E7%A9%BA%E8%99%9A%E4%B8%8E%E6%8E%8C%E6%8E%A7%E4%B9%8B%E9%97%B4%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91/AI%E6%97%B6%E4%BB%A3%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91_hu_d6d86726cb2a6591.png"
+                        srcset="/Hugo_Web/p/ai-%E6%97%B6%E4%BB%A3%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E5%9C%A8%E7%A9%BA%E8%99%9A%E4%B8%8E%E6%8E%8C%E6%8E%A7%E4%B9%8B%E9%97%B4%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91/AI%E6%97%B6%E4%BB%A3%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91_hu_d6d86726cb2a6591.png 800w, /Hugo_Web/p/ai-%E6%97%B6%E4%BB%A3%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E5%9C%A8%E7%A9%BA%E8%99%9A%E4%B8%8E%E6%8E%8C%E6%8E%A7%E4%B9%8B%E9%97%B4%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91/AI%E6%97%B6%E4%BB%A3%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91_hu_8d7af560a0b8b026.png 1600w"
+                        width="800" 
+                        height="442" 
+                        loading="lazy"
+                        alt="Featured image of post AI 時代的嵌入式工程師：在空虛與掌控之間重塑自我" />
+                
+            </a>
+        </div>
+    
+
+    <div class="article-details">
+    
+    <header class="article-category">
+        
+            <a href="/Hugo_Web/zh-hk/categories/%E9%9A%A8%E7%AD%86/" >
+                隨筆
+            </a>
+        
+    </header>
+    
+
+    <div class="article-title-wrapper">
+        <h2 class="article-title">
+            <a href="/Hugo_Web/zh-hk/p/ai-%E6%99%82%E4%BB%A3%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%AB%E5%9C%A8%E7%A9%BA%E8%99%9B%E8%88%87%E6%8E%8C%E6%8E%A7%E4%B9%8B%E9%96%93%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91/">AI 時代的嵌入式工程師：在空虛與掌控之間重塑自我</a>
+        </h2>
+    
+        
+        <h3 class="article-subtitle">
+            當外行驚呼 AI 將取代程式設計師時，最狂熱使用 AI 的恰恰是程式設計師自己。從空虛感到掌控感，一條將借來的力量內化為自身能力的道路
+        </h3>
+        
+    </div>
+
+    
+    
+    
+    
+    <footer class="article-time">
+        
+            <div>
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <path d="M11.795 21h-6.795a2 2 0 0 1 -2 -2v-12a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v4" />
+  <circle cx="18" cy="18" r="4" />
+  <path d="M15 3v4" />
+  <path d="M7 3v4" />
+  <path d="M3 11h16" />
+  <path d="M18 16.496v1.504l1 1" />
+</svg>
+                <time class="article-time--published">Jul 19, 2026</time>
+            </div>
+        <div class="article-lastmod">
+                <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
+                <time>
+                    Jul 22, 2026 10:33 &#43;0800
+                </time>
+            </div><div id="wordCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
+            <time class="article-wordcount">
+                6978  字
+            </time>
+        </div>
+
+        
+
+        <div id="viewCount">
+            <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-eye"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 12a2 2 0 1 0 4 0a2 2 0 0 0 -4 0" /><path d="M21 12c-2.4 4 -5.4 6 -9 6c-3.6 0 -6.6 -2 -9 -6c2.4 -4 5.4 -6 9 -6c3.6 0 6.6 2 9 6" /></svg>
+            <time class="article-time--reading">
+                
+                <span id="vercount_value_page_pv">loading... </span> 次
+            </time>
+        </div>
+
+    </footer>
+    
+
+    
+        <footer class="article-translations">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-language" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+  <path d="M4 5h7" />
+  <path d="M9 3v2c0 4.418 -2.239 8 -5 8" />
+  <path d="M5 9c-.003 2.144 2.952 3.908 6.7 4" />
+  <path d="M12 20l4 -9l4 9" />
+  <path d="M19.1 18h-6.2" />
+</svg>
+
+
+
+            <div>
+                
+                    <a href="https://lingjia007.github.io/Hugo_Web/p/ai-%E6%97%B6%E4%BB%A3%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E5%9C%A8%E7%A9%BA%E8%99%9A%E4%B8%8E%E6%8E%8C%E6%8E%A7%E4%B9%8B%E9%97%B4%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91/" class="link">简体中文</a>
+                
+                    <a href="https://lingjia007.github.io/Hugo_Web/en/p/embedded-engineers-in-the-ai-era-rebuilding-yourself-between-emptiness-and-mastery/" class="link">English</a>
+                
+            </div>
+        </footer>
+    
+</div>
+
+</header>
+
+    <section class="article-content">
+    
+    
+    <blockquote>
+<p>當外行都在驚呼「AI 將取代程式設計師」時，最狂熱地使用 AI、享受 AI 帶來的效率紅利的，恰恰正是程式設計師自己。這是一種只有內行才懂的黑色幽默，也是對未來的一場集體豪賭。</p>
+</blockquote>
+<hr>
+<h2 id="前言被借來的力量裹挾的空虛感">前言：被借來的力量裹挾的空虛感
+</h2><p>如果你曾像我一樣，在一個深夜看著 AI 螢幕上飛速吐出的完美程式碼，心裡湧起的可能不是興奮，而是一種難以名狀的<strong>空虛感</strong>。
+這種感覺源於一種隱秘的恐慌：<strong>我掌握了不屬於我的力量。</strong>
+那些程式碼優雅、高效、甚至包含了我未曾聽聞的高級演算法。我只需複製、貼上、編譯，專案就跑通了。但我真的學會了嗎？沒有。我只是一個「功能搬運工」。這種<strong>「只會用 AI 寫程式碼」的困擾</strong>，像幽靈一樣纏繞著每一個趕專案的嵌入式人。
+我們面臨著雙重困境：</p>
+<ol>
+<li><strong>時間緊迫的焦慮</strong>：為了追求專案的交付品質和數量，我們沒有時間去細細消化 AI 丟給我們的那些超前的內容。</li>
+<li><strong>成長的空虛</strong>：專案交付了，但我的經驗值似乎並沒有按比例增長。</li>
+</ol>
+<p>然而，研究資料給了我們一個截然不同的視角。那些能夠<strong>規範使用 AI、將其用於提升效率和解決繁瑣重複工作</strong>的人，對未來的職業規劃和前景持有最樂觀的態度。
+為什麼？因為他們看透了一個真相：<strong>AI 不是來剝奪你勞動成果的對手，而是幫你啃下那些「硬骨頭」的牙口。</strong> 無論有沒有 AI，那些沒搞過的技術難關、那些複雜的系統架構，都必須跨過去。而現在的區別在於，你是選擇用牙齒硬啃，還是學會製造並駕馭一把鋒利的<strong>「屠龍刀」</strong>。</p>
+<p>這篇文章，就是為了記錄我如何從這種空虛感中走出，試尋找一條<strong>將「借來的力量」內化為「自身能力」</strong>的道路。</p>
+<hr>
+<h2 id="一價值重構冰山下的真相">一、價值重構：冰山下的真相
+</h2><h3 id="1-擺脫勤奮的陷阱">1. 擺脫「勤奮的陷阱」
+</h3><p>很多初學者（甚至包括一些有經驗的開發者）容易掉進一個陷阱：沉迷於「手搓程式碼」的成就感。他們覺得只有自己一行行敲出來的，才叫「學會了」。殊不知，這往往是<strong>「用戰術上的勤奮，掩蓋策略上的懶惰」</strong>。</p>
+<p>現實是殘酷的：<strong>99% 的問題前人都已經解決過了。</strong> 寫一個 I2C 驅動？晶片廠商的 HAL 庫裡就是標準答案。寫一個環形緩衝區？Linux 核心裡的實作是教科書等級的。
+如果你不去研究前人的成果，你花了三天寫出來的程式碼往往充滿 Bug、邊界條件沒處理、效率低下。你手搓了一個方形且沒氣的輪子，而 AI 直接給了你一個法拉利的輪子。<strong>不僅效率低，而且你還沒學會法拉利為什麼跑得快。</strong></p>
+<blockquote class="alert alert-warning">
+    <p>沉迷「手搓程式碼」是一種<strong>戰術勤奮、策略懶惰</strong>的表現。99% 的問題前人已解決，不去學習前人成果，反而從零造輪子，造出來的還是方的。</p></blockquote><h3 id="2-程式碼實作的貶值與思維的升值">2. 程式碼實作的貶值與思維的升值
+</h3><p>在 AI 時代，價值體系發生了劇烈的地殼運動：</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>層次</th>
+					<th>內容</th>
+					<th>現狀</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>海面之上（功能程式碼）</strong></td>
+					<td>按鍵邏輯、界面跳轉、簡單的協議收發</td>
+					<td>價值無限趨近於零 — AI 秒殺的領域</td>
+			</tr>
+			<tr>
+					<td><strong>海面之下（核心資產）</strong></td>
+					<td>核心演算法、系統架構、安全性、魯棒性</td>
+					<td>價值無限放大 — 區分「玩具」與「工業產品」的分水嶺</td>
+			</tr>
+	</tbody>
+</table></div>
+<p><strong>工作更看重專案工程經歷與經驗，原因就在於此。</strong> 因為經驗代表了你踩過多少坑。書本教你如何寫程式碼，但經驗教你如何處理異常。比如，I2C 通訊在干擾下掛死怎麼辦？Flash 擦除中途斷電如何恢復資料？這些「血淋淋」的教訓和基於物理約束的權衡決策，是 AI 難以自動生成的。</p>
+<blockquote class="alert alert-question">
+    <p><strong>AI 會取代程式設計師嗎？</strong></p>
+<p>這是一個偽命題。AI 取代的是「碼農」——那些只靠成熟業務邏輯、靠人力敲程式碼、不思考架構的人。而對於懂得利用 AI 釋放生產力、站在巨人肩膀上進行創新的人來說，AI 是放大器。<strong>外行看熱鬧，覺得危機四伏；內行看門道，正用得爽翻天。</strong> 恰恰是那些能夠規範使用 AI、把繁瑣工作自動化的人，對未來的職業前景最為樂觀。</p></blockquote><hr>
+<h2 id="二專案經驗的新解從實作者到管理者">二、專案經驗的新解：從「實作者」到「管理者」
+</h2><p>在簡歷或面試中，我們常看到一個專案描述。在 AI 時代，我們需要重新審視：<strong>從一個專案中，我們究竟得到了什麼？</strong>
+表面上看，可能只是「提供 AI 實現了相關的功能與調通的經驗」。但這只是表象。真正的深層價值，在於你在這個專案中扮演的角色演變。</p>
+<h3 id="1-警惕功能搬運工">1. 警惕「功能搬運工」
+</h3><p>如果你僅僅把專案當作「讓 AI 寫程式碼，然後跑通了」，那麼你的經驗是脆弱的。因為一旦換了晶片、換了協議，AI 生成的程式碼變了，你的「調通經驗」可能就失效了。這種經驗本質上只是「試用 AI 工具的經驗」，而不是「工程經驗」。
+這就是那種<strong>空虛感的來源</strong>——你交付了程式碼，卻沒有交付自己的成長。</p>
+<blockquote class="alert alert-caution">
+    <p>「讓 AI 寫程式碼然後跑通」的經驗是脆弱的。換了晶片、換了協議，你的「調通經驗」就可能失效。這本質上是「試用 AI 工具的經驗」，而非「工程經驗」。</p></blockquote><h3 id="2-專案經驗的真諦決策與控制">2. 專案經驗的真諦：決策與控制
+</h3><p>一個高品質的 AI 輔助專案，實際上證明了你具備以下能力：</p>
+<ul>
+<li><strong>需求轉化的能力</strong>：你能將「我要一個溫溼度監測系統」這樣模糊的需求，轉化為「STM32F407 + 2000ms 週期 + MQTT 協議 + 靜態記憶體分配」這樣 AI 可執行的<strong>約束包</strong>。</li>
+<li><strong>架構管控的能力</strong>：你不僅讓 AI 寫了程式碼，還透過<strong>工程工件（模組圖、狀態機）</strong> 鎖定了 AI 的設計方向，確保程式碼結構清晰、模組解耦。</li>
+<li><strong>啃硬骨頭的能力</strong>：對於沒搞過的技術難點（不管用什麼方式），你必須啃過去。AI 幫你查資料、出方案，但<strong>拍板決策</strong>和<strong>物理驗證</strong>（示波器看波形、map 檔案看記憶體）必須是你。</li>
+</ul>
+<blockquote class="alert alert-important">
+    <p>專案經驗不在於程式碼是你敲的還是 AI 敲的，而在於<strong>你定義了什麼樣的規則</strong>，以及<strong>你如何驗證這些規則在物理世界中的有效性</strong>。當你開始關注這些，空虛感就會被掌控感取代。</p></blockquote><hr>
+<h2 id="三方法論升級如何高效使用-ai-解決嵌入式問題">三、方法論升級：如何高效使用 AI 解決嵌入式問題
+</h2><p>嵌入式開發的特殊性在於<strong>硬體物理約束</strong>（時序、記憶體、功耗）。AI 是個天才，但它不懂物理，也不懂你的板子。因此，我們需要一套「以人為核心，AI 為加速器」的方法論。這不僅能提高效率，更是為了在有限的時間內，真正消化那些「超前」的內容。</p>
+<h3 id="1-核心策略上下文工程">1. 核心策略：上下文工程
+</h3><p>嵌入式最忌諱「空對空」。AI 寫出不可用程式碼的根源在於缺乏硬體環境上下文。</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th>用法層級</th>
+					<th>範例</th>
+					<th>結果</th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td><strong>初級</strong></td>
+					<td>「幫我寫一個讀取 MPU6050 的程式碼」</td>
+					<td>給你一段標準的 Linux I2C 程式碼，用到 STM32 上直接卡死</td>
+			</tr>
+			<tr>
+					<td><strong>高級</strong></td>
+					<td>提供完整上下文（見下方）</td>
+					<td>生成可用的、包含錯誤處理的程式碼</td>
+			</tr>
+	</tbody>
+</table></div>
+<p><strong>高級用法（提供上下文）範例</strong>：</p>
+<blockquote>
+<p>「我正在使用 STM32F407VET6，基於 HAL 庫開發。I2C 介面是 I2C1，對應的 SCL/SDA 引腳是 PB6/PB7。時鐘頻率配置為 84MHz。請幫我寫一個讀取 MPU6050 WHO_AM_I 暫存器的函式，要求包含錯誤處理和超時機制（Timeout=100ms），使用阻塞模式，並符合 MISRA C 規範。」</p>
+</blockquote>
+<blockquote class="alert alert-tip">
+    <p>上下文越精確，AI 輸出越可靠。嵌入式場景下，<strong>晶片型號、外設介面、引腳配置、時鐘頻率、約束條件</strong>缺一不可。這就像給實習生一份完整的 spec，他才能交出合格的作業。</p></blockquote><h3 id="2-決策輔助用-ai-做頭腦風暴">2. 決策輔助：用 AI 做「頭腦風暴」
+</h3><p>在動手寫程式碼之前，利用 AI 掃除資訊差，輔助你做架構決策。這是「架構師」思維的體現。</p>
+<ul>
+<li><strong>場景 A：技術選型</strong>
+<ul>
+<li><em>提問</em>：「我需要在一個資源受限的 STM32F103 上實作一個簡單的檔案系統來記錄日誌。FatFS 太大了，LittleFS 怎麼樣？或者你有什麼更輕量的建議？請對比它們的磨損均衡演算法和 RAM 佔用。」</li>
+</ul>
+</li>
+<li><strong>場景 B：架構設計</strong>
+<ul>
+<li><em>提問</em>：「我有一個採集中斷（1kHz）和一個串口傳送任務。為了防止丟包，我應該使用訊息佇列還是環形緩衝區？請給出兩種方案的偽程式碼對比，並分析在高負載下的表現。」</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-避坑指南讓-ai-做紅隊測試">3. 避坑指南：讓 AI 做「紅隊測試」
+</h3><p>與其讓 AI 寫程式碼，不如讓它<strong>審查你的程式碼</strong>。這是提升魯棒性的捷徑，也是把 AI 當作「資深導師」的用法。</p>
+<ul>
+<li><strong>靜態分析</strong>：把你的 C 程式碼貼給 AI。
+<ul>
+<li><em>指令</em>：「請檢查這段程式碼是否存在記憶體洩漏、陣列越界、死鎖風險或整數溢位的可能？重點關注指標的使用和中斷安全。」</li>
+</ul>
+</li>
+<li><strong>程式碼最佳化</strong>：
+<ul>
+<li><em>指令</em>：「這段函式在我的 72MHz MCU 上執行耗時太長了，請幫我檢視是否可以透過查表法、位元操作或減少除法運算來最佳化它？」</li>
+</ul>
+</li>
+</ul>
+<h3 id="4-關鍵的紅線人必須在哪裡介入">4. 關鍵的「紅線」：人必須在哪裡介入？
+</h3><p>雖然 AI 很強，但在嵌入式領域，以下三個環節<strong>必須由你親自把控</strong>，否則就是災難：</p>
+<ol>
+<li><strong>時序與物理世界的校驗</strong>：AI 不懂「電」。AI 寫的 I2C 時序可能沒有考慮電容導致的上升沿變緩。<strong>必須拿示波器/邏輯分析儀看波形。</strong></li>
+<li><strong>資源佔用的把控</strong>：AI 不懂「窮」。它為了程式碼優雅，可能會申請大陣列或使用 <code>printf</code>。<strong>必須看 <code>.map</code> 檔案，檢查 RAM/Flash 佔用。</strong></li>
+<li><strong>安全性兜底</strong>：AI 不懂「惡意」。AI 寫的解析函式可能沒有對資料長度做校驗。<strong>必須親自做 Code Review，檢查邊界保護。</strong></li>
+</ol>
+<blockquote class="alert alert-caution">
+    <p>嵌入式領域三條不可逾越的紅線：</p>
+<ol>
+<li><strong>時序校驗</strong> — AI 不懂「電」，必須拿示波器看波形</li>
+<li><strong>資源把控</strong> — AI 不懂「窮」，必須看 <code>.map</code> 檔案</li>
+<li><strong>安全兜底</strong> — AI 不懂「惡意」，必須親自 Code Review</li>
+</ol></blockquote><h3 id="5-嵌入式-ai-的阿喀琉斯之踵現狀與侷限">5. 嵌入式 AI 的「阿喀琉斯之踵」：現狀與侷限
+</h3><p>我們必須清醒地認識到，當前階段的 AI 在嵌入式開發中<strong>並非全能</strong>，甚至存在相當明顯的短板。這不是否定 AI 的價值，而是為了更理性地使用它。這些侷限主要體現在：</p>
+<ul>
+<li>
+<p><strong>領域知識匱乏與訓練資料不足</strong>：通用大模型在嵌入式領域的訓練資料相對較少，尤其是針對特定晶片、特定外設的深層次資訊。這導致 AI 對<strong>硬體、晶片的具體資訊掌握不全</strong>，甚至會出現<strong>編造虛假 API</strong> 的情況。例如，它可能會自信地推薦一個根本不存在的暫存器或庫函式，讓你在編譯階段就碰壁，或者在執行時出現不可預測的行為。</p>
+</li>
+<li>
+<p><strong>「幻覺」問題與事實性錯誤</strong>：AI 會一本正經地胡說八道。它可能會生成看似合理實則錯誤的電路連接建議，或者對晶片的電氣特性（如最大驅動能力、功耗曲線）給出誤導性資訊。這種<strong>正確性不能保證</strong>的特性，在涉及硬體設計、電路交叉的部分時尤其危險，可能導致<strong>設計硬體實際交叉的部分遇到阻礙</strong>，甚至損壞硬體。</p>
+</li>
+<li>
+<p><strong>物理世界感知的缺失</strong>：AI 不懂「熱」、「雜訊」、「電磁干擾」這些物理現實。它無法告訴你，某個高頻訊號走線過長會不會引入串擾，或者某個電源濾波方案在低溫下是否穩定。這些都需要工程師的經驗和物理世界的驗證。</p>
+</li>
+<li>
+<p><strong>上下文視窗與專案規模的限制</strong>：對於大型嵌入式專案，AI 的上下文視窗可能無法容納整個程式碼庫和文件，導致它在理解全域性架構、模組依賴時出現偏差。它擅長處理區域性、模組化的任務，但在處理跨檔案、跨模組的複雜互動時顯得力不從心。</p>
+</li>
+</ul>
+<blockquote class="alert alert-note">
+    <p>正因如此，行業正在投入大量資源，透過<strong>建構高品質的領域知識庫（RAG）</strong>、<strong>實作基於真實工具反饋的驗證閉環</strong>、<strong>攻關暫存器級的事實校驗與引用溯源</strong>等方式，來努力減少這些「幻覺」，讓 AI 的輸出更加可靠。但這同時也告訴我們：<strong>在當前的階段，AI 更像是一個需要被嚴格引導和驗證的「實習生」，而不是一個可以完全依賴的「專家」</strong>。我們的角色，從「寫程式碼的人」，轉變為了「定義問題、設計邊界、驗證結果」的「架構師」和「品質把關人」。</p></blockquote><hr>
+<h2 id="四工程工件化把設計變成-ai-可執行輸入">四、工程工件化：把設計變成 AI 可執行輸入
+</h2><p>光有需求包還不夠，設計邏輯是隱性的。我們需要把腦海裡的設計轉化為<strong>顯性的工程工件</strong>，以鎖定 AI 的思考邊界，防止它跑題（產生幻覺）。這不僅是提升程式碼品質的方法，更是<strong>強制自己進行深度思考</strong>的過程。</p>
+<blockquote class="alert alert-question">
+    <p><strong>為什麼一定要畫圖？</strong></p>
+<p>因為 AI 有「幻覺」。如果你不給它一張地圖（模組圖），它可能會畫出一個圓形的方塊。工件化就是強制 AI 在你設定的框架內工作，確保生成的程式碼架構是可控的。同時，當你能把腦海裡的圖畫出來時，那些「空洞的焦慮」也就消失了。</p></blockquote><h3 id="1-核心工程工件">1. 核心工程工件
+</h3><p>你需要學會繪製（用 Mermaid 或文字描述）以下工件：</p>
+<ul>
+<li><strong>模組圖</strong>：明確誰呼叫誰，劃分邊界。</li>
+<li><strong>介面表</strong>：明確函式簽名、入參出參。</li>
+<li><strong>狀態機</strong>：明確狀態的流轉邏輯，防止 if-else 混亂。</li>
+<li><strong>時序圖</strong>：明確先後順序和耗時約束。</li>
+</ul>
+<h3 id="2-實戰將斷網重連與資料快取邏輯工件化">2. 實戰：將「斷網重連與資料快取」邏輯工件化
+</h3><p>如果你想讓 AI 幫你實作複雜的邏輯，先給它看<strong>設計工件</strong>。
+<strong>Prompt 範例（工件化輸入）：</strong></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-markdown" data-lang="markdown"><span class="line"><span class="cl"><span class="gh"># Design Artifacts for Implementation
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">基於上述需求，我已完成架構設計，請嚴格按照以下工件進行程式碼實作：
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="gu">## 1. Module Architecture (模組劃分)
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">請實作以下三個模組：
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">-</span> <span class="sb">`SensorMgr`</span>: 負責底層 AHT10 驅動與資料讀取。
+</span></span><span class="line"><span class="cl"><span class="k">-</span> <span class="sb">`DataCache`</span>: 負責斷網時的資料本機快取（FIFO）。
+</span></span><span class="line"><span class="cl"><span class="k">-</span> <span class="sb">`NetMgr`</span>: 負責 MQTT 傳送與網路狀態管理。
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="gu">## 2. Interface Definition (介面定義)
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">請嚴格遵守以下介面簽名，不得修改：
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="s">```c
+</span></span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">sensor_read</span><span class="p">(</span><span class="kt">sensor_data_t</span> <span class="o">*</span><span class="n">data</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="kt">void</span> <span class="nf">cache_push</span><span class="p">(</span><span class="k">const</span> <span class="kt">sensor_data_t</span> <span class="o">*</span><span class="n">data</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="kt">int</span> <span class="nf">cache_pop</span><span class="p">(</span><span class="kt">sensor_data_t</span> <span class="o">*</span><span class="n">data</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="kt">net_state_t</span> <span class="nf">net_get_status</span><span class="p">(</span><span class="kt">void</span><span class="p">);</span>
+</span></span><span class="line"><span class="cl"><span class="s">```</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h2 id="3-state-machine-業務邏輯狀態機">3. State Machine (業務邏輯狀態機)
+</h2><p>主執行緒邏輯必須嚴格遵循以下狀態機流轉：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">stateDiagram-v2
+</span></span><span class="line"><span class="cl">    [*] --&gt; IDLE: Power On
+</span></span><span class="line"><span class="cl">    IDLE --&gt; READING: Timer Trigger
+</span></span><span class="line"><span class="cl">    READING --&gt; CACHE_CHECKING: Data Read
+</span></span><span class="line"><span class="cl">    CACHE_CHECKING --&gt; NET_PUBLISHING: Net is Connected
+</span></span><span class="line"><span class="cl">    CACHE_CHECKING --&gt; LOCAL_SAVING: Net is Disconnected
+</span></span><span class="line"><span class="cl">    LOCAL_SAVING --&gt; IDLE: Save Success
+</span></span><span class="line"><span class="cl">    NET_PUBLISHING --&gt; IDLE: Publish Success
+</span></span><span class="line"><span class="cl">    note right of LOCAL_SAVING: If Cache is full, discard oldest data.
+</span></span></code></pre></td></tr></table>
+</div>
+</div><hr>
+<h2 id="五能力沉澱從-prompt-到-skill-的跨越">五、能力沉澱：從 Prompt 到 Skill 的跨越
+</h2><p>在建構 GPTs 或自定義 Agent 時，**Prompt（提示詞）**和 **Skill（技能/能力）**是兩個不同層級的概念。這是告別空虛感、建構個人護城河的關鍵一步。</p>
+<div class="table-wrapper"><table>
+	<thead>
+			<tr>
+					<th style="text-align: left">維度</th>
+					<th style="text-align: left"><strong>Prompt (提示詞)</strong></th>
+					<th style="text-align: left"><strong>Skill (技能/技能包)</strong></th>
+			</tr>
+	</thead>
+	<tbody>
+			<tr>
+					<td style="text-align: left"><strong>本質</strong></td>
+					<td style="text-align: left">臨時的指令</td>
+					<td style="text-align: left">沉澱的資產</td>
+			</tr>
+			<tr>
+					<td style="text-align: left"><strong>複用性</strong></td>
+					<td style="text-align: left">低，每次需修改傳送</td>
+					<td style="text-align: left">高，封裝好後只需傳參數</td>
+			</tr>
+			<tr>
+					<td style="text-align: left"><strong>複雜度</strong></td>
+					<td style="text-align: left">適合單次、線性任務</td>
+					<td style="text-align: left">適合多步、複雜、有工作流的任務</td>
+			</tr>
+			<tr>
+					<td style="text-align: left"><strong>你的角色</strong></td>
+					<td style="text-align: left">操作員（親自指揮）</td>
+					<td style="text-align: left">架構師（制定規則自動執行）</td>
+			</tr>
+	</tbody>
+</table></div>
+<h3 id="1-什麼樣的動作適合沉澱成-skill">1. 什麼樣的動作適合沉澱成 Skill？
+</h3><ul>
+<li><strong>高頻複用</strong>：解析串口資料包、編寫單元測試框架。</li>
+<li><strong>邏輯確定</strong>：初始化外設的固定流程。</li>
+<li><strong>依賴經驗</strong>：新手容易做錯、有明確避坑指南的任務（如記憶體安全檢查）。</li>
+</ul>
+<h3 id="2-實戰建構-embedded_protocol_parser_generator-skill">2. 實戰：建構 <code>Embedded_Protocol_Parser_Generator</code> Skill
+</h3><p>我們將「魯棒的串口解析」經驗固化。這是一個嵌入式最高頻、最痛點的場景。</p>
+<p><strong>經驗沉澱（寫入 Skill 的規則庫）：</strong></p>
+<ol>
+<li>串口是流傳輸，必須用狀態機處理。</li>
+<li>永遠不要相信 Length 欄位，必須校驗是否超過 Buffer 大小。</li>
+<li>必須處理粘包/半包。</li>
+<li>禁止使用 <code>malloc</code>。</li>
+</ol>
+<p><strong>Skill 結構：</strong></p>
+<ul>
+<li>
+<p><strong>輸入定義</strong>：</p>
+<ul>
+<li><code>Frame_Format</code>: 幀結構定義。</li>
+<li><code>Header_Value</code>: 幀頭具體的十六進位值。</li>
+<li><code>Max_Buffer_Size</code>: 接收緩衝區的最大位元組數。</li>
+</ul>
+</li>
+<li>
+<p><strong>核心邏輯規則（System Prompt 部分）</strong>：</p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-markdown" data-lang="markdown"><span class="line"><span class="cl"><span class="gh"># Rules of Experience
+</span></span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">1.</span> <span class="gs">**狀態機設計**</span>：必須包含 WAIT_HEADER, WAIT_LENGTH, WAIT_DATA, WAIT_CRC, READY 狀態。
+</span></span><span class="line"><span class="cl"><span class="k">2.</span> <span class="gs">**安全防線**</span>：在 WAIT_LENGTH 狀態下，如果 Length &gt; Max_Buffer_Size，必須直接跳轉到 WAIT_HEADER 並丟棄資料。
+</span></span><span class="line"><span class="cl"><span class="k">3.</span> <span class="gs">**處理粘包/半包**</span>：解析函式必須支援「每次傳入一個位元組」的流式處理。
+</span></span><span class="line"><span class="cl"><span class="k">4.</span> <span class="gs">**記憶體策略**</span>：使用靜態陣列，嚴禁 malloc。
+</span></span></code></pre></td></tr></table>
+</div>
+</div></li>
+</ul>
+<p><strong>執行結果：</strong>
+下次只需輸入：「Header=<code>0xAA55</code>, CRC=<code>CRC8</code>, Buffer=<code>128</code>」。
+AI 就會自動生成包含狀態機、溢位保護、流式處理的 C 程式碼。<strong>這就是把個人能力變成了組織資產。</strong></p>
+<blockquote class="alert alert-tip">
+    <p>Skill 的核心價值：<strong>把個人能力變成組織資產</strong>。一次沉澱，終身複用。下次只需傳入參數，AI 就能自動生成符合你經驗規則的程式碼。</p></blockquote><hr>
+<h2 id="六成長路徑從路邊到高手的四個階段">六、成長路徑：從「路邊」到「高手」的四個階段
+</h2><p>基於對 AI 使用的深度，可以劃分四個階段，這是判斷一個工程師是否「AI 原生」的標準，也是你擺脫空虛感的進階階梯：</p>
+<h3 id="1-本質路邊新手玩票">1. 本質路邊（新手/玩票）
+</h3><ul>
+<li><strong>行為</strong>：只在免費網頁 AI（如 ChatGPT 網頁版）上，用大白話提問（「幫我寫個排序」）。</li>
+<li><strong>特徵</strong>：無上下文，無私有資料，解決極其簡單的通用問題。</li>
+<li><strong>評價</strong>：這叫「消費 AI」。就像你在路邊隨便抓個人問路，全看運氣。</li>
+</ul>
+<h3 id="2-本質不是高手初級工程師">2. 本質不是高手（初級工程師）
+</h3><ul>
+<li><strong>行為</strong>：知道需要上下文，會把程式碼庫裡的檔案複製貼上給 AI，但依然在網頁上操作。</li>
+<li><strong>特徵</strong>：有上下文意識，但交付效率極低，受限於字數限制，無法覆蓋整個工程。</li>
+<li><strong>評價</strong>：這叫「搬運工」。你懂得了「料」的重要性，但你的「廚具」（網頁）太簡陋。</li>
+</ul>
+<h3 id="3-本質不是路邊專業工程師使用者">3. 本質不是路邊（專業工程師/使用者）
+</h3><ul>
+<li><strong>行為</strong>：使用 AI 整合環境（如 Cursor、Windsurf、VSCode + Copilot），直接新增工作區。</li>
+<li><strong>特徵</strong>：工具到位，能提升日常效率。但缺乏管理思維，直接把整個工作區丟給 AI 導致雜訊太大。</li>
+<li><strong>評價</strong>：你已經脫離了「路邊攤」，進入了正規軍序列，是「熟練工」。</li>
+</ul>
+<h3 id="4-本質是高手ai-架構師頂級玩家">4. 本質是高手（AI 架構師/頂級玩家）
+</h3><ul>
+<li><strong>行為</strong>：<strong>不僅用 AI，更在管理 AI。</strong>
+<ul>
+<li><strong>管理 MD 工程</strong>：編寫結構化的 Prompt 模板、技術文件作為 AI 的知識庫。</li>
+<li><strong>分支配置最佳化</strong>：利用 Git 分支管理不同版本的上下文，防止舊程式碼干擾新邏輯。</li>
+<li><strong>最佳化檢索效率</strong>：透過 <code>.cursorignore</code> 等配置過濾 <code>build</code>、<code>node_modules</code> 等雜訊，讓 AI 聚焦核心程式碼。</li>
+<li><strong>沉澱 Skill</strong>：將 Debug 經驗、設計模式寫成自定義指令或 Agent。</li>
+</ul>
+</li>
+<li><strong>評價</strong>：你不再是用 AI 解決問題，而是<strong>搭建了一套「基於 AI 的自動化研發體系」</strong>。你造了一個聽你話的 AI 助手。這時的你，再也不會感到空虛，因為每一個 Skill 的沉澱，都是實打實屬於你的能力護城河。</li>
+</ul>
+<blockquote class="alert alert-question">
+    <p><strong>為什麼高手要管理 MD 和分支配置？</strong></p>
+<p>因為在大型工程中，上下文就是金錢。無效的雜訊會稀釋 AI 的注意力。高手透過精細化管理（MD 文件作為結構化知識、分支作為隔離環境），實作了對 AI 思考過程的精準控制，這是從「使用工具」到「駕馭工具」的本質跨越。</p></blockquote><hr>
+<h2 id="七結語在浪潮中重新定義自我">七、結語：在浪潮中重新定義自我
+</h2><p>回到最初的那個問題：<strong>從一個專案中，我們究竟得到了什麼？</strong></p>
+<p>如果你只是讓 AI 替你寫了程式碼，你得到的是一個可以執行的二進位檔案和一份空虛的履歷。
+但如果你按照上述的方法論，去定義約束、去繪製工件、去沉澱 Skill、去管理上下文，那麼你得到的是：</p>
+<ul>
+<li><strong>從「實作者」到「決策者」</strong>：不再糾結具體語法實作，而關注技術選型、架構設計和資源權衡。</li>
+<li><strong>從「單兵作戰」到「系統整合」</strong>：利用 AI 打通全棧壁壘，成為能解決複雜系統問題的超級個體。</li>
+<li><strong>從「經驗積累」到「知識沉澱」</strong>：將個人經驗轉化為可複用的 Skill，建構屬於自己的自動化研發體系。</li>
+</ul>
+<p><strong>AI 不是程式設計師的終結者，它是「平庸者的過濾器」和「精英者的放大器」。</strong></p>
+<p>那些規範使用 AI 的人之所以樂觀，不是因為他們依賴 AI，而是因為他們透過 AI，找到了一種更高級的生存方式。<strong>不管硬骨頭有多硬，我們都有了更鋒利的牙口；不管時間有多緊迫，我們都有了更高效的引擎。</strong></p>
+<p>但同時，我們也必須時刻清醒：<strong>AI 尤其是在嵌入式這樣的領域，遠非完美</strong>。它有它的「阿喀琉斯之踵」——領域知識的匱乏、難以避免的「幻覺」、物理世界感知的缺失。這些都需要我們用深厚的工程經驗、嚴謹的驗證流程和永不停止的懷疑精神去彌補、去駕馭、去超越。</p>
+<blockquote class="alert alert-important">
+    <p><strong>我們的價值，恰恰在於能看穿 AI 的侷限，並組織起一切資源（包括 AI 自身）來克服這些侷限，最終交付一個可靠、魯棒、能在現實世界中長期執行的系統。</strong></p></blockquote><p>只要你能把握住工程思維的本質，掌握與 AI 協作的高級方法，同時保持對物理世界的敬畏和對技術邊界的清醒認知，那種「掌握不屬於自己力量」的空虛感終將消散，取而代之的，是對技術和未來的<strong>絕對掌控</strong>。</p>
+
+</section>
+
+
+    <footer class="article-footer">
+    
+    <section class="article-tags">
+        
+            <a href="/Hugo_Web/zh-hk/tags/ai/">AI</a>
+        
+            <a href="/Hugo_Web/zh-hk/tags/%E5%B5%8C%E5%85%A5%E5%BC%8F/">嵌入式</a>
+        
+            <a href="/Hugo_Web/zh-hk/tags/%E5%B7%A5%E7%A8%8B%E6%80%9D%E7%B6%AD/">工程思維</a>
+        
+            <a href="/Hugo_Web/zh-hk/tags/%E6%96%B9%E6%B3%95%E8%AB%96/">方法論</a>
+        
+    </section>
+
+
+    
+    <section class="article-copyright">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <path d="M14.5 9a3.5 4 0 1 0 0 6" />
+</svg>
+
+
+
+        <span>Licensed under CC BY-NC-SA 4.0</span>
+    </section>
+    <section class="article-lastmod">
+        <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path stroke="none" d="M0 0h24v24H0z"/>
+  <circle cx="12" cy="12" r="9" />
+  <polyline points="12 7 12 12 15 15" />
+</svg>
+
+
+
+        <span>
+            上次改過於 Jul 22, 2026 10:33 &#43;0800
+        </span>
+    </section></footer>
+
+
+    
+        <link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI&#43;WdtXRGWt2kTvGFasHpSy3SV"crossorigin="anonymous"
+            ><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG&#43;vnGctmUb0ZY0l8"crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"integrity="sha384-&#43;VBxd3r6XgURycqtZ117nYw44OOcIax56Z4dCRWbxyPt0Koah1uHoK0o4&#43;/RRE05"crossorigin="anonymous"
+                defer
+                >
+            </script><script>
+  window.addEventListener("DOMContentLoaded", () => {
+    const mainArticleElement = document.querySelector(".main-article");
+    renderMathInElement(mainArticleElement, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  });
+</script>
+<div class="math-katex"></div>
+
+    
+</article>
+
+    
+
+    
+
+     
+    
+        
+    
+    <div class="comment"></div>
+
+    
+
+    <footer class="site-footer">
+    <section class="copyright">
+        &copy; 
+        
+            2025 - 
+        
+        2026 lingsir007
+    </section>
+    
+    <section class="running-time">
+        
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+                
+            
+        本網站已穩定運行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;總計<span id="articleCount">&lt; 12 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 74.81 k ></span>字
+    </section>
+    <section class="powerby">
+        使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 構建 <br />
+        主題 <b><a href="https://github.com/CaiJimmy/hugo-theme-stack" target="_blank" rel="noopener" data-version="3.30.0">Stack</a></b> 由 <a href="https://jimmycai.com" target="_blank" rel="noopener">Jimmy</a> 設計
+    </section>
+</footer>
+
+
+    
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    
+    <div class="pswp__bg"></div>
+
+    
+    <div class="pswp__scroll-wrap">
+
+        
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                
+                
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js"integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo="crossorigin="anonymous"
+                defer
+                >
+            </script><script 
+                src="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js"integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU="crossorigin="anonymous"
+                defer
+                >
+            </script><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css"crossorigin="anonymous"
+            ><link 
+                rel="stylesheet" 
+                href="https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css"crossorigin="anonymous"
+            >
+
+            </main>
+        </div>
+        <script 
+                src="https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js"integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z&#43;KMkF24hUW8WePSA9HM="crossorigin="anonymous"
+                
+                >
+            </script><script type="text/javascript" src="/Hugo_Web/ts/main.99ce1801c4bad426a42fc436add4721e149159dbb598636e9578fd59cf778c83.js" defer></script> <script>
+    (function () {
+        const customFont = document.createElement('link');
+        customFont.href = "https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap";
+
+        customFont.type = "text/css";
+        customFont.rel = "stylesheet";
+
+        document.head.appendChild(customFont);
+    }());
+</script> <link
+  rel="stylesheet"
+  href="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.css"
+/>
+
+<script src="https://cdn.jsdelivr.net/npm/pjax/pjax.min.js"></script>
+<script>
+  var pjax = new Pjax({
+    selectors: ["title", ".main-container", ".js-Pjax1", ".js-Pjax2"],
+  });
+</script>
+
+<div id="aplayer"></div>
+<script src="https://cdn.jsdelivr.net/npm/aplayer/dist/APlayer.min.js"></script>
+
+<script>
+  const staticDir = "https://lingjia007.github.io/Hugo_Web/zh-hk/";
+  const ap = new APlayer({
+    container: document.getElementById("aplayer"),
+    audio: [
+      {
+        name: "Keil Generic Key",
+        artist: "EDGE",
+        url: staticDir + "music/Keil Generic Key-EDGE/song.mp3",
+        cover: staticDir + "music/Keil Generic Key-EDGE/cover.png",
+        lrc: staticDir + "music/Keil Generic Key-EDGE/lyric.lrc",
+      },
+      {
+        name: "查无此字",
+        artist: "林奕匡",
+        url: staticDir + "music/查无此字-林奕匡/song.mp3",
+        cover: staticDir + "music/查无此字-林奕匡/cover.jpg",
+        lrc: staticDir + "music/查无此字-林奕匡/lyric.lrc",
+      },
+      {
+        name: "爱别等",
+        artist: "洪卓立",
+        url: staticDir + "music/爱别等-洪卓立/song.mp3",
+        cover: staticDir + "music/爱别等-洪卓立/cover.jpg",
+        lrc: staticDir + "music/爱别等-洪卓立/lyric.lrc",
+      },
+      {
+        name: "乖乖报到",
+        artist: "MC 张天赋",
+        url: staticDir + "music/乖乖报到-MC 张天赋/song.mp3",
+        cover: staticDir + "music/乖乖报到-MC 张天赋/cover.jpg",
+        lrc: staticDir + "music/乖乖报到-MC 张天赋/lyric.lrc",
+      },
+      {
+        name: "指纹",
+        artist: "胡歌",
+        url: staticDir + "music/指纹-胡歌/song.mp3",
+        cover: staticDir + "music/指纹-胡歌/cover.jpg",
+        lrc: staticDir + "music/指纹-胡歌/lyric.lrc",
+      },
+      {
+        name: "还记得",
+        artist: "周柏豪",
+        url: staticDir + "music/还记得-周柏豪/song.mp3",
+        cover: staticDir + "music/还记得-周柏豪/cover.jpg",
+        lrc: staticDir + "music/还记得-周柏豪/lyric.lrc",
+      },
+      {
+        name: "摄氏零度",
+        artist: "张敬轩",
+        url: staticDir + "music/摄氏零度-张敬轩/song.mp3",
+        cover: staticDir + "music/摄氏零度-张敬轩/cover.jpg",
+        lrc: staticDir + "music/摄氏零度-张敬轩/lyric.lrc",
+      },
+      {
+        name: "下一位前度",
+        artist: "林家谦",
+        url: staticDir + "music/下一位前度-林家谦/song.mp3",
+        cover: staticDir + "music/下一位前度-林家谦/cover.jpg",
+        lrc: staticDir + "music/下一位前度-林家谦/lyric.lrc",
+      },
+      {
+        name: "初初",
+        artist: "古巨基",
+        url: staticDir + "music/初初-古巨基/song.mp3",
+        cover: staticDir + "music/初初-古巨基/cover.jpg",
+        lrc: staticDir + "music/初初-古巨基/lyric.lrc",
+      },
+      {
+        name: "这个故事教训我们",
+        artist: "李克勤",
+        url: staticDir + "music/这个故事教训我们-李克勤/song.mp3",
+        cover: staticDir + "music/这个故事教训我们-李克勤/cover.jpg",
+        lrc: staticDir + "music/这个故事教训我们-李克勤/lyric.lrc",
+      },
+      {
+        name: "最后祝福",
+        artist: "黄宗泽",
+        url: staticDir + "music/最后祝福-黄宗泽/song.mp3",
+        cover: staticDir + "music/最后祝福-黄宗泽/cover.jpg",
+        lrc: staticDir + "music/最后祝福-黄宗泽/lyric.lrc",
+      }
+    ],
+    lrcType: 3,
+    fixed: true
+  });
+</script>
+
+<script>
+  
+  function calculateRunningDays(startDateStr, elementId) {
+    let s1 = new Date(startDateStr.replace(/-/g, "/"));
+    let s2 = new Date();
+    let timeDifference = s2.getTime() - s1.getTime();
+
+    let days = Math.floor(timeDifference / (1000 * 60 * 60 * 24));
+    let hours = Math.floor((timeDifference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    let minutes = Math.floor((timeDifference % (1000 * 60 * 60)) / (1000 * 60));
+
+    
+    let dayText = "天"; 
+    let hourText = "小時";
+    let minuteText = "分鐘";
+
+    let result = `<span>< ${days} ${dayText} ${hours} ${hourText} ${minutes} ${minuteText} ></span>`;
+    document.getElementById(elementId).innerHTML = result;
+    }
+
+    document.addEventListener("pjax:complete", () => {
+        calculateRunningDays('2025-3-14', 'runningdays');
+    });
+    calculateRunningDays('2025-3-14', 'runningdays');
+</script>
+
+<script>
+  pjax._handleResponse = pjax.handleResponse;
+  pjax.handleResponse = function (responseText, request, href, options) {
+    if (request.responseText.match("<html")) {
+      if (responseText) {
+        
+        let newDom = new DOMParser().parseFromString(responseText, "text/html");
+        
+        let bodyClass = newDom.body.className;
+        document.body.setAttribute("class", bodyClass);
+      }
+      
+      pjax._handleResponse(responseText, request, href, options);
+    } else {
+      
+    }
+  };
+</script>
+
+<script>
+  
+  function initClock() {
+    
+    var hr = document.getElementById("hr"); 
+    var mn = document.getElementById("mn"); 
+    var sc = document.getElementById("sc"); 
+    if (!hr || !mn || !sc) return;
+
+    
+    var date = new Date();
+    var HH = date.getHours();
+    var MM = date.getMinutes();
+    var SS = date.getSeconds();
+
+    
+    var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+    var minuteAngle = MM * 6 + (SS / 60) * 6;
+    var secondAngle = SS * 6;
+
+    
+    hr.style.transition = "none";
+    mn.style.transition = "none";
+    sc.style.transition = "none";
+
+    
+    hr.style.transform = "rotate(0deg)";
+    mn.style.transform = "rotate(0deg)";
+    sc.style.transform = "rotate(0deg)";
+
+    
+    setTimeout(() => {
+      hr.style.transition = "";
+      mn.style.transition = "";
+      sc.style.transition = "";
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 0);
+
+    
+    setInterval(function () {
+      var date = new Date();
+      var HH = date.getHours();
+      var MM = date.getMinutes();
+      var SS = date.getSeconds();
+
+      
+      var hourAngle = (HH % 12) * 30 + (MM / 60) * 30;
+      var minuteAngle = MM * 6 + (SS / 60) * 6;
+      var secondAngle = SS * 6;
+
+      
+      hr.style.transform = "rotate(" + hourAngle + "deg)";
+      mn.style.transform = "rotate(" + minuteAngle + "deg)";
+      sc.style.transform = "rotate(" + secondAngle + "deg)";
+    }, 1000);
+  }
+
+  
+  window.onload = function () {
+    initClock();
+  };
+
+  
+  document.addEventListener("pjax:complete", () => {
+    initClock();
+  });
+</script>
+
+<script>
+  document.addEventListener("pjax:complete", () => {
+    
+    window.Stack.init();
+  });
+</script>
+
+<script>
+  async function renderKaTeX() {
+    
+    let katex = document.querySelector(".math-katex");
+    if (!katex) {
+      return;
+    }
+    
+    while (typeof renderMathInElement !== "function") {
+      await delay(500);
+    }
+    
+    renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "$", right: "$", display: false },
+        { left: "\\(", right: "\\)", display: false },
+        { left: "\\[", right: "\\]", display: true },
+      ],
+      ignoredClasses: ["gist"],
+    });
+  }
+
+  
+
+  function delay(time) {
+    return new Promise((resolve) => {
+      setTimeout(resolve, time);
+    });
+  }
+
+  document.addEventListener("pjax:complete", () => {
+    renderKaTeX();
+  });
+</script>
+
+<script src="https://lingjia007.github.io/Hugo_Web/zh-hk/js/topbar.min.js"></script>
+
+<script>
+  
+  topbar.config({
+    barColors: {
+      0: "rgba(255,  255, 255, 1)", 
+      "1.0": "rgba(0, 149, 234,  1)", 
+    },
+  });
+
+  document.addEventListener("pjax:send", () => {
+    
+    topbar.show();
+  });
+
+  document.addEventListener("pjax:complete", () => {
+    
+    topbar.hide();
+  });
+</script>
+
+<script>
+  const cdnPath =
+    "https://cdn.jsdelivr.net/gh/Lingjia007/live2d-widget-v3@main";
+  const config = {
+    
+    path: {
+      homePath: "/",
+      modelPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/zh-hk\/live2d-moc3/",
+      cssPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/zh-hk\/js/waifu.css",
+      tipsJsonPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/zh-hk\/js/my-waifu-tips.json",
+      tipsJsPath: cdnPath + "/waifu-tips.js",
+      live2dCorePath: "https:\/\/lingjia007.github.io\/Hugo_Web\/zh-hk\/js/live2dcubismcore.js",
+      live2dSdkPath: "https:\/\/lingjia007.github.io\/Hugo_Web\/zh-hk\/js/live2d-sdk.js",
+    },
+    
+    tools: [
+      "hitokoto",
+      "asteroids",
+      "express",
+      "switch-model",
+      "switch-texture",
+      "photo",
+      "info",
+      "quit",
+    ],
+    
+    drag: {
+      enable: true,
+      direction: ["x", 0],
+    },
+    
+    switchType: "order",
+  };
+
+  
+  if (screen.width >= 10) {
+    Promise.all([
+      loadExternalResource(config.path.cssPath, "css"),
+      loadExternalResource(config.path.live2dCorePath, "js"),
+      loadExternalResource(config.path.live2dSdkPath, "js"),
+      loadExternalResource(config.path.tipsJsPath, "js"),
+    ]).then(() => {
+      initWidget({
+        homePath: config.path.homePath,
+        waifuPath: config.path.tipsJsonPath,
+        cdnPath: config.path.modelPath,
+        tools: config.tools,
+        dragEnable: config.drag.enable,
+        dragDirection: config.drag.direction,
+        switchType: config.switchType,
+      });
+      
+      if (window.innerWidth <= 768) {
+        setTimeout(function () {
+          var waifu = document.getElementById("waifu");
+          var toggle = document.getElementById("waifu-toggle");
+          if (waifu) waifu.style.display = "none";
+          if (toggle) toggle.classList.add("waifu-toggle-active");
+        }, 100);
+      }
+    });
+    function waitForElement(selector, callback) {
+      new MutationObserver(function (mutations) {
+        if (document.querySelector(selector)) {
+          callback();
+          this.disconnect();
+        }
+      }).observe(document.documentElement, { childList: true, subtree: true });
+    }
+  }
+
+  
+  function loadExternalResource(url, type) {
+    return new Promise((resolve, reject) => {
+      let tag;
+      if (type === "css") {
+        tag = document.createElement("link");
+        tag.rel = "stylesheet";
+        tag.href = url;
+      } else if (type === "js") {
+        tag = document.createElement("script");
+        tag.src = url;
+      }
+      if (tag) {
+        tag.onload = () => resolve(url);
+        tag.onerror = () => reject(url);
+        document.head.appendChild(tag);
+      }
+    });
+  }
+</script>
+
+<style>
+  .highlight {
+     
+    max-height: 400px;
+    overflow: hidden;
+  }
+
+  .code-show {
+    max-height: none !important;
+  }
+
+  .code-more-box {
+    width: 100%;
+    padding-top: 78px;
+    background-image: -webkit-gradient(
+      linear,
+      left top,
+      left bottom,
+      from(rgba(255, 255, 255, 0)),
+      to(#fff)
+    );
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+  }
+
+  .code-more-btn {
+    display: block;
+    margin: auto;
+    width: 44px;
+    height: 22px;
+    background: #f0f0f5;
+    border-top-left-radius: 8px;
+    border-top-right-radius: 8px;
+    padding-top: 6px;
+    cursor: pointer;
+  }
+
+  .code-more-img {
+    cursor: pointer !important;
+    display: block;
+    margin: auto;
+    width: 22px;
+    height: 16px;
+  }
+</style>
+
+<script>
+  function initCodeMoreBox() {
+    let codeBlocks = document.querySelectorAll(".highlight");
+    if (!codeBlocks) {
+      return;
+    }
+    codeBlocks.forEach((codeBlock) => {
+      
+      if (codeBlock.scrollHeight <= codeBlock.clientHeight) {
+        return;
+      }
+      
+      
+      let codeMoreBox = document.createElement("div");
+      codeMoreBox.classList.add("code-more-box");
+      
+      let codeMoreBtn = document.createElement("span");
+      codeMoreBtn.classList.add("code-more-btn");
+      codeMoreBtn.addEventListener("click", () => {
+        codeBlock.classList.add("code-show");
+        codeMoreBox.style.display = "none";
+        
+        window.dispatchEvent(new Event("resize"));
+      });
+      
+      let img = document.createElement("img");
+      img.classList.add("code-more-img");
+      img.src = "https:\/\/lingjia007.github.io\/Hugo_Web\/zh-hk\/icons/codeMore.png";
+      
+      codeMoreBtn.appendChild(img);
+      codeMoreBox.appendChild(codeMoreBtn);
+      codeBlock.appendChild(codeMoreBox);
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initCodeMoreBox();
+  });
+  initCodeMoreBox();
+</script>
+
+<div id="particles-js"></div>
+
+<script src="https://lingjia007.github.io/Hugo_Web/zh-hk/background/particles.min.js"></script>
+<script>
+  particlesJS.load(
+    "particles-js",
+    "https:\/\/lingjia007.github.io\/Hugo_Web\/zh-hk\/background/particlesjs-config.json",
+    function () {
+      console.log("particles.js loaded - callback");
+    },
+  );
+</script>
+
+<style>
+  #particles-js {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: -1;
+  }
+</style>
+
+<style>
+  #TableOfContents > ul,
+  ol {
+    ul,
+    ol {
+      display: none;
+    }
+    .open {
+      display: block;
+    }
+  }
+</style>
+
+<script>
+  function initTocHide() {
+    
+    let toc = document.querySelector(".widget--toc");
+    if (!toc) {
+      return;
+    }
+    
+    window.addEventListener("scroll", function () {
+      
+      let openUl = document.querySelectorAll(".open");
+      if (openUl.length > 0) {
+        openUl.forEach((ul) => {
+          ul.classList.remove("open");
+        });
+      }
+      
+      let currentLi = document.querySelector(".active-class");
+      if (!currentLi) {
+        return;
+      }
+      
+      if (currentLi.children.length > 1) {
+        currentLi.children[1].classList.add("open");
+      }
+      
+      let ul = currentLi.parentElement;
+      do {
+        ul.classList.add("open");
+        ul = ul.parentElement.parentElement;
+      } while (
+        ul !== undefined &&
+        (ul.localName === "ul" || ul.localName === "ol")
+      );
+    });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initTocHide();
+  });
+  initTocHide();
+</script>
+
+<style>
+  @font-face {
+    font-family: "AlibabaPuHuiTi-3-65-Medium";
+    src: url(https://lingjia007.github.io/Hugo_Web/font/AlibabaPuHuiTi-3-65-Medium.ttf)
+      format("truetype");
+  }
+
+  :root {
+    --base-font-family: "AlibabaPuHuiTi-3-65-Medium";
+    --code-font-family: "AlibabaPuHuiTi-3-65-Medium";
+  }
+</style>
+
+<style>
+  #backTopBtn {
+    display: none;
+    position: fixed;
+    bottom: 30px;
+    z-index: 99;
+    cursor: pointer;
+    width: 30px;
+    height: 30px;
+    background-image: url("https://lingjia007.github.io/Hugo_Web/zh-hk/icons/backTop.svg");
+  }
+</style>
+
+<script>
+  
+
+  function initScrollTop() {
+    let rightSideBar = document.querySelector(".right-sidebar");
+    if (!rightSideBar) {
+      return;
+    }
+    
+    let btn = document.createElement("div");
+    btn.id = "backTopBtn";
+    btn.onclick = backToTop;
+    rightSideBar.appendChild(btn);
+    
+    window.onscroll = function () {
+      
+      if (
+        document.body.scrollTop > 20 ||
+        document.documentElement.scrollTop > 20
+      ) {
+        btn.style.display = "block";
+      } else {
+        btn.style.display = "none";
+      }
+    };
+  }
+
+  
+
+  function backToTop() {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+  document.addEventListener("pjax:complete", () => {
+    
+    initScrollTop();
+  });
+  initScrollTop();
+</script>
+
+<div class="js-Pjax2">
+  
+  <script>
+    (function () {
+      
+      const verScript = document.createElement("script");
+      verScript.defer = true;
+      verScript.src = "https://cn.vercount.one/js";
+      document.body.appendChild(verScript);
+
+      
+      function showHideView() {
+        const viewCounts = document.querySelectorAll("#viewCount");
+        if (viewCounts) {
+          const isArticle = !!document.querySelector(".article-page");
+          viewCounts.forEach((ele) => {
+            ele.style.display = isArticle ? "" : "none";
+          });
+        }
+      }
+      
+      showHideView();
+      
+      document.addEventListener("pjax:complete", function () {
+        showHideView();
+      });
+    })();
+  </script>
+</div><script>
+  (function () {
+    var giscusConfig = {
+      repo: "Lingjia007\/Hugo_Web",
+      repoId: "R_kgDOTNf24g",
+      category: "Announcements",
+      categoryId: "DIC_kwDOTNf24s4DAe9e",
+      mapping: 'title',
+      strict: "0",
+      reactionsEnabled: "1",
+      emitMetadata: "0",
+      inputPosition: 'top',
+      theme: 'light',
+      loading: "lazy",
+    };
+    var giscusLightTheme = 'light';
+    var giscusDarkTheme = 'dark_dimmed';
+
+    function getGiscusLang() {
+      var path = window.location.pathname;
+      if (path.indexOf("/zh-hk") !== -1) return "zh-HK";
+      if (path.indexOf("/en") !== -1) return "en";
+      return "zh-CN";
+    }
+
+    function getGiscusTheme() {
+      if (document.documentElement.dataset.scheme === "light") {
+        return giscusLightTheme;
+      }
+      return giscusDarkTheme;
+    }
+
+    function setGiscusTheme(theme) {
+      var giscus = document.querySelector("iframe.giscus-frame");
+      if (giscus) {
+        giscus.contentWindow.postMessage(
+          { giscus: { setConfig: { theme: theme } } },
+          "https://giscus.app",
+        );
+      }
+    }
+
+    function loadGiscus() {
+      var comment = document.querySelector(".comment");
+      if (!comment) return;
+      comment.innerHTML = "";
+      var lang = getGiscusLang();
+      var script = document.createElement("script");
+      script.src = "https://giscus.app/client.js";
+      script.setAttribute("data-repo", giscusConfig.repo);
+      script.setAttribute("data-repo-id", giscusConfig.repoId);
+      script.setAttribute("data-category", giscusConfig.category);
+      script.setAttribute("data-category-id", giscusConfig.categoryId);
+      script.setAttribute("data-mapping", giscusConfig.mapping);
+      script.setAttribute("data-strict", giscusConfig.strict);
+      script.setAttribute(
+        "data-reactions-enabled",
+        giscusConfig.reactionsEnabled,
+      );
+      script.setAttribute("data-emit-metadata", giscusConfig.emitMetadata);
+      script.setAttribute("data-input-position", giscusConfig.inputPosition);
+      script.setAttribute("data-theme", giscusConfig.theme);
+      script.setAttribute("data-lang", lang);
+      script.setAttribute("data-loading", giscusConfig.loading);
+      script.setAttribute("crossorigin", "anonymous");
+      script.async = true;
+      comment.appendChild(script);
+    }
+
+    window.addEventListener("message", function (e) {
+      if (e.origin !== "https://giscus.app") return;
+      setGiscusTheme(getGiscusTheme());
+    });
+    window.addEventListener("onColorSchemeChange", function () {
+      setGiscusTheme(getGiscusTheme());
+    });
+
+    loadGiscus();
+    document.addEventListener("pjax:complete", loadGiscus);
+  })();
+</script>
+
+    </body>
+</html>
