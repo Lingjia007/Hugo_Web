@@ -10,7 +10,7 @@
 <meta property='og:description' content="以 STM32F407 安全 Bootloader 為實例，淺嘗 Impl/Platform/Service/Core/App + Drivers(Vendor) 五層架構的 C 物件導向設計模型：ops 虛函式表、container_of 向下轉型、多重繼承雙基類、依賴注入容器、宏封裝安全呼叫，與 oop-in-c-embedded 概念逐一映射">
 <meta property='og:url' content='https://lingsir007.netlify.app/zh-hk/p/%E6%B7%BA%E5%98%97-bootloader-%E4%BA%94%E5%B1%A4%E6%9E%B6%E6%A7%8B%E5%BE%9E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%B7%A8%E6%8E%92%E7%9A%84-oop-%E7%89%A9%E4%BB%B6%E8%A8%AD%E8%A8%88%E6%A8%A1%E5%9E%8B/'>
 <meta property='og:site_name' content='lingsir007'>
-<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='Bootloader' /><meta property='article:tag' content='OOP-in-C' /><meta property='article:tag' content='分層架構' /><meta property='article:tag' content='物件導向' /><meta property='article:tag' content='平台抽象' /><meta property='article:published_time' content='2026-07-03T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-21T20:38:44&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop.png' />
+<meta property='og:type' content='article'><meta property='article:section' content='Post' /><meta property='article:tag' content='STM32' /><meta property='article:tag' content='Bootloader' /><meta property='article:tag' content='OOP-in-C' /><meta property='article:tag' content='分層架構' /><meta property='article:tag' content='物件導向' /><meta property='article:tag' content='平台抽象' /><meta property='article:published_time' content='2026-07-03T00:00:00&#43;00:00'/><meta property='article:modified_time' content='2026-07-22T10:33:36&#43;08:00'/><meta property='og:image' content='https://lingsir007.netlify.app/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop.png' />
 <meta name="twitter:title" content="淺嘗 Bootloader 五層架構：從 Platform 抽象到 App 編排的 OOP 物件設計模型">
 <meta name="twitter:description" content="以 STM32F407 安全 Bootloader 為實例，淺嘗 Impl/Platform/Service/Core/App + Drivers(Vendor) 五層架構的 C 物件導向設計模型：ops 虛函式表、container_of 向下轉型、多重繼承雙基類、依賴注入容器、宏封裝安全呼叫，與 oop-in-c-embedded 概念逐一映射"><meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:image" content='https://lingsir007.netlify.app/p/%E6%B5%85%E5%B0%9D-bootloader-%E4%BA%94%E5%B1%82%E6%9E%B6%E6%9E%84%E4%BB%8E-platform-%E6%8A%BD%E8%B1%A1%E5%88%B0-app-%E7%BC%96%E6%8E%92%E7%9A%84-oop-%E5%AF%B9%E8%B1%A1%E8%AE%BE%E8%AE%A1%E6%A8%A1%E5%9E%8B/bootloader-five-layer-oop.png' />
@@ -436,7 +436,7 @@
         <div class="article-lastmod">
                 <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-pencil"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" /><path d="M10 18l5 -5a1.414 1.414 0 0 0 -2 -2l-5 5v2h2z" /></svg>
                 <time>
-                    Jul 21, 2026 20:38 &#43;0800
+                    Jul 22, 2026 10:33 &#43;0800
                 </time>
             </div><div id="wordCount">
             <svg  xmlns="http://www.w3.org/2000/svg"  width="24"  height="24"  viewBox="0 0 24 24"  fill="none"  stroke="currentColor"  stroke-width="2"  stroke-linecap="round"  stroke-linejoin="round"  class="icon icon-tabler icons-tabler-outline icon-tabler-file-word"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 3v4a1 1 0 0 0 1 1h4" /><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2" /><path d="M9 12l1.333 5l1.667 -4l1.667 4l1.333 -5" /></svg>
@@ -1612,7 +1612,7 @@
 
 
         <span>
-            上次改過於 Jul 21, 2026 20:38 &#43;0800
+            上次改過於 Jul 22, 2026 10:33 &#43;0800
         </span>
     </section></footer>
 
@@ -1707,6 +1707,30 @@
             
                 
 <article class="has-image">
+    <a href="/zh-hk/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AA%9E%E9%9F%B3%E9%97%9C%E9%8D%B5%E8%A9%9E%E6%AA%A2%E6%B8%AC%E5%85%A8%E9%8F%88%E8%B7%AF%E8%A8%AD%E8%A8%88%E8%88%87%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/">
+        
+        
+            <div class="article-image">
+                <img src="/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/STM32F407-TFLM-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E8%AF%86%E5%88%AB.f2d22c302accd0e4033d1ee3c5e7297d_hu_2f06e080cca6ce5f.png" 
+                        width="250" 
+                        height="150" 
+                        loading="lazy"
+                        alt="Featured image of post STM32F407 流式語音關鍵詞檢測：全鏈路設計與五大踩坑解析"
+                        
+                        data-hash="md5-8tIsMCrM0OQDPR7jxecpfQ==">
+                
+            </div>
+        
+
+        <div class="article-details">
+            <h2 class="article-title">STM32F407 流式語音關鍵詞檢測：全鏈路設計與五大踩坑解析</h2>
+        </div>
+    </a>
+</article>
+
+            
+                
+<article class="has-image">
     <a href="/zh-hk/p/stm32f407-%E6%B1%87%E7%BC%96%E5%95%9F%E5%8B%95%E6%AA%94%E6%A1%88%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90%E5%BE%9E%E5%BE%A9%E4%BD%8D%E5%90%91%E9%87%8F%E5%88%B0-c-%E8%AA%9E%E8%A8%80-main-%E7%9A%84%E5%AE%8C%E6%95%B4%E6%97%85%E7%A8%8B/">
         
         
@@ -1748,30 +1772,6 @@
 
         <div class="article-details">
             <h2 class="article-title">UART DMA 高效收發：環形緩衝區零拷貝實戰，STM32 與 GD32 雙晶片驗證</h2>
-        </div>
-    </a>
-</article>
-
-            
-                
-<article class="has-image">
-    <a href="/zh-hk/p/gnu-ld-%E9%8F%88%E7%B5%90%E8%85%B3%E6%9C%AC%E8%A9%B3%E8%A7%A3%E5%BE%9E-stm32f407-%E5%AE%9E%E4%BE%8B%E5%89%96%E6%9E%90%E5%B5%8C%E5%85%A5%E5%BC%8F%E8%A8%98%E6%86%B6%E9%AB%94%E4%BD%88%E5%B1%80%E8%88%87%E6%AE%B5%E9%87%8D%E5%AE%9A%E4%BD%8D/">
-        
-        
-            <div class="article-image">
-                <img src="/p/gnu-ld-%E9%93%BE%E6%8E%A5%E8%84%9A%E6%9C%AC%E8%AF%A6%E8%A7%A3%E4%BB%8E-stm32f407-%E5%AE%9E%E4%BE%8B%E5%89%96%E6%9E%90%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80%E4%B8%8E%E6%AE%B5%E9%87%8D%E5%AE%9A%E4%BD%8D/gnu-ld-linker-script.fcad4f3ea326a9f595ecedb86073a2db_hu_604e604f3f084745.png" 
-                        width="250" 
-                        height="150" 
-                        loading="lazy"
-                        alt="Featured image of post GNU LD 鏈結腳本詳解：從 STM32F407 实例剖析嵌入式記憶體佈局與段重定位"
-                        
-                        data-hash="md5-/K1PPqMmqfWV7O24YHOi2w==">
-                
-            </div>
-        
-
-        <div class="article-details">
-            <h2 class="article-title">GNU LD 鏈結腳本詳解：從 STM32F407 实例剖析嵌入式記憶體佈局與段重定位</h2>
         </div>
     </a>
 </article>
@@ -1827,7 +1827,13 @@
             
                 
             
-        本網站已穩定運行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;總計<span id="articleCount">&lt; 9 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 56.10 k ></span>字
+                
+            
+                
+            
+                
+            
+        本網站已穩定運行<span id="runningdays" class="running-days"></span>&nbsp; | &nbsp;總計<span id="articleCount">&lt; 12 ></span>篇文章 <span style="font-weight: bold;">·</span> 共<span id="articlewordCount">&lt; 74.81 k ></span>字
     </section>
     <section class="powerby">
         使用 <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a> 構建 <br />

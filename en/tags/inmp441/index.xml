@@ -1,0 +1,1410 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>INMP441 on lingsir007</title>
+        <link>https://lingsir007.netlify.app/en/tags/inmp441/</link>
+        <description>Recent content in INMP441 on lingsir007</description>
+        <generator>Hugo -- gohugo.io</generator>
+        <language>en</language>
+        <copyright>lingsir007</copyright>
+        <lastBuildDate>Wed, 22 Jul 2026 10:33:36 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/en/tags/inmp441/index.xml" rel="self" type="application/rss+xml" /><item>
+        <title>STM32F407 Streaming Voice Keyword Spotting: Full Pipeline Design &amp; Five Pitfall Deep Dives</title>
+        <link>https://lingsir007.netlify.app/en/p/stm32f407-streaming-voice-keyword-spotting-full-pipeline-design-five-pitfall-deep-dives/</link>
+        <pubDate>Fri, 17 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingsir007.netlify.app/en/p/stm32f407-streaming-voice-keyword-spotting-full-pipeline-design-five-pitfall-deep-dives/</guid>
+        <description>&lt;img src="https://lingsir007.netlify.app/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/STM32F407-TFLM-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E8%AF%86%E5%88%AB.png" alt="Featured image of post STM32F407 Streaming Voice Keyword Spotting: Full Pipeline Design &amp; Five Pitfall Deep Dives" /&gt;&lt;h2 id=&#34;introduction&#34;&gt;Introduction
+&lt;/h2&gt;&lt;p&gt;The goal of this project: run micro_speech model&amp;rsquo;s &lt;strong&gt;streaming&lt;/strong&gt; keyword spotting on STM32F407VGT6 with an INMP441 I2S MEMS microphone — the user speaks at any time, and the system recognizes yes/no/up/down/&amp;hellip; in real time, without needing to pre-record and feed the entire clip to the model.&lt;/p&gt;
+&lt;p&gt;The reference project is ST&amp;rsquo;s official &lt;a class=&#34;link&#34; href=&#34;file:///d:/edgedownload/STM32N6-GettingStarted-Audio&#34; &gt;STM32N6-GettingStarted-Audio&lt;/a&gt;, which already implements a complete streaming acquisition + inference pipeline. But when porting it to STM32F407 + INMP441, I encountered five pitfalls, each with completely different symptoms:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;#&lt;/th&gt;
+					&lt;th&gt;Pitfall&lt;/th&gt;
+					&lt;th&gt;Symptom&lt;/th&gt;
+					&lt;th&gt;Root Cause&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;1&lt;/td&gt;
+					&lt;td&gt;stride error&lt;/td&gt;
+					&lt;td&gt;Recognition results randomly jump, score 14~30&lt;/td&gt;
+					&lt;td&gt;STM32F4 I2S 16B_EXTENDED frame layout doesn&amp;rsquo;t match assumptions&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;2&lt;/td&gt;
+					&lt;td&gt;volatile missing&lt;/td&gt;
+					&lt;td&gt;Deleting one printf line kills all output&lt;/td&gt;
+					&lt;td&gt;ISR/main shared variable cached in register by &lt;code&gt;-O3 -flto&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;3&lt;/td&gt;
+					&lt;td&gt;Insufficient stack margin&lt;/td&gt;
+					&lt;td&gt;Preventive optimization (no clear symptoms observed)&lt;/td&gt;
+					&lt;td&gt;Large arrays on stack, default 2KB stack margin is dangerous&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;4&lt;/td&gt;
+					&lt;td&gt;KWS false positives&lt;/td&gt;
+					&lt;td&gt;Noise recognized as up, continuous triggers&lt;/td&gt;
+					&lt;td&gt;int8 quantized score has low discrimination + per-word cooldown reset&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;5&lt;/td&gt;
+					&lt;td&gt;Hidden dependency&lt;/td&gt;
+					&lt;td&gt;Compile error: cannot find array.h&lt;/td&gt;
+					&lt;td&gt;kernel_util.cpp depends on upstream TFL&amp;rsquo;s array.cc&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;This article first covers the architecture top-down following the data flow, then debugging in chronological order of encountering pitfalls. Each pitfall includes a &lt;strong&gt;Symptom → Root Cause → Fix&lt;/strong&gt; three-part analysis, so readers with similar issues can quickly find their match.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;This is not a step-by-step tutorial; it assumes readers are familiar with STM32 HAL, I2S, DMA, and TFLite basics. The focus is on &lt;strong&gt;pitfalls and architecture&lt;/strong&gt;, not building from scratch. For model training, see my previous post &lt;a class=&#34;link&#34; href=&#34;../wsl2-docker-tensorflow/&#34; &gt;WSL2 + Docker + TensorFlow Tutorial&lt;/a&gt;.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;1-project-overview&#34;&gt;1. Project Overview
+&lt;/h2&gt;&lt;h3 id=&#34;11-hardware-configuration&#34;&gt;1.1 Hardware Configuration
+&lt;/h3&gt;&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Component&lt;/th&gt;
+					&lt;th&gt;Model / Configuration&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;MCU&lt;/td&gt;
+					&lt;td&gt;STM32F407VGT6 (Cortex-M4F, 168 MHz, 1 MB Flash, 192 KB RAM incl. 64 KB CCMRAM)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Microphone&lt;/td&gt;
+					&lt;td&gt;INMP441 I2S MEMS (24-bit, L/R pin grounded = left channel)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;I2S Interface&lt;/td&gt;
+					&lt;td&gt;I2S2, Philips standard, 16B_EXTENDED, 16 kHz stereo&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;DMA&lt;/td&gt;
+					&lt;td&gt;DMA1_Stream3 / Channel0, Circular, half-word aligned&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Debugger&lt;/td&gt;
+					&lt;td&gt;J-Link&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Model&lt;/td&gt;
+					&lt;td&gt;micro_speech int8 quantized (36 labels)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Inference Framework&lt;/td&gt;
+					&lt;td&gt;TensorFlow-Lite-Micro + X-CUBE-AI integration&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id=&#34;12-software-data-flow&#34;&gt;1.2 Software Data Flow
+&lt;/h3&gt;&lt;p&gt;The entire streaming KWS pipeline is divided into five layers, from microphone to keyword output:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;21
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;22
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;23
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;24
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;25
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;26
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;27
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;28
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;29
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;30
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;31
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;32
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;33
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;34
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;35
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;36
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;37
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;38
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;39
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;[INMP441]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   │ I2S2 24-bit @ 16 kHz
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   ▼
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;audio/capture/                       ← Layer 1: I2S DMA ping-pong
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • DMA double buffer (640 halfwords)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • Half/Full IRQ every 10 ms
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • Left channel de-interleaving [L,R] → [L]
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • Per-block mean subtraction for DC removal
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   ▼ feed (160 samples / 10 ms)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;audio/capture/                       ← Layer 2: Ring buffer
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  AudioCaptureRingBuff_t
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  4 × 3200 = 12800 samples (25.6 KB, stored in CCMRAM)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  LDREX/STREX atomic counter
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  volatile ensures ISR/main visibility
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   ▼ consume (3200 samples / 200 ms)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;audio/frontend/                      ← Layer 3: MFCC sliding window
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • 1-second window (16000 samples)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • SLIDE_COLS=10 (200 ms)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • CMSIS-DSP RFFT Q15
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • 40-channel Mel filterbank
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • Stored in CCMRAM (along with ring buffer)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   ▼ 49×40 int8 features
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;X-CUBE-AI                            ← Layer 4: int8 inference
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  micro_speech model (~50 ms)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   ▼ 36 int8 logits
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;audio/kws/                           ← Layer 5: KWS post-processing
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • Filter _silence_/_unknown_
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • N-in-M debouncing (3/5)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • Global cooldown (5 frames ≈ 1 s)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • Score threshold (&amp;gt;= 20)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  • Softmax probability display
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   ▼
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;[KWS N] yes (100.0%, score=83)
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Each layer is an independent &lt;code&gt;.c/.h&lt;/code&gt; module, ultimately wired together through &lt;code&gt;X-CUBE-AI/App/app_x-cube-ai.c&lt;/code&gt;, the CubeMX template file.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;Why layer? Because 80% of streaming KWS bugs occur at &amp;ldquo;interfaces between layers&amp;rdquo;: wrong DMA frame layout, wrong ring buffer visibility, wrong sliding window stride&amp;hellip; With layers, each can be verified independently, and bugs can be traced layer by layer.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;2-layer-1-i2s-dma-ping-pong-capture&#34;&gt;2. Layer 1: I2S DMA Ping-Pong Capture
+&lt;/h2&gt;&lt;h3 id=&#34;21-why-16b_extended-instead-of-24b32b&#34;&gt;2.1 Why 16B_EXTENDED Instead of 24B/32B?
+&lt;/h3&gt;&lt;p&gt;INMP441 is a 24-bit MEMS microphone, so logically a 24-bit or 32-bit I2S format would be the &amp;ldquo;correct&amp;rdquo; choice. However, the micro_speech model only needs 16-bit input, and STM32F4&amp;rsquo;s I2S 24B/32B modes cause DMA to transfer 4 halfwords (2 per channel), moving 50% more data and wasting bandwidth and CPU de-interleaving time.&lt;/p&gt;
+&lt;p&gt;The &lt;code&gt;16B_EXTENDED&lt;/code&gt; mode is a compromise: &lt;strong&gt;32-bit time slot + 16-bit data&lt;/strong&gt;, each channel only transfers 1 halfword, and DMA receives already-aligned 16-bit samples.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-warning&#34;&gt;
+    &lt;p&gt;This is the source of the first major pitfall — the original STM32N6 project &lt;strong&gt;doesn&amp;rsquo;t use I2S at all&lt;/strong&gt; (it uses the MDF digital microphone interface + BSP monaural abstraction), so there&amp;rsquo;s no de-interleaving logic to reference. When writing new de-interleaving code for STM32F4, a misunderstanding of the &lt;code&gt;16B_EXTENDED&lt;/code&gt; frame layout led to the stride=4 error. See &lt;a class=&#34;link&#34; href=&#34;#51-stride-bug-16b_extended-frame-layout-trap&#34; &gt;Section 5.1&lt;/a&gt; for details.&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;22-dma-double-buffering-and-callbacks&#34;&gt;2.2 DMA Double Buffering and Callbacks
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* DMA double buffer: must be in regular RAM, DMA cannot access CCMRAM */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s_dma_buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;AS_DMA_BUF_HALFWORDS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;  &lt;span class=&#34;cm&#34;&gt;/* 640 halfwords */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* Start circular mode DMA: triggers Half / Full callbacks */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nf&#34;&gt;HAL_I2S_Receive_DMA&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hi2s2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint16_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s_dma_buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AS_DMA_BUF_HALFWORDS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;code&gt;AS_DMA_HALF_FRAMES = 160&lt;/code&gt; means each half-buffer holds 10 ms of mono samples (16000 Hz × 10 ms = 160). &lt;code&gt;HAL_I2S_RxHalfCpltCallback&lt;/code&gt; fires when DMA reaches the halfway point, &lt;code&gt;HAL_I2S_RxCpltCallback&lt;/code&gt; fires when it completes a full cycle. The two callbacks process the first and second halves of &lt;code&gt;s_dma_buf&lt;/code&gt; respectively, forming a seamless ping-pong.&lt;/p&gt;
+&lt;h3 id=&#34;23-de-interleaving-and-dc-removal&#34;&gt;2.3 De-interleaving and DC Removal
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;21
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;22
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;AudioStream_process_half&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint8_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;half_id&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint16_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;src&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s_dma_buf&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;half_id&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AS_DMA_HALFWORDS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* STM32F4 16B_EXTENDED: each frame 2 halfwords [L, R]
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;   * INMP441 L/R=GND → left channel, AUDIO_CHANNEL_INDEX=0 */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;int32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;sum&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AS_DMA_HALF_FRAMES&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;v&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;src&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AUDIO_CHANNEL_INDEX&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;s_mono&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;v&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;sum&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;v&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* Per-block mean subtraction for DC removal: MEMS microphones have tens to hundreds of DC offset */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;dc&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;sum&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;/&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int32_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;AS_DMA_HALF_FRAMES&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AS_DMA_HALF_FRAMES&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;s_mono&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s_mono&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;dc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;AudioCaptureRingBuff_feed&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s_ring&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint8_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s_mono&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                            &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint16_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;AS_DMA_HALF_FRAMES&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;strong&gt;Why remove DC?&lt;/strong&gt; INMP441 outputs a fixed DC offset after power-up (measured at tens to hundreds). If not removed, the downstream MFCC energy spectrum will be uniformly elevated, and the model&amp;rsquo;s quantized int8 features will shift. Subtracting the mean per 10 ms block is simple and stable, much cheaper than a first-order IIR high-pass filter.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;3-layer-2-ring-buffer-lock-free&#34;&gt;3. Layer 2: Ring Buffer (Lock-Free)
+&lt;/h2&gt;&lt;h3 id=&#34;31-why-a-ring-buffer&#34;&gt;3.1 Why a Ring Buffer?
+&lt;/h3&gt;&lt;p&gt;DMA interrupts produce 160 samples every 10 ms, but the consumer (MFCC) needs 3200 samples every 200 ms. Producer and consumer rates are severely mismatched, requiring a FIFO for decoupling.&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Path&lt;/th&gt;
+					&lt;th&gt;Frequency&lt;/th&gt;
+					&lt;th&gt;Rate&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Producer (DMA IRQ)&lt;/td&gt;
+					&lt;td&gt;100 Hz&lt;/td&gt;
+					&lt;td&gt;160 samples/time&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Consumer (main loop)&lt;/td&gt;
+					&lt;td&gt;5 Hz&lt;/td&gt;
+					&lt;td&gt;3200 samples/time&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id=&#34;32-atomic-counter-and-visibility&#34;&gt;3.2 Atomic Counter and Visibility
+&lt;/h3&gt;&lt;p&gt;The core field of the ring buffer is &lt;code&gt;availableSamples&lt;/code&gt;, written by ISR and read by main loop. These two contexts are truly concurrent, requiring solutions for two issues:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Atomicity&lt;/strong&gt;: 32-bit read/write is naturally atomic on Cortex-M4, but &amp;ldquo;read-modify-write&amp;rdquo; (&lt;code&gt;+=&lt;/code&gt;) is not. Use &lt;code&gt;LDREX/STREX&lt;/code&gt; exclusive access:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kr&#34;&gt;inline&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;atomic_add&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;volatile&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;p32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;inc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;do&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;while&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;__STREXW&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;__LDREXW&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;p32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;inc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;p32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;));&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Visibility&lt;/strong&gt;: This is the second major pitfall (see &lt;a class=&#34;link&#34; href=&#34;#52-volatile-missing-atomic--visibility&#34; &gt;Section 5.2&lt;/a&gt;). In short, &lt;code&gt;volatile&lt;/code&gt; must be added:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;typedef&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;uint8_t&lt;/span&gt;  &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;pData&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;volatile&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;availableSamples&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;  &lt;span class=&#34;cm&#34;&gt;/* ISR/main shared, must be volatile */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AudioCaptureRingBuff_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h3 id=&#34;33-simple-critical-section-on-consumer-side&#34;&gt;3.3 Simple Critical Section on Consumer Side
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;uint8_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;AudioCaptureRingBuff_consume&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint8_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;pData&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                                      &lt;span class=&#34;n&#34;&gt;AudioCaptureRingBuff_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;pHdle&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                                      &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;nbSamples&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* Consumer is in main loop, brief IRQ masking keeps indexes consistent */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;__disable_irq&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;pHdle&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;availableSamples&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int32_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;nbSamples&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;cm&#34;&gt;/* ... two-segment copy handling wraparound ... */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nf&#34;&gt;atomic_add&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;pHdle&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;availableSamples&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int32_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;nbSamples&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;__enable_irq&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;pData&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;The producer cannot use &lt;code&gt;__disable_irq()&lt;/code&gt; (would jitter DMA timing), so it uses LDREX/STREX; the consumer is in the main loop, where disabling interrupts for a few microseconds is fine, so direct IRQ masking is simpler.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;This asymmetric design of &amp;ldquo;atomic producer, interrupt-disabled consumer&amp;rdquo; is a classic pattern for bare-metal ring buffers. If using FreeRTOS, you should use &lt;code&gt;xStreamBuffer&lt;/code&gt; or a mutex-protected queue instead.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;4-layer-3-mfcc-sliding-window&#34;&gt;4. Layer 3: MFCC Sliding Window
+&lt;/h2&gt;&lt;h3 id=&#34;41-key-parameters&#34;&gt;4.1 Key Parameters
+&lt;/h3&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;9
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define SAMPLE_RATE          16000     &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// Sample rate
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define FRAME_LEN            480       &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// 30 ms window = 480 samples
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define WINDOW_STRIDE        320       &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// 20 ms stride = 320 samples
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define FFT_LENGTH           512       &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// Next 2^n &amp;gt;= 480
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define NUM_CHANNELS         40        &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// Mel filterbank channels
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define SPECTROGRAM_LENGTH   49        &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// (16000-480)/320 + 1
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define SLIDE_COLS           10        &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// Slide 10 spectrogram columns per step
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define SLIDE_SAMPLES        3200      &lt;/span&gt;&lt;span class=&#34;c1&#34;&gt;// = 10 × 320 = 200 ms
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;h3 id=&#34;42-sliding-window-mechanism&#34;&gt;4.2 Sliding Window Mechanism
+&lt;/h3&gt;&lt;p&gt;The micro_speech model&amp;rsquo;s input is a 1-second (16000 samples) spectrogram with shape &lt;code&gt;49 × 40&lt;/code&gt;. If we compute the full 1-second MFCC window from scratch each time, the CPU overhead is too high.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Sliding window strategy&lt;/strong&gt;: Maintain a 1-second circular audio window. Every 200 ms of new audio (3200 samples), the window slides 10 spectrogram columns, computing only those 10 new columns while reusing the old 39. This reduces pre-processing overhead per inference from ~200 ms to ~30 ms.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Window state (49-column spectrogram):
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;┌──────────────────────────────────────────────────────┐
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│ [Old 39 cols]                            │ [New 10 cols] │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;└──────────────────────────────────────────────────────┘
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                                                  ▲
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                                  After 200 ms:    │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                                                  ▼
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;┌──────────────────────────────────────────────────────┐
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│          │ [Old 39 cols]                  │ [New 10 cols] │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;└──────────────────────────────────────────────────────┘
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;   ← Discarded
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;h3 id=&#34;43-ccmram-fitting-the-1-second-window&#34;&gt;4.3 CCMRAM: Fitting the 1-Second Window
+&lt;/h3&gt;&lt;p&gt;The &lt;code&gt;AudioFrontendStream&lt;/code&gt; struct contains 16000 &lt;code&gt;int16_t&lt;/code&gt; audio window samples (32 KB) plus spectrogram cache, totaling ~37 KB. STM32F407&amp;rsquo;s main RAM is only 128 KB (including stack and heap), while CCMRAM has 64 KB dedicated for data, and DMA cannot access CCMRAM.&lt;/p&gt;
+&lt;p&gt;So the strategy is: &lt;strong&gt;DMA buffers in main RAM, frontend window in CCMRAM&lt;/strong&gt;.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* 1-second window + feature cache in CCMRAM, main RAM left for stack/heap/model activations */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AudioFrontendStream&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;g_stream&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;__attribute__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;((&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;section&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;.ccmram&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)));&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Final memory usage:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;RAM:    82320 B / 112 KB  (71.78%)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;CCMRAM: 37544 B / 64 KB   (57.29%)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;FLASH:  348684 B / 1 MB   (33.25%)
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;CCMRAM (Core Coupled Memory) is a zero-wait-state SRAM on Cortex-M4, significantly faster than main RAM for access, especially suited for frequently accessed large arrays. The trade-off is that DMA cannot use it, so choosing what to place there requires careful consideration.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;5-pitfall-deep-dives-the-main-event&#34;&gt;5. Pitfall Deep Dives (The Main Event)
+&lt;/h2&gt;&lt;p&gt;Below are pitfalls, each costing at least an hour to diagnose. Listed in the order they were encountered.&lt;/p&gt;
+&lt;h3 id=&#34;51-stride-bug-16b_extended-frame-layout-trap&#34;&gt;5.1 Stride Bug: 16B_EXTENDED Frame Layout Trap
+&lt;/h3&gt;&lt;h4 id=&#34;symptom&#34;&gt;Symptom
+&lt;/h4&gt;&lt;p&gt;Streaming inference results were completely wrong — saying &amp;ldquo;yes&amp;rdquo; into the microphone was recognized as &amp;ldquo;up&amp;rdquo;, saying &amp;ldquo;one&amp;rdquo; as &amp;ldquo;cat&amp;rdquo;, with scores only 14~30. But using the same model with a full pre-recorded clip, recognition worked perfectly.&lt;/p&gt;
+&lt;h4 id=&#34;root-cause&#34;&gt;Root Cause
+&lt;/h4&gt;&lt;p&gt;The code was ported from the STM32N6 project. STM32N6&amp;rsquo;s I2S in 16B_EXTENDED mode transfers &lt;strong&gt;4 halfwords&lt;/strong&gt; per stereo frame &lt;code&gt;[L_pad, L, R_pad, R]&lt;/code&gt; (24-bit slot + padding). But STM32F4&amp;rsquo;s 16B_EXTENDED is &lt;strong&gt;2 halfwords&lt;/strong&gt; &lt;code&gt;[L, R]&lt;/code&gt; (pure 16-bit data, no padding).&lt;/p&gt;
+&lt;p&gt;When porting, I didn&amp;rsquo;t change the stride. The DMA de-interleaving code was:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* ❌ Wrong: STM32N6&amp;#39;s stride=4, equivalent to downsampling on STM32F4 */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;v&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;src&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;4&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;  &lt;span class=&#34;cm&#34;&gt;/* Take R channel */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;On STM32F4, &lt;code&gt;src[i*4+2]&lt;/code&gt; actually spans 2 stereo frames, effectively &lt;strong&gt;taking only half the left channel samples&lt;/strong&gt;. This is equivalent to downsampling 16 kHz to 8 kHz, causing all frequency components to shift by half. The model sees a distorted downsampled version of &amp;ldquo;yes&amp;rdquo;&amp;rsquo;s spectrogram, so it naturally misidentifies it.&lt;/p&gt;
+&lt;h4 id=&#34;fix&#34;&gt;Fix
+&lt;/h4&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* ✅ Correct: STM32F4 16B_EXTENDED has 2 halfwords per frame [L, R] */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define AS_DMA_HALFWORDS (AS_DMA_HALF_FRAMES * 2)   &lt;/span&gt;&lt;span class=&#34;cm&#34;&gt;/* 320, not 640 */&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;v&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;src&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AUDIO_CHANNEL_INDEX&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;  &lt;span class=&#34;cm&#34;&gt;/* stride=2 */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;After the fix, scores jumped from 14&lt;del&gt;30 to **42&lt;/del&gt;100**, and &amp;ldquo;yes/no/up/down&amp;rdquo; were all correctly recognized.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-warning&#34;&gt;
+    &lt;p&gt;The true root cause of this stride bug is not &amp;ldquo;different configurations&amp;rdquo; but that &lt;strong&gt;STM32N6 and STM32F4 use completely different audio peripheral architectures&lt;/strong&gt; — the N6 original project doesn&amp;rsquo;t use I2S at all! When porting, the data acquisition layer must be rewritten, not copied.&lt;/p&gt;&lt;/blockquote&gt;&lt;p&gt;&lt;strong&gt;Audio path comparison: STM32N6 (original) vs STM32F407 (this project):&lt;/strong&gt;&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Dimension&lt;/th&gt;
+					&lt;th&gt;STM32N6 (Original)&lt;/th&gt;
+					&lt;th&gt;STM32F407 (This Project)&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Audio peripheral&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;MDF&lt;/strong&gt; (Multi-function Digital Filter, digital mic interface)&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;I2S2&lt;/strong&gt; (SPI2 multiplexed)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Driver abstraction&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;BSP_AUDIO_IN_*&lt;/code&gt; high-level API&lt;/td&gt;
+					&lt;td&gt;Bare &lt;code&gt;HAL_I2S_*&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Channel configuration&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;ChannelsNbr = 1&lt;/code&gt; (monaural)&lt;/td&gt;
+					&lt;td&gt;I2S protocol &lt;strong&gt;mandates stereo&lt;/strong&gt; (WS toggles between L/R)&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;DMA buffer content&lt;/td&gt;
+					&lt;td&gt;Pure mono int16 sequence&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;[L, R, L, R, ...]&lt;/code&gt; stereo interleaved&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;16B_EXTENDED frame layout&lt;/td&gt;
+					&lt;td&gt;Not applicable (MDF doesn&amp;rsquo;t use I2S frame format)&lt;/td&gt;
+					&lt;td&gt;2 halfwords per frame &lt;code&gt;[L, R]&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;De-interleaving code&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Not needed&lt;/strong&gt; (BSP configured mono, feed directly to ring)&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;Must be written new&lt;/strong&gt; (extract L from &lt;code&gt;[L,R]&lt;/code&gt;)&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;The N6 project&amp;rsquo;s initialization code looks like this:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;AudioInit&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Device&lt;/span&gt;        &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AUDIO_IN_DEVICE_DIGITAL_MIC&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;  &lt;span class=&#34;cm&#34;&gt;/* MDF connected to digital microphone */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;AudioInit&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;BitsPerSample&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AUDIO_RESOLUTION_16B&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;AudioInit&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ChannelsNbr&lt;/span&gt;   &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;                            &lt;span class=&#34;cm&#34;&gt;/* Monaural, key! */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nf&#34;&gt;BSP_AUDIO_IN_Init&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;AudioInit&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nf&#34;&gt;BSP_AUDIO_IN_Record&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;uint8_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;acq_buf&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CAPTURE_BUFFER_SIZE&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;sizeof&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;));&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;In the DMA completion interrupt, it directly calls &lt;code&gt;AudioCapture_ring_buff_feed(acq_buf, ring, len)&lt;/code&gt; — &lt;strong&gt;no stride processing whatsoever&lt;/strong&gt; — because the buffer is already monaural.&lt;/p&gt;
+&lt;p&gt;On STM32F4, the I2S protocol is physically stereo (WS=LOW transmits left, WS=HIGH transmits right). INMP441 outputs a stereo stream even with only one microphone, so it must be received as &lt;code&gt;[L,R]&lt;/code&gt; and half must be discarded. &lt;strong&gt;The N6 project has no such logic to reference&lt;/strong&gt;, and the de-interleaving code written during porting fell into the stride=4 trap due to misunderstanding the &lt;code&gt;16B_EXTENDED&lt;/code&gt; frame layout.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;Porting lesson: When porting audio code across chips, &lt;strong&gt;first confirm the audio peripheral types on both sides&lt;/strong&gt; (I2S / SAI / MDF / SPDIFRX), rather than just looking at sample rate and bit width. Different peripheral types may mean completely different DMA buffer layouts, and de-interleaving logic must be rewritten based on the target chip&amp;rsquo;s reference manual. You can use a logic analyzer to capture WS + SD timing and directly count how many 16-bit slots are in one WS period — faster than reading the manual.&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;52-volatile-missing-atomic--visibility&#34;&gt;5.2 Volatile Missing: Atomic ≠ Visibility
+&lt;/h3&gt;&lt;h4 id=&#34;symptom-1&#34;&gt;Symptom
+&lt;/h4&gt;&lt;p&gt;After fixing the stride bug, recognition worked normally. I thought the code was stable, so I deleted all diagnostic &lt;code&gt;printf&lt;/code&gt; statements — and the result was &lt;strong&gt;no output at all&lt;/strong&gt;, only the startup banner.&lt;/p&gt;
+&lt;p&gt;Even more bizarrely, adding back one unrelated &lt;code&gt;printf&lt;/code&gt; (printing ring available sample count every 2 seconds) made the system work again. Deleting it killed it again. This &lt;code&gt;printf&lt;/code&gt; had nothing to do with the recognition logic, yet it &amp;ldquo;fixed&amp;rdquo; the bug.&lt;/p&gt;
+&lt;h4 id=&#34;root-cause-1&#34;&gt;Root Cause
+&lt;/h4&gt;&lt;p&gt;The &lt;code&gt;availableSamples&lt;/code&gt; field was missing &lt;code&gt;volatile&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* ❌ Wrong: missing volatile */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;typedef&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;availableSamples&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AudioCaptureRingBuff_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Under &lt;code&gt;-O3 -flto&lt;/code&gt; optimization, the compiler inlined the main loop&amp;rsquo;s &lt;code&gt;while (ring-&amp;gt;availableSamples &amp;lt; SLIDE_SAMPLES) break;&lt;/code&gt; and &lt;strong&gt;cached &lt;code&gt;availableSamples&lt;/code&gt; into a register&lt;/strong&gt;, never re-reading from memory. The ISR&amp;rsquo;s writes were never visible to the main loop, so &lt;code&gt;availableSamples&lt;/code&gt; appeared to always be 0, the loop kept breaking, and inference never executed.&lt;/p&gt;
+&lt;p&gt;Why did adding &lt;code&gt;printf&lt;/code&gt; &amp;ldquo;revive&amp;rdquo; it? Because &lt;code&gt;printf&lt;/code&gt; is a function call that acts as a &lt;strong&gt;compiler barrier&lt;/strong&gt;, forcing the compiler to write registers back to memory before the call and re-read from memory after. So &lt;code&gt;printf&lt;/code&gt; inadvertently bypassed the visibility issue.&lt;/p&gt;
+&lt;h4 id=&#34;fix-1&#34;&gt;Fix
+&lt;/h4&gt;&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* ✅ Correct: ISR/main shared variables must be volatile */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;typedef&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;struct&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;volatile&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;availableSamples&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AudioCaptureRingBuff_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* atomic_add parameter must also be updated */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kr&#34;&gt;inline&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;atomic_add&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;volatile&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;uint32_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;p32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int32_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;inc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;do&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;while&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;__STREXW&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;__LDREXW&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;p32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;inc&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;p32&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;));&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;blockquote class=&#34;alert alert-important&#34;&gt;
+    &lt;p&gt;This is one of the most classic pitfalls in embedded C: &lt;strong&gt;LDREX/STREX only guarantees atomicity, not visibility&lt;/strong&gt;. Atomic operations solve &amp;ldquo;read-modify-write indivisibility&amp;rdquo;; visibility solves &amp;ldquo;modifications are visible to other contexts&amp;rdquo;. These are orthogonal concepts — both are required.&lt;/p&gt;
+&lt;p&gt;In the Linux kernel, &lt;code&gt;atomic_t&lt;/code&gt; internally wraps memory barriers, so users don&amp;rsquo;t need to worry. But when writing your own atomic operations on bare metal, &lt;strong&gt;volatile is still mandatory&lt;/strong&gt;.&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;53-preventive-stack-optimization-large-arrays-to-static--stack-expansion&#34;&gt;5.3 Preventive Stack Optimization: Large Arrays to Static + Stack Expansion
+&lt;/h3&gt;&lt;h4 id=&#34;background&#34;&gt;Background
+&lt;/h4&gt;&lt;p&gt;After the volatile fix, the system was running. But looking back at &lt;code&gt;audio_frontend_process_frame()&lt;/code&gt;, I noticed several large arrays declared as local variables:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;audio_frontend_process_frame&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(...)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;window&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;FRAME_LEN&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;           &lt;span class=&#34;cm&#34;&gt;/* 480 × 2 = 960 B */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;fft_input&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;FFT_LENGTH&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;       &lt;span class=&#34;cm&#34;&gt;/* 512 × 2 = 1024 B */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;fft_output&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;FFT_LENGTH&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;  &lt;span class=&#34;cm&#34;&gt;/* 2048 B */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;q15_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mel_output&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;NUM_CHANNELS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;      &lt;span class=&#34;cm&#34;&gt;/* 80 B */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* ... plus a few more ... */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;These total ~5 KB of stack per frame call. STM32F4&amp;rsquo;s default stack is only 2 KB. Although no clear stack overflow symptoms were observed (the no-output issue was caused by missing volatile, not stack), this margin is dangerously tight — a few levels of nested interrupts could blow it. As a preventive optimization, two changes were made.&lt;/p&gt;
+&lt;h4 id=&#34;fix-2&#34;&gt;Fix
+&lt;/h4&gt;&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Large arrays changed to &lt;code&gt;static&lt;/code&gt;&lt;/strong&gt;: Moved to BSS segment. Function is not reentrant, but it&amp;rsquo;s only called from a single thread anyway, so this is fine.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;audio_frontend_process_frame&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(...)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;window&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;FRAME_LEN&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;fft_input&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;FFT_LENGTH&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;fft_output&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;FFT_LENGTH&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* ... */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Stack size increased from 0x800 to 0x2000&lt;/strong&gt;: In &lt;code&gt;STM32F407XX_FLASH.ld&lt;/code&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;_Min_Stack_Size = 0x2000 ;  /* 8 KB, originally 0x800 = 2 KB */
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;Embedded C rule of thumb: &lt;strong&gt;Any local array larger than 256 bytes should be made &lt;code&gt;static&lt;/code&gt;&lt;/strong&gt;. Cortex-M4&amp;rsquo;s stack is already small, and a few levels of function nesting make it tight. The cost of &lt;code&gt;static&lt;/code&gt; is losing reentrancy, but in 90% of cases the function will never be called concurrently.&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;54-kws-false-positives-ups-int8-score-is-naturally-low&#34;&gt;5.4 KWS False Positives: up&amp;rsquo;s int8 Score Is Naturally Low
+&lt;/h3&gt;&lt;h4 id=&#34;symptom-2&#34;&gt;Symptom
+&lt;/h4&gt;&lt;p&gt;&lt;img src=&#34;https://lingsir007.netlify.app/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C.png&#34;
+	width=&#34;1666&#34;
+	height=&#34;1012&#34;
+	srcset=&#34;https://lingsir007.netlify.app/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C_hu_869583ddc65e5b71.png 480w, https://lingsir007.netlify.app/p/stm32f407-%E6%B5%81%E5%BC%8F%E8%AF%AD%E9%9F%B3%E5%85%B3%E9%94%AE%E8%AF%8D%E6%A3%80%E6%B5%8B%E5%85%A8%E9%93%BE%E8%B7%AF%E8%AE%BE%E8%AE%A1%E4%B8%8E%E4%BA%94%E5%A4%A7%E8%B8%A9%E5%9D%91%E8%A7%A3%E6%9E%90/%E6%B5%8B%E8%AF%95%E7%BB%93%E6%9E%9C_hu_aa08f257e238c416.png 1024w&#34;
+	loading=&#34;lazy&#34;
+	
+		alt=&#34;Computer fan noise misrecognized as up&#34;
+	
+	
+		class=&#34;gallery-image&#34; 
+		data-flex-grow=&#34;164&#34;
+		data-flex-basis=&#34;395px&#34;
+	
+&gt;&lt;/p&gt;
+&lt;p&gt;The above is a serial output example after the system stabilized. Even without speaking, computer fan or environmental noise can trigger false recognition (here &lt;code&gt;up&lt;/code&gt;), with scores between 15~18.&lt;/p&gt;
+&lt;p&gt;Environmental noise was being recognized as &lt;code&gt;up&lt;/code&gt; with scores of 15-18, triggering multiple times consecutively. But when actually saying &amp;ldquo;up&amp;rdquo;, scores were only 22-23, overlapping with noise false positives — simply raising the threshold couldn&amp;rsquo;t separate them.&lt;/p&gt;
+&lt;p&gt;Even worse, the first version of KWS post-processing used per-word cooldown, and intermediate &lt;code&gt;wow&lt;/code&gt;/&lt;code&gt;follow&lt;/code&gt; misrecognitions would reset &lt;code&gt;up&lt;/code&gt;&amp;rsquo;s cooldown counter, causing &lt;code&gt;up&lt;/code&gt; to trigger 9 times in a row.&lt;/p&gt;
+&lt;h4 id=&#34;root-cause-2&#34;&gt;Root Cause
+&lt;/h4&gt;&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Model-level issue&lt;/strong&gt;: micro_speech&amp;rsquo;s int8 quantization makes &lt;code&gt;up&lt;/code&gt;&amp;rsquo;s logit naturally low (22-23), only 5 away from noise false positives (15-18). This overlap is a model quantization loss that can&amp;rsquo;t be solved at the software level.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Post-processing design flaw&lt;/strong&gt;: Per-word cooldown assumes different words are independent, but a long syllable can span multiple sliding windows, being segmented by the model into different words (&amp;ldquo;foll&amp;rdquo; → follow, &amp;ldquo;ow&amp;rdquo; → wow), and these intermediate words reset the target word&amp;rsquo;s cooldown.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;h4 id=&#34;fix-3&#34;&gt;Fix
+&lt;/h4&gt;&lt;p&gt;KWS post-processing four-part suite:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;21
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;22
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;23
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;24
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;25
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;26
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;27
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;28
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;29
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;30
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;31
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;32
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;33
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;34
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;35
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;36
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;37
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;38
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;39
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define KWS_HISTORY_M   5    &lt;/span&gt;&lt;span class=&#34;cm&#34;&gt;/* Look back at the last 5 inference frames (≈ 1 s) */&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define KWS_REQUIRED_N  3    &lt;/span&gt;&lt;span class=&#34;cm&#34;&gt;/* Same label must appear &amp;gt;= 3 times in window to confirm */&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define KWS_COOLDOWN    5    &lt;/span&gt;&lt;span class=&#34;cm&#34;&gt;/* Global suppression for 5 frames after any trigger (≈ 1 s) */&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cp&#34;&gt;#define KWS_MIN_SCORE   20   &lt;/span&gt;&lt;span class=&#34;cm&#34;&gt;/* Below 20, discard directly (noise is typically 15~18) */&lt;/span&gt;&lt;span class=&#34;cp&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;kws_postprocess_feed&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;kws_state_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                         &lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int8_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;logits&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                         &lt;span class=&#34;kt&#34;&gt;uint8_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;num_labels&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;                         &lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;char&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;label_names&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* 1) argmax */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;max_idx&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;argmax&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;logits&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;num_labels&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* 2) Discard _silence_/_unknown_ (labels 0/1) */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;max_idx&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* 3) Record history */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hist&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hist_idx&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int8_t&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;max_idx&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hist_idx&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hist_idx&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;%&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;KWS_HISTORY_M&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* 4) Global cooldown (not per-word!) */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cooldown_remaining&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;gt;&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cooldown_remaining&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;--&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* 5) Score threshold */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;max_val&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;KWS_MIN_SCORE&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* 6) N-in-M debouncing */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;uint8_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;hits&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;count_hits&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hist&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;max_idx&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hits&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;KWS_REQUIRED_N&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* 7) Trigger: print softmax + set global cooldown + clear history */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;nf&#34;&gt;print_softmax&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;logits&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;num_labels&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;label_names&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;max_idx&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cooldown_remaining&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;KWS_COOLDOWN&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;for&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;&amp;lt;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;KWS_HISTORY_M&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&amp;gt;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hist&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;i&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;1&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Key improvements:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Global cooldown&lt;/strong&gt; replaces per-word cooldown: After any keyword triggers, &lt;strong&gt;all&lt;/strong&gt; keywords are suppressed for 1 second, preventing a single word from spamming.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;N-in-M debouncing&lt;/strong&gt;: Requires the same label to appear at least 3 times within 1 second, filtering out single-frame transient misrecognitions.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Filter silence/unknown&lt;/strong&gt;: These two labels would spam (50+ score in noisy environments) and are useless to the user, so they&amp;rsquo;re discarded directly.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;The model&amp;rsquo;s score overlap problem can&amp;rsquo;t be fully solved by software. For a true fix, either switch to a larger model or add more &lt;code&gt;up&lt;/code&gt; negative samples (noise) during fine-tuning. This approach reduces false positive frequency from &amp;ldquo;5 times per second&amp;rdquo; to &amp;ldquo;once every few seconds&amp;rdquo; — acceptable in practice.&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;55-kernel_utilcpps-hidden-dependency&#34;&gt;5.5 kernel_util.cpp&amp;rsquo;s Hidden Dependency
+&lt;/h3&gt;&lt;h4 id=&#34;symptom-3&#34;&gt;Symptom
+&lt;/h4&gt;&lt;p&gt;At link time, a bunch of &lt;code&gt;undefined reference to tflite::...&lt;/code&gt; errors appeared, all from symbols in &lt;code&gt;kernel_util.cpp&lt;/code&gt;.&lt;/p&gt;
+&lt;h4 id=&#34;root-cause-3&#34;&gt;Root Cause
+&lt;/h4&gt;&lt;p&gt;TFLite Micro&amp;rsquo;s &lt;code&gt;kernel_util.cpp&lt;/code&gt; depends on upstream TensorFlow Lite&amp;rsquo;s &lt;code&gt;array.h&lt;/code&gt; and &lt;code&gt;array.cc&lt;/code&gt;. These files are in TFLM&amp;rsquo;s &lt;code&gt;tensorflow/lite/&lt;/code&gt; directory but aren&amp;rsquo;t collected by TFLM&amp;rsquo;s CMakeLists by default.&lt;/p&gt;
+&lt;h4 id=&#34;fix-4&#34;&gt;Fix
+&lt;/h4&gt;&lt;p&gt;Explicitly add them in CMakeLists.txt:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;9
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cmake&#34; data-lang=&#34;cmake&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nb&#34;&gt;set&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;TFLM_SOURCES&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c&#34;&gt;# TFLite core (hidden dependency of kernel_util.cpp)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;TFLM_BASE&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/tensorflow/lite/array.cc&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;TFLM_BASE&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/tensorflow/lite/core/c/common.cpp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;TFLM_BASE&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/tensorflow/lite/kernels/kernel_util.cpp&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;TFLM&amp;rsquo;s official CMake templates are incomplete. When assembling your own project and encountering &lt;code&gt;undefined reference&lt;/code&gt;, first check &lt;code&gt;tensorflow/lite/&lt;/code&gt; for a same-named &lt;code&gt;.cc&lt;/code&gt; file. The directory structure is TFLM (&lt;code&gt;tensorflow/lite/micro/&lt;/code&gt;) calling TFLite core (&lt;code&gt;tensorflow/lite/&lt;/code&gt;), and the latter frequently has missing files.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;6-layers-45-inference-and-kws-post-processing&#34;&gt;6. Layers 4+5: Inference and KWS Post-Processing
+&lt;/h2&gt;&lt;h3 id=&#34;61-inference-entry-point&#34;&gt;6.1 Inference Entry Point
+&lt;/h3&gt;&lt;p&gt;&lt;code&gt;X-CUBE-AI&lt;/code&gt;-generated &lt;code&gt;app_x-cube-ai.c&lt;/code&gt; is a CubeMX template file that &lt;strong&gt;must not be moved&lt;/strong&gt; (moving it breaks CubeMX regeneration capability). So this file stays in &lt;code&gt;X-CUBE-AI/App/&lt;/code&gt;, but the KWS post-processing logic has been extracted into an independent &lt;code&gt;audio/kws/&lt;/code&gt; module.&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;MX_X_CUBE_AI_Process&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;res&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;do&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;cm&#34;&gt;/* 1) Get 200 ms data from ring buffer + sliding window + MFCC */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;n&#34;&gt;res&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;acquire_and_process_data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data_ins&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;res&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;2&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;break&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;  &lt;span class=&#34;cm&#34;&gt;/* Not enough data or window not filled */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;cm&#34;&gt;/* 2) Inference */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;res&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &lt;span class=&#34;n&#34;&gt;res&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;ai_run&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;();&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;cm&#34;&gt;/* 3) KWS post-processing (debounce + cooldown + softmax print) */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;k&#34;&gt;if&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;res&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;      &lt;span class=&#34;n&#34;&gt;res&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;post_process&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data_outs&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;while&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;res&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;==&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;h3 id=&#34;62-final-form-of-post_process&#34;&gt;6.2 Final Form of post_process
+&lt;/h3&gt;&lt;p&gt;After modular refactoring, &lt;code&gt;post_process&lt;/code&gt; shrank from 75 lines to a single function call:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;9
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;post_process&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ai_i8&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[])&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;{&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int8_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;out&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;=&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int8_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;];&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;n&#34;&gt;g_inference_cnt&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;++&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;cm&#34;&gt;/* KWS logic fully encapsulated in audio/kws/kws_postprocess.c */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;kws_postprocess_feed&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;&amp;amp;&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;g_kws&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;out&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;NUM_LABELS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;,&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;kLabelNames&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;  &lt;span class=&#34;k&#34;&gt;return&lt;/span&gt; &lt;span class=&#34;mi&#34;&gt;0&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;}&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id=&#34;7-modular-refactoring-audio-three-layer-directory&#34;&gt;7. Modular Refactoring: audio/ Three-Layer Directory
+&lt;/h2&gt;&lt;p&gt;After fixing all the pitfalls, code was scattered across &lt;code&gt;audio_app/&lt;/code&gt;, &lt;code&gt;preprocess/&lt;/code&gt;, and &lt;code&gt;app_x-cube-ai.c&lt;/code&gt;, with KWS logic mixed into template code. The refactored directory structure:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;audio/
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;├── capture/                       ← Layers 1+2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│   ├── audio_capture_ring_buff.c  │  Ring buffer (lock-free, volatile)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│   ├── audio_capture_ring_buff.h  │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│   ├── audio_stream.c             │  I2S DMA ping-pong + de-interleaving + DC removal
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│   └── audio_stream.h             │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;├── frontend/                      ← Layer 3
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│   ├── audio_frontend.c           │  MFCC sliding window (CCMRAM)
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│   ├── audio_frontend.h           │
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│   ├── audio_params.h             │  Sample rate/window length/stride/quantization params
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│   └── mel_filterbank_data.h      │  40-channel Mel filterbank coefficient table
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;│
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;└── kws/                           ← Layer 5
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    ├── kws_postprocess.c          │  Debouncing + cooldown + score threshold + softmax
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    └── kws_postprocess.h          │
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;code&gt;X-CUBE-AI/App/app_x-cube-ai.c&lt;/code&gt; stays in place (CubeMX constraint), but only retains the model IO template and top-level dispatch. All KWS logic goes through &lt;code&gt;kws_postprocess_feed()&lt;/code&gt; calls.&lt;/p&gt;
+&lt;p&gt;Corresponding CMakeLists.txt:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cmake&#34; data-lang=&#34;cmake&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nb&#34;&gt;target_sources&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;CMAKE_PROJECT_NAME&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;PRIVATE&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c&#34;&gt;# Audio frontend preprocessing (MFCC / sliding window features)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;CMAKE_SOURCE_DIR&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/audio/frontend/audio_frontend.c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c&#34;&gt;# Audio stream capture (I2S DMA + ring buffer)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;CMAKE_SOURCE_DIR&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/audio/capture/audio_capture_ring_buff.c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;CMAKE_SOURCE_DIR&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/audio/capture/audio_stream.c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c&#34;&gt;# KWS post-processing (debouncing + cooldown)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;CMAKE_SOURCE_DIR&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/audio/kws/kws_postprocess.c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nb&#34;&gt;target_include_directories&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;CMAKE_PROJECT_NAME&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;PRIVATE&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;c&#34;&gt;# Audio modules (capture / frontend / KWS)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;CMAKE_SOURCE_DIR&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/audio/capture&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;CMAKE_SOURCE_DIR&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/audio/frontend&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;CMAKE_SOURCE_DIR&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;/audio/kws&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;...&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;The benefit of modular layering isn&amp;rsquo;t just &amp;ldquo;cleaner code&amp;rdquo;. After this refactoring, when I later wanted to try a &lt;code&gt;yes/no&lt;/code&gt; binary classification model, &lt;strong&gt;I only changed &lt;code&gt;NUM_LABELS&lt;/code&gt; and &lt;code&gt;kLabelNames&lt;/code&gt; in &lt;code&gt;app_x-cube-ai.c&lt;/code&gt;&lt;/strong&gt; — capture and frontend were completely untouched. With clear module boundaries, iteration speed increased significantly.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;8-performance-and-latency-analysis&#34;&gt;8. Performance and Latency Analysis
+&lt;/h2&gt;&lt;h3 id=&#34;81-streaming-vs-direct-input-latency-difference&#34;&gt;8.1 Streaming vs Direct Input Latency Difference
+&lt;/h3&gt;&lt;p&gt;Many readers ask: how much slower is streaming inference compared to feeding a pre-recorded clip? Measured breakdown:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Stage&lt;/th&gt;
+					&lt;th&gt;Latency&lt;/th&gt;
+					&lt;th&gt;Description&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;DMA half-buffer&lt;/td&gt;
+					&lt;td&gt;10 ms&lt;/td&gt;
+					&lt;td&gt;160 samples / 16 kHz&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Sliding window wait&lt;/td&gt;
+					&lt;td&gt;0~200 ms&lt;/td&gt;
+					&lt;td&gt;SLIDE_SAMPLES=3200 (200 ms); first time also needs to fill 1-second window&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;MFCC feature extraction&lt;/td&gt;
+					&lt;td&gt;30~50 ms&lt;/td&gt;
+					&lt;td&gt;CMSIS-DSP RFFT Q15 + Mel filter&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;int8 inference&lt;/td&gt;
+					&lt;td&gt;~50 ms&lt;/td&gt;
+					&lt;td&gt;micro_speech model&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;KWS N-in-M debounce&lt;/td&gt;
+					&lt;td&gt;+200~600 ms&lt;/td&gt;
+					&lt;td&gt;Requires 3/5 hits to confirm&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;End-to-end total lag&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;500~850 ms&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;Direct pre-recorded clip testing only involves &amp;ldquo;inference 50 ms&amp;rdquo;, so &lt;strong&gt;streaming is &lt;del&gt;10&lt;/del&gt;17× slower than direct testing&lt;/strong&gt;. The main overhead comes from sliding window filling and KWS debouncing — this is the &lt;strong&gt;inherent cost&lt;/strong&gt; of streaming KWS: trading latency for stability.&lt;/p&gt;
+&lt;h3 id=&#34;82-optimization-opportunities&#34;&gt;8.2 Optimization Opportunities
+&lt;/h3&gt;&lt;p&gt;If 800 ms feels too slow, you can adjust:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;&lt;code&gt;SLIDE_COLS&lt;/code&gt; from 10 to 5&lt;/strong&gt;: Slide interval 200 ms → 100 ms, but CPU overhead doubles&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;code&gt;KWS_REQUIRED_N&lt;/code&gt; from 3 to 2&lt;/strong&gt;: More lenient debouncing, but more false positives&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;&lt;code&gt;KWS_COOLDOWN&lt;/code&gt; from 5 to 3&lt;/strong&gt;: Shorter cooldown, but same word may fire repeatedly&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Switch to a smaller model&lt;/strong&gt;: SVDF or compact DS-CNN, inference under 20 ms&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Engineering is always about trade-offs.&lt;/p&gt;
+&lt;h3 id=&#34;83-compiler-options&#34;&gt;8.3 Compiler Options
+&lt;/h3&gt;&lt;p&gt;The entire project uses &lt;code&gt;-O3 -flto -funroll-loops&lt;/code&gt; global optimization, with &lt;code&gt;-u _printf_float&lt;/code&gt; linker flag for floating-point printf:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-cmake&#34; data-lang=&#34;cmake&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nb&#34;&gt;add_compile_options&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;-O3&lt;/span&gt;                  &lt;span class=&#34;c&#34;&gt;# Highest optimization level
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;-flto&lt;/span&gt;                &lt;span class=&#34;c&#34;&gt;# Link-time optimization (cross-module inlining)
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;s&#34;&gt;-funroll-loops&lt;/span&gt;       &lt;span class=&#34;c&#34;&gt;# Explicit loop unrolling
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;nb&#34;&gt;target_link_options&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;${&lt;/span&gt;&lt;span class=&#34;nv&#34;&gt;CMAKE_PROJECT_NAME&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;}&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;PRIVATE&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;-flto&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;-u&lt;/span&gt; &lt;span class=&#34;s&#34;&gt;_printf_float&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;&lt;span class=&#34;err&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Note that &lt;code&gt;-O3 -flto&lt;/code&gt; is also the &amp;ldquo;culprit&amp;rdquo; behind the Section 5.2 volatile pitfall — the more aggressive the optimization, the stricter the visibility requirements. But as long as &lt;code&gt;volatile&lt;/code&gt; is correctly applied, aggressive optimization is beneficial: MFCC pre-processing time dropped from 60 ms at -O2 to 35 ms at -O3.&lt;/p&gt;
+&lt;h3 id=&#34;84-memory-layout-optimization-making-full-use-of-ccmram&#34;&gt;8.4 Memory Layout Optimization: Making Full Use of CCMRAM
+&lt;/h3&gt;&lt;p&gt;STM32F407 has 128 KB main RAM plus 64 KB CCMRAM (Core Coupled Memory, CPU-dedicated tightly-coupled memory). CCMRAM characteristics:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Zero-wait access&lt;/strong&gt;: CPU-dedicated, no DMA arbitration delay, faster access&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;DMA cannot access&lt;/strong&gt;: Cannot hold DMA buffers, but pure CPU data is fine&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Separate address space&lt;/strong&gt;: Starting at 0x10000000, does not occupy main RAM space&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;This project placed both large buffers into CCMRAM:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-c&#34; data-lang=&#34;c&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* Ring buffer backing store (CPU-only, 25.6 KB) */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;int16_t&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;s_ring_backing&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;[&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;AS_RING_NB_SAMPLES&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AS_RING_NB_FRAMES&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;]&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    &lt;span class=&#34;nf&#34;&gt;__attribute__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;((&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;section&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;.ccmram&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)));&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;cm&#34;&gt;/* MFCC sliding window context (CPU-only, ~8 KB) */&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;static&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;AudioFrontendStream&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;g_stream&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;__attribute__&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;((&lt;/span&gt;&lt;span class=&#34;nf&#34;&gt;section&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;s&#34;&gt;&amp;#34;.ccmram&amp;#34;&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)));&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;Memory distribution after compilation:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Region&lt;/th&gt;
+					&lt;th&gt;Usage&lt;/th&gt;
+					&lt;th&gt;Total&lt;/th&gt;
+					&lt;th&gt;Percentage&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;RAM&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;50576 B&lt;/td&gt;
+					&lt;td&gt;112 KB&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;44.1%&lt;/strong&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;CCMRAM&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;63144 B&lt;/td&gt;
+					&lt;td&gt;64 KB&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;96.4%&lt;/strong&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;FLASH&lt;/td&gt;
+					&lt;td&gt;348684 B&lt;/td&gt;
+					&lt;td&gt;1 MB&lt;/td&gt;
+					&lt;td&gt;33.2%&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;RAM major consumers (50.6 KB):&lt;/strong&gt;&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Data Structure&lt;/th&gt;
+					&lt;th&gt;Size&lt;/th&gt;
+					&lt;th&gt;Percentage&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;pool0&lt;/code&gt; (model activation buffer)&lt;/td&gt;
+					&lt;td&gt;25.4 KB&lt;/td&gt;
+					&lt;td&gt;50.3%&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;g_slide_buf&lt;/code&gt; (sliding buffer)&lt;/td&gt;
+					&lt;td&gt;6.4 KB&lt;/td&gt;
+					&lt;td&gt;12.7%&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Other .bss/.data&lt;/td&gt;
+					&lt;td&gt;18.8 KB&lt;/td&gt;
+					&lt;td&gt;37.0%&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;CCMRAM major consumers (63.1 KB):&lt;/strong&gt;&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Data Structure&lt;/th&gt;
+					&lt;th&gt;Size&lt;/th&gt;
+					&lt;th&gt;Description&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;s_ring_backing&lt;/code&gt; (ring buffer)&lt;/td&gt;
+					&lt;td&gt;&lt;strong&gt;25.6 KB&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Moved from RAM, saving 22.6% RAM&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;g_stream&lt;/code&gt; (sliding window)&lt;/td&gt;
+					&lt;td&gt;~8 KB&lt;/td&gt;
+					&lt;td&gt;1-second audio window + MFCC intermediate buffer&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;code&gt;s_mono&lt;/code&gt; (DMA temporary)&lt;/td&gt;
+					&lt;td&gt;320 B&lt;/td&gt;
+					&lt;td&gt;Mono de-interleaving buffer&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;Other buffers&lt;/td&gt;
+					&lt;td&gt;~29 KB&lt;/td&gt;
+					&lt;td&gt;Audio frontend static arrays, etc.&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;Moving the ring buffer to CCMRAM was a later optimization. Initially, to avoid pitfalls, it was placed in main RAM, and only moved after the system stabilized. Moving only requires adding one line &lt;code&gt;__attribute__((section(&amp;quot;.ccmram&amp;quot;)))&lt;/code&gt;, zero risk — because the ring buffer is only accessed by the CPU, DMA never touches it.&lt;/p&gt;&lt;/blockquote&gt;&lt;p&gt;If the ring buffer stayed in main RAM, RAM usage would be 66.7% (76.2 KB), leaving even less room for stack/heap. After moving to CCMRAM, RAM headroom increased from 35.8 KB to 61.4 KB, leaving more space for future model or feature additions.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;9-pitfall-summary-table&#34;&gt;9. Pitfall Summary Table
+&lt;/h2&gt;&lt;p&gt;Summarizing all five pitfalls into one table for easy review:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;#&lt;/th&gt;
+					&lt;th&gt;Pitfall Name&lt;/th&gt;
+					&lt;th&gt;Symptom&lt;/th&gt;
+					&lt;th&gt;Root Cause&lt;/th&gt;
+					&lt;th&gt;Fix&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;1&lt;/td&gt;
+					&lt;td&gt;stride bug&lt;/td&gt;
+					&lt;td&gt;Recognition all wrong, score 14~30&lt;/td&gt;
+					&lt;td&gt;STM32F4 16B_EXTENDED has 2 halfwords per frame, not 4&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;i*4+2&lt;/code&gt; → &lt;code&gt;i*2+idx&lt;/code&gt;, DMA size halved&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;2&lt;/td&gt;
+					&lt;td&gt;volatile missing&lt;/td&gt;
+					&lt;td&gt;Delete printf → system dies, add printf → revives&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;-O3 -flto&lt;/code&gt; caches ISR shared variable to register&lt;/td&gt;
+					&lt;td&gt;Add &lt;code&gt;volatile&lt;/code&gt; to &lt;code&gt;availableSamples&lt;/code&gt;&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;3&lt;/td&gt;
+					&lt;td&gt;Insufficient stack margin&lt;/td&gt;
+					&lt;td&gt;Preventive optimization (no clear symptoms observed)&lt;/td&gt;
+					&lt;td&gt;Large MFCC arrays on stack, default 2 KB stack margin is dangerous&lt;/td&gt;
+					&lt;td&gt;Arrays to &lt;code&gt;static&lt;/code&gt;, stack 2 KB → 8 KB&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;4&lt;/td&gt;
+					&lt;td&gt;KWS false positives&lt;/td&gt;
+					&lt;td&gt;Noise recognized as up, continuous triggers&lt;/td&gt;
+					&lt;td&gt;Per-word cooldown reset by intermediate words + score overlap&lt;/td&gt;
+					&lt;td&gt;Global cooldown + N-in-M + score threshold + filter silence&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;5&lt;/td&gt;
+					&lt;td&gt;kernel_util.cpp link error&lt;/td&gt;
+					&lt;td&gt;&lt;code&gt;undefined reference&lt;/code&gt;&lt;/td&gt;
+					&lt;td&gt;TFLM missing &lt;code&gt;array.cc&lt;/code&gt; hidden dependency&lt;/td&gt;
+					&lt;td&gt;Explicitly add &lt;code&gt;tensorflow/lite/array.cc&lt;/code&gt; in CMakeLists&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;10-lessons-learned&#34;&gt;10. Lessons Learned
+&lt;/h2&gt;&lt;p&gt;After completing this project, several lessons are worth recording:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Never assume &amp;ldquo;it should be the same&amp;rdquo; when porting code&lt;/strong&gt;. Even for same-vendor (ST) peripherals with the same name (I2S), details may differ across chip generations. Trust the manual over memory.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Atomic operations ≠ visibility&lt;/strong&gt;. LDREX/STREX solves atomicity; &lt;code&gt;volatile&lt;/code&gt; solves visibility — they are orthogonal. When writing your own concurrency primitives on bare metal, &lt;strong&gt;you need both&lt;/strong&gt;. The Linux kernel&amp;rsquo;s &lt;code&gt;atomic_t&lt;/code&gt; doesn&amp;rsquo;t need explicit volatile because it internally wraps memory barriers.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;printf &amp;ldquo;fixing&amp;rdquo; a bug indicates a visibility problem&lt;/strong&gt;. If adding an unrelated printf makes a bug disappear or appear, suspect compiler optimization + shared variable visibility first, not the printf itself.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Large arrays should default to &lt;code&gt;static&lt;/code&gt;&lt;/strong&gt;. This is the golden rule of embedded C — it avoids 80% of stack overflow problems.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Model quantization loss cannot be fully compensated by software&lt;/strong&gt;. After int8 quantization, some classes have naturally low scores (e.g., &lt;code&gt;up&lt;/code&gt; in this article), overlapping with noise false positives. KWS post-processing can only reduce false positive frequency, not eliminate it. True fixes require changing the model or adding fine-tuning negative samples.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Modularity isn&amp;rsquo;t for aesthetics — it&amp;rsquo;s for replaceability&lt;/strong&gt;. After this refactoring, changing the model only requires modifying &lt;code&gt;app_x-cube-ai.c&lt;/code&gt;, with capture and frontend untouched. If PDM microphone support is needed in the future, only &lt;code&gt;audio/capture/&lt;/code&gt; changes — frontend and KWS stay the same. &lt;strong&gt;Module boundaries = replacement boundaries&lt;/strong&gt;.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Don&amp;rsquo;t move CubeMX-generated files&lt;/strong&gt;. Files like &lt;code&gt;app_x-cube-ai.c&lt;/code&gt; are CubeMX templates; moving them breaks CubeMX regeneration capability. Keep them in place and extract business logic into independent module calls.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ol&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;conclusion&#34;&gt;Conclusion
+&lt;/h2&gt;&lt;p&gt;This project went from &amp;ldquo;runs but misrecognizes&amp;rdquo; to &amp;ldquo;stable streaming recognition&amp;rdquo; through five pitfalls, each taking an hour or two. But looking back, each pitfall taught a &lt;strong&gt;fundamental principle&lt;/strong&gt; — I2S frame layout, memory visibility, stack management, model quantization, dependency management. These principles apply across chips and projects.&lt;/p&gt;
+&lt;p&gt;The motivation for writing this article is to help others avoid going in circles. If you follow the architecture and precautions in this article, you should be able to get STM32F4 + TFLM streaming KWS running within half a day from scratch.&lt;/p&gt;
+&lt;p&gt;Complete project file structure:&lt;/p&gt;
+
+&lt;details&gt;
+	&lt;summary&gt;Details&lt;/summary&gt;
+	&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;21
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;22
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;23
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;24
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;25
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;26
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;27
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;28
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;29
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;30
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;31
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;32
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;33
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;34
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;35
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;36
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;37
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;38
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;39
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;40
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;41
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;42
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;43
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;44
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;45
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;46
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;47
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;48
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;49
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;50
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;51
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;52
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;53
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;54
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;55
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;56
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;57
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;58
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;59
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;60
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;61
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;62
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;63
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;64
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;65
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;66
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;67
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;68
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-gdscript3&#34; data-lang=&#34;gdscript3&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;n&#34;&gt;STM32F407VGT6_TensorFlow&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Lite&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Micro&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;capture&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_capture_ring_buff&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_capture_ring_buff&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_stream&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_stream&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;frontend&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_frontend&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_frontend&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;audio_params&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;mel_filterbank_data&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;kws&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;kws_postprocess&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;kws_postprocess&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;build&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Debug&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;STM32F407VGT6_TensorFlow&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Lite&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Micro&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;bin&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;STM32F407VGT6_TensorFlow&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Lite&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;Micro&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;hex&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;build&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;artifacts&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;cmake&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stm32cubemx&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CMakeLists&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;txt&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CubeMX&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;generated&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Core&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Inc&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;gpio&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i2s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;usart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CubeMX&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;generated&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Src&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;main&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;gpio&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;i2s&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;usart&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stm32f4xx_it&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CubeMX&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;generated&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;Drivers&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CMSIS&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;STM32F4xx_HAL_Driver&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;HAL&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;+&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CMSIS&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stm32f4_tflm_project&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;tensorflow&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;lite&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;micro&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;kernels&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;arena_allocator&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;memory_planner&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;TFLM&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;core&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;core&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;k&#34;&gt;signal&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;micro&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;kernels&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;src&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;third_party&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;cmsis_nn&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;kissfft&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;flatbuffers&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;TFLM&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;source&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;X&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;CUBE&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;AI&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;   &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;App&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;/&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;app_x&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cube&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ai&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;c&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;app_x&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;cube&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;-&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ai&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;│&lt;/span&gt;       &lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;micro_speech&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;h&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;CMakeLists&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;txt&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;STM32F407XX_FLASH&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;ld&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;├──&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;stm32f4_tflm_project&lt;/span&gt;&lt;span class=&#34;o&#34;&gt;.&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;md&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;err&#34;&gt;└──&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;...&lt;/span&gt; &lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;configuration&lt;/span&gt; &lt;span class=&#34;n&#34;&gt;files&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/details&gt;
+
+&lt;p&gt;Thanks for reading. If you&amp;rsquo;ve hit the same pitfalls, feel free to share; if you&amp;rsquo;re currently stuck, I hope this article provides some inspiration.&lt;/p&gt;
+</description>
+        </item>
+        
+    </channel>
+</rss>

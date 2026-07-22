@@ -1,0 +1,401 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>Engineering Thinking on lingsir007</title>
+        <link>https://lingsir007.netlify.app/en/tags/engineering-thinking/</link>
+        <description>Recent content in Engineering Thinking on lingsir007</description>
+        <generator>Hugo -- gohugo.io</generator>
+        <language>en</language>
+        <copyright>lingsir007</copyright>
+        <lastBuildDate>Wed, 22 Jul 2026 10:33:36 +0800</lastBuildDate><atom:link href="https://lingsir007.netlify.app/en/tags/engineering-thinking/index.xml" rel="self" type="application/rss+xml" /><item>
+        <title>Embedded Engineers in the AI Era: Rebuilding Yourself Between Emptiness and Mastery</title>
+        <link>https://lingsir007.netlify.app/en/p/embedded-engineers-in-the-ai-era-rebuilding-yourself-between-emptiness-and-mastery/</link>
+        <pubDate>Sun, 19 Jul 2026 00:00:00 +0000</pubDate>
+        
+        <guid>https://lingsir007.netlify.app/en/p/embedded-engineers-in-the-ai-era-rebuilding-yourself-between-emptiness-and-mastery/</guid>
+        <description>&lt;img src="https://lingsir007.netlify.app/p/ai-%E6%97%B6%E4%BB%A3%E7%9A%84%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E5%9C%A8%E7%A9%BA%E8%99%9A%E4%B8%8E%E6%8E%8C%E6%8E%A7%E4%B9%8B%E9%97%B4%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91/AI%E6%97%B6%E4%BB%A3%E5%B5%8C%E5%85%A5%E5%BC%8F%E5%B7%A5%E7%A8%8B%E5%B8%88%E9%87%8D%E5%A1%91%E8%87%AA%E6%88%91.png" alt="Featured image of post Embedded Engineers in the AI Era: Rebuilding Yourself Between Emptiness and Mastery" /&gt;&lt;blockquote&gt;
+&lt;p&gt;When outsiders are all exclaiming &amp;ldquo;AI will replace programmers,&amp;rdquo; the ones most fervently using AI and enjoying its efficiency dividends are, ironically, programmers themselves. This is a dark humor that only insiders understand — and a collective gamble on the future.&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;prologue-the-emptiness-of-being-swept-along-by-borrowed-power&#34;&gt;Prologue: The Emptiness of Being Swept Along by Borrowed Power
+&lt;/h2&gt;&lt;p&gt;If you&amp;rsquo;ve ever been like me, staying up late watching AI rapidly spit out perfect code on screen, what welled up inside might not have been excitement, but an indescribable &lt;strong&gt;sense of emptiness&lt;/strong&gt;.
+This feeling stems from a secret panic: &lt;strong&gt;I have mastered a power that does not belong to me.&lt;/strong&gt;
+That code was elegant, efficient, and even contained advanced algorithms I&amp;rsquo;d never heard of. I just had to copy, paste, compile, and the project ran. But did I really learn it? No. I was merely a &amp;ldquo;feature porter.&amp;rdquo; This &lt;strong&gt;struggle of &amp;ldquo;only knowing how to write code with AI&amp;rdquo;&lt;/strong&gt; haunts every embedded engineer rushing through projects like a ghost.
+We face a dual dilemma:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;The anxiety of tight deadlines&lt;/strong&gt;: To deliver project quality and quantity, we have no time to carefully digest the cutting-edge content AI throws at us.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The emptiness of growth&lt;/strong&gt;: The project was delivered, but my experience points didn&amp;rsquo;t seem to grow proportionally.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;However, research data gives us a starkly different perspective. Those who can &lt;strong&gt;use AI in a disciplined manner, leveraging it to improve efficiency and solve tedious, repetitive work&lt;/strong&gt; hold the most optimistic attitudes toward their future career planning and prospects.
+Why? Because they&amp;rsquo;ve seen through a truth: &lt;strong&gt;AI is not here to steal the fruits of your labor — it&amp;rsquo;s the jaw that helps you gnaw through the &amp;ldquo;tough bones.&amp;quot;&lt;/strong&gt; With or without AI, those technical hurdles you&amp;rsquo;ve never tackled, those complex system architectures — they all must be overcome. The difference now is: do you choose to gnaw at them with your bare teeth, or do you learn to forge and wield a sharp &lt;strong&gt;&amp;ldquo;dragon-slaying blade&amp;rdquo;&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;This article is a record of how I emerged from that emptiness, attempting to find a path to &lt;strong&gt;internalize &amp;ldquo;borrowed power&amp;rdquo; as &amp;ldquo;intrinsic capability&amp;rdquo;&lt;/strong&gt;.&lt;/p&gt;
+&lt;hr&gt;
+&lt;h2 id=&#34;i-value-reconstruction-the-truth-beneath-the-iceberg&#34;&gt;I. Value Reconstruction: The Truth Beneath the Iceberg
+&lt;/h2&gt;&lt;h3 id=&#34;1-escaping-the-trap-of-diligence&#34;&gt;1. Escaping the &amp;ldquo;Trap of Diligence&amp;rdquo;
+&lt;/h3&gt;&lt;p&gt;Many beginners (and even some experienced developers) easily fall into a trap: becoming addicted to the sense of accomplishment from &amp;ldquo;hand-coding.&amp;rdquo; They feel that only what they&amp;rsquo;ve typed line by line counts as &amp;ldquo;having learned it.&amp;rdquo; Little do they know, this is often a case of &lt;strong&gt;&amp;ldquo;using tactical diligence to mask strategic laziness&amp;rdquo;&lt;/strong&gt;.&lt;/p&gt;
+&lt;p&gt;The reality is brutal: &lt;strong&gt;99% of problems have already been solved by predecessors.&lt;/strong&gt; Writing an I2C driver? The chip vendor&amp;rsquo;s HAL library has the standard answer. Writing a ring buffer? The Linux kernel implementation is textbook-level.
+If you don&amp;rsquo;t study the achievements of predecessors, the code you spend three days writing is often full of bugs, unhandled edge cases, and poor efficiency. You hand-crafted a square, airless wheel, while AI directly gave you a Ferrari wheel. &lt;strong&gt;Not only is it inefficient, but you also never learned why the Ferrari goes fast.&lt;/strong&gt;&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-warning&#34;&gt;
+    &lt;p&gt;Being addicted to &amp;ldquo;hand-coding&amp;rdquo; is a manifestation of &lt;strong&gt;tactical diligence, strategic laziness&lt;/strong&gt;. 99% of problems have already been solved by predecessors; not learning from their results and instead reinventing the wheel from scratch — and a square one at that.&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;2-the-depreciation-of-code-implementation-and-the-appreciation-of-thinking&#34;&gt;2. The Depreciation of Code Implementation and the Appreciation of Thinking
+&lt;/h3&gt;&lt;p&gt;In the AI era, the value system has undergone a dramatic tectonic shift:&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Layer&lt;/th&gt;
+					&lt;th&gt;Content&lt;/th&gt;
+					&lt;th&gt;Current Status&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Above the Surface (Functional Code)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Button logic, UI navigation, simple protocol send/receive&lt;/td&gt;
+					&lt;td&gt;Value approaches zero — AI dominates this domain&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Below the Surface (Core Assets)&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Core algorithms, system architecture, security, robustness&lt;/td&gt;
+					&lt;td&gt;Value infinitely amplified — the watershed between &amp;ldquo;toys&amp;rdquo; and &amp;ldquo;industrial products&amp;rdquo;&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;Work places more emphasis on project engineering experience, and this is precisely why.&lt;/strong&gt; Because experience represents how many pitfalls you&amp;rsquo;ve encountered. Books teach you how to write code, but experience teaches you how to handle exceptions. For example, what do you do when I2C communication hangs under interference? How do you recover data when power fails mid-Flash-erase? These &amp;ldquo;bloody&amp;rdquo; lessons and trade-off decisions based on physical constraints are what AI struggles to auto-generate.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-question&#34;&gt;
+    &lt;p&gt;&lt;strong&gt;Will AI replace programmers?&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;This is a false proposition. AI replaces &amp;ldquo;code monkeys&amp;rdquo; — those who rely solely on mature business logic, type code manually, and never think about architecture. For those who know how to leverage AI to unleash productivity and innovate standing on the shoulders of giants, AI is an amplifier. &lt;strong&gt;Outsiders see the noise and feel crisis everywhere; insiders see the craft and are riding high.&lt;/strong&gt; It&amp;rsquo;s precisely those who can use AI in a disciplined way and automate tedious work who are the most optimistic about their career prospects.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;ii-a-new-interpretation-of-project-experience-from-implementer-to-manager&#34;&gt;II. A New Interpretation of Project Experience: From &amp;ldquo;Implementer&amp;rdquo; to &amp;ldquo;Manager&amp;rdquo;
+&lt;/h2&gt;&lt;p&gt;On resumes or in interviews, we often see project descriptions. In the AI era, we need to re-examine: &lt;strong&gt;what did we actually gain from a project?&lt;/strong&gt;
+On the surface, it might just be &amp;ldquo;experience of having AI implement related features and getting them to work.&amp;rdquo; But this is merely the surface. The true deep value lies in the evolution of the role you played in the project.&lt;/p&gt;
+&lt;h3 id=&#34;1-beware-of-being-a-feature-porter&#34;&gt;1. Beware of Being a &amp;ldquo;Feature Porter&amp;rdquo;
+&lt;/h3&gt;&lt;p&gt;If you merely treat the project as &amp;ldquo;having AI write code, and then it ran,&amp;rdquo; your experience is fragile. Because once the chip changes, once the protocol changes, the code AI generates changes too, and your &amp;ldquo;experience of getting it to work&amp;rdquo; may become invalid. This kind of experience is essentially just &amp;ldquo;experience of trying an AI tool,&amp;rdquo; not &amp;ldquo;engineering experience.&amp;rdquo;
+This is the source of that &lt;strong&gt;sense of emptiness&lt;/strong&gt; — you delivered code, but you didn&amp;rsquo;t deliver your own growth.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-caution&#34;&gt;
+    &lt;p&gt;The experience of &amp;ldquo;having AI write code and then getting it to work&amp;rdquo; is fragile. Change the chip, change the protocol, and your &amp;ldquo;debugging experience&amp;rdquo; may fail. This is essentially &amp;ldquo;experience of trying an AI tool,&amp;rdquo; not &amp;ldquo;engineering experience.&amp;rdquo;&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;2-the-true-essence-of-project-experience-decision-making-and-control&#34;&gt;2. The True Essence of Project Experience: Decision-Making and Control
+&lt;/h3&gt;&lt;p&gt;A high-quality AI-assisted project actually proves you possess the following capabilities:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Requirement translation capability&lt;/strong&gt;: You can transform a vague requirement like &amp;ldquo;I want a temperature and humidity monitoring system&amp;rdquo; into an AI-executable &lt;strong&gt;constraint package&lt;/strong&gt; like &amp;ldquo;STM32F407 + 2000ms period + MQTT protocol + static memory allocation.&amp;rdquo;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Architecture governance capability&lt;/strong&gt;: You don&amp;rsquo;t just have AI write code — you also lock down AI&amp;rsquo;s design direction through &lt;strong&gt;engineering artifacts (module diagrams, state machines)&lt;/strong&gt;, ensuring clear code structure and decoupled modules.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Tough bone gnawing capability&lt;/strong&gt;: For technical difficulties you&amp;rsquo;ve never tackled (regardless of the method), you must gnaw through them. AI helps you search for information and propose solutions, but &lt;strong&gt;making the final decision&lt;/strong&gt; and &lt;strong&gt;physical verification&lt;/strong&gt; (checking waveforms with an oscilloscope, checking memory with map files) must be done by you.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;blockquote class=&#34;alert alert-important&#34;&gt;
+    &lt;p&gt;Project experience is not about whether the code was typed by you or by AI — it&amp;rsquo;s about &lt;strong&gt;what rules you defined&lt;/strong&gt; and &lt;strong&gt;how you verified the validity of those rules in the physical world&lt;/strong&gt;. When you start focusing on these things, the sense of emptiness will be replaced by a sense of mastery.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;iii-methodology-upgrade-how-to-efficiently-use-ai-to-solve-embedded-problems&#34;&gt;III. Methodology Upgrade: How to Efficiently Use AI to Solve Embedded Problems
+&lt;/h2&gt;&lt;p&gt;The uniqueness of embedded development lies in &lt;strong&gt;hardware physical constraints&lt;/strong&gt; (timing, memory, power consumption). AI is a genius, but it doesn&amp;rsquo;t understand physics, and it doesn&amp;rsquo;t understand your board. Therefore, we need a &amp;ldquo;human-centric, AI-as-accelerator&amp;rdquo; methodology. This not only improves efficiency but also ensures that within limited time, we truly digest that &amp;ldquo;cutting-edge&amp;rdquo; content.&lt;/p&gt;
+&lt;h3 id=&#34;1-core-strategy-context-engineering&#34;&gt;1. Core Strategy: Context Engineering
+&lt;/h3&gt;&lt;p&gt;The biggest taboo in embedded development is &amp;ldquo;air-to-air&amp;rdquo; communication. The root cause of AI writing unusable code is the lack of hardware environment context.&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th&gt;Usage Level&lt;/th&gt;
+					&lt;th&gt;Example&lt;/th&gt;
+					&lt;th&gt;Result&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Beginner&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;&amp;ldquo;Help me write code to read MPU6050&amp;rdquo;&lt;/td&gt;
+					&lt;td&gt;Gives you standard Linux I2C code that freezes immediately on STM32&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td&gt;&lt;strong&gt;Advanced&lt;/strong&gt;&lt;/td&gt;
+					&lt;td&gt;Provide complete context (see below)&lt;/td&gt;
+					&lt;td&gt;Generates usable code with error handling&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;p&gt;&lt;strong&gt;Advanced usage (providing context) example&lt;/strong&gt;:&lt;/p&gt;
+&lt;blockquote&gt;
+&lt;p&gt;&amp;ldquo;I&amp;rsquo;m using STM32F407VET6, developing based on the HAL library. The I2C interface is I2C1, with SCL/SDA pins PB6/PB7. Clock frequency is configured at 84MHz. Please help me write a function to read the MPU6050 WHO_AM_I register, including error handling and timeout mechanism (Timeout=100ms), using blocking mode, and conforming to MISRA C standards.&amp;rdquo;&lt;/p&gt;
+&lt;/blockquote&gt;
+&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;The more precise the context, the more reliable the AI output. In embedded scenarios, &lt;strong&gt;chip model, peripheral interface, pin configuration, clock frequency, and constraint conditions&lt;/strong&gt; are all indispensable. It&amp;rsquo;s like giving an intern a complete spec — only then can they deliver qualified work.&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;2-decision-assistance-using-ai-for-brainstorming&#34;&gt;2. Decision Assistance: Using AI for &amp;ldquo;Brainstorming&amp;rdquo;
+&lt;/h3&gt;&lt;p&gt;Before writing code, use AI to close information gaps and assist with architectural decisions. This reflects &amp;ldquo;architect&amp;rdquo; thinking.&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Scenario A: Technology Selection&lt;/strong&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;Question&lt;/em&gt;: &amp;ldquo;I need to implement a simple file system on a resource-constrained STM32F103 to log data. FatFS is too big — how about LittleFS? Or do you have any lighter suggestions? Please compare their wear-leveling algorithms and RAM usage.&amp;rdquo;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Scenario B: Architecture Design&lt;/strong&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;Question&lt;/em&gt;: &amp;ldquo;I have a sampling interrupt (1kHz) and a UART send task. To prevent packet loss, should I use a message queue or a ring buffer? Please give pseudocode comparisons for both approaches and analyze their behavior under high load.&amp;rdquo;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;3-pitfall-avoidance-guide-using-ai-for-red-team-testing&#34;&gt;3. Pitfall Avoidance Guide: Using AI for &amp;ldquo;Red Team Testing&amp;rdquo;
+&lt;/h3&gt;&lt;p&gt;Rather than having AI write code, have it &lt;strong&gt;review your code&lt;/strong&gt;. This is a shortcut to improving robustness, and it&amp;rsquo;s using AI as a &amp;ldquo;senior mentor.&amp;rdquo;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Static Analysis&lt;/strong&gt;: Paste your C code to AI.
+&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;Instruction&lt;/em&gt;: &amp;ldquo;Please check this code for potential memory leaks, array out-of-bounds, deadlock risks, or integer overflows? Focus on pointer usage and interrupt safety.&amp;rdquo;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Code Optimization&lt;/strong&gt;:
+&lt;ul&gt;
+&lt;li&gt;&lt;em&gt;Instruction&lt;/em&gt;: &amp;ldquo;This function runs too slowly on my 72MHz MCU. Can you help me check if it can be optimized using lookup tables, bit manipulation, or reducing division operations?&amp;rdquo;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;4-critical-red-lines-where-must-humans-intervene&#34;&gt;4. Critical &amp;ldquo;Red Lines&amp;rdquo;: Where Must Humans Intervene?
+&lt;/h3&gt;&lt;p&gt;Although AI is powerful, in the embedded domain, the following three aspects &lt;strong&gt;must be personally controlled by you&lt;/strong&gt;, or disaster ensues:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Timing and Physical World Verification&lt;/strong&gt;: AI doesn&amp;rsquo;t understand &amp;ldquo;electricity.&amp;rdquo; The I2C timing AI writes might not account for slowed rising edges caused by capacitance. &lt;strong&gt;You must check waveforms with an oscilloscope/logic analyzer.&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Resource Usage Control&lt;/strong&gt;: AI doesn&amp;rsquo;t understand &amp;ldquo;poverty.&amp;rdquo; For code elegance, it might allocate large arrays or use &lt;code&gt;printf&lt;/code&gt;. &lt;strong&gt;You must check &lt;code&gt;.map&lt;/code&gt; files to verify RAM/Flash usage.&lt;/strong&gt;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Safety Net&lt;/strong&gt;: AI doesn&amp;rsquo;t understand &amp;ldquo;malice.&amp;rdquo; The parsing function AI writes might not validate data length. &lt;strong&gt;You must personally do Code Reviews and check boundary protection.&lt;/strong&gt;&lt;/li&gt;
+&lt;/ol&gt;
+&lt;blockquote class=&#34;alert alert-caution&#34;&gt;
+    &lt;p&gt;Three inviolable red lines in embedded development:&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;&lt;strong&gt;Timing Verification&lt;/strong&gt; — AI doesn&amp;rsquo;t understand &amp;ldquo;electricity&amp;rdquo;; you must check waveforms with an oscilloscope&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Resource Control&lt;/strong&gt; — AI doesn&amp;rsquo;t understand &amp;ldquo;poverty&amp;rdquo;; you must check &lt;code&gt;.map&lt;/code&gt; files&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Safety Net&lt;/strong&gt; — AI doesn&amp;rsquo;t understand &amp;ldquo;malice&amp;rdquo;; you must personally do Code Reviews&lt;/li&gt;
+&lt;/ol&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;5-the-achilles-heel-of-embedded-ai-current-status-and-limitations&#34;&gt;5. The &amp;ldquo;Achilles&amp;rsquo; Heel&amp;rdquo; of Embedded AI: Current Status and Limitations
+&lt;/h3&gt;&lt;p&gt;We must soberly recognize that AI at its current stage is &lt;strong&gt;not omnipotent&lt;/strong&gt; in embedded development — it even has quite obvious shortcomings. This is not to deny AI&amp;rsquo;s value, but to use it more rationally. These limitations are mainly reflected in:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Domain Knowledge Scarcity and Insufficient Training Data&lt;/strong&gt;: General large models have relatively little training data in the embedded domain, especially deep-level information for specific chips and peripherals. This leads to AI having &lt;strong&gt;incomplete knowledge of hardware and chip specifics&lt;/strong&gt;, and may even &lt;strong&gt;fabricate fake APIs&lt;/strong&gt;. For example, it might confidently recommend a register or library function that doesn&amp;rsquo;t exist at all, causing you to hit a wall at compile time, or exhibiting unpredictable behavior at runtime.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;The &amp;ldquo;Hallucination&amp;rdquo; Problem and Factual Errors&lt;/strong&gt;: AI can speak nonsense with a straight face. It might generate seemingly reasonable but actually incorrect circuit connection suggestions, or give misleading information about a chip&amp;rsquo;s electrical characteristics (such as maximum drive capability, power consumption curves). This &lt;strong&gt;correctness-not-guaranteed&lt;/strong&gt; characteristic is especially dangerous when it involves hardware design and circuit crossover, potentially &lt;strong&gt;causing obstacles in hardware design where actual crossovers occur&lt;/strong&gt;, or even damaging hardware.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Lack of Physical World Perception&lt;/strong&gt;: AI doesn&amp;rsquo;t understand &amp;ldquo;heat,&amp;rdquo; &amp;ldquo;noise,&amp;rdquo; or &amp;ldquo;electromagnetic interference&amp;rdquo; — these physical realities. It can&amp;rsquo;t tell you whether a long high-frequency signal trace will introduce crosstalk, or whether a power supply filtering scheme will be stable at low temperatures. All of these require engineers&amp;rsquo; experience and physical world verification.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Context Window and Project Scale Limitations&lt;/strong&gt;: For large embedded projects, AI&amp;rsquo;s context window may not accommodate the entire codebase and documentation, causing it to deviate when understanding global architecture and module dependencies. It excels at handling local, modular tasks but struggles with complex cross-file, cross-module interactions.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;blockquote class=&#34;alert alert-note&#34;&gt;
+    &lt;p&gt;This is precisely why the industry is investing heavily in &lt;strong&gt;building high-quality domain knowledge bases (RAG)&lt;/strong&gt;, &lt;strong&gt;implementing verification loops based on real tool feedback&lt;/strong&gt;, and &lt;strong&gt;tackling register-level fact verification and citation tracing&lt;/strong&gt; to reduce these &amp;ldquo;hallucinations&amp;rdquo; and make AI output more reliable. But this also tells us: &lt;strong&gt;at the current stage, AI is more like an &amp;ldquo;intern&amp;rdquo; who needs strict guidance and verification, not an &amp;ldquo;expert&amp;rdquo; you can fully rely on&lt;/strong&gt;. Our role has shifted from &amp;ldquo;the person who writes code&amp;rdquo; to &amp;ldquo;the architect and quality gatekeeper who defines problems, designs boundaries, and verifies results.&amp;rdquo;&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;iv-engineering-artifact-ization-turning-design-into-ai-executable-input&#34;&gt;IV. Engineering Artifact-ization: Turning Design into AI-Executable Input
+&lt;/h2&gt;&lt;p&gt;Requirements packages alone aren&amp;rsquo;t enough — design logic is implicit. We need to transform the designs in our minds into &lt;strong&gt;explicit engineering artifacts&lt;/strong&gt; to lock down AI&amp;rsquo;s thinking boundaries and prevent it from going off-topic (producing hallucinations). This isn&amp;rsquo;t just a method to improve code quality — it&amp;rsquo;s a process of &lt;strong&gt;forcing yourself to think deeply&lt;/strong&gt;.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-question&#34;&gt;
+    &lt;p&gt;&lt;strong&gt;Why must you draw diagrams?&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Because AI has &amp;ldquo;hallucinations.&amp;rdquo; If you don&amp;rsquo;t give it a map (module diagram), it might draw a circular square. Artifact-ization forces AI to work within the framework you set, ensuring the generated code architecture is controllable. At the same time, when you can draw what&amp;rsquo;s in your mind, that &amp;ldquo;hollow anxiety&amp;rdquo; disappears.&lt;/p&gt;&lt;/blockquote&gt;&lt;h3 id=&#34;1-core-engineering-artifacts&#34;&gt;1. Core Engineering Artifacts
+&lt;/h3&gt;&lt;p&gt;You need to learn to create (using Mermaid or text descriptions) the following artifacts:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Module Diagram&lt;/strong&gt;: Clarify who calls whom, delineate boundaries.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Interface Table&lt;/strong&gt;: Clarify function signatures, input and output parameters.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;State Machine&lt;/strong&gt;: Clarify state transition logic, prevent if-else chaos.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Sequence Diagram&lt;/strong&gt;: Clarify ordering and timing constraints.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;2-practice-artifact-izing-disconnect-reconnect-and-data-caching-logic&#34;&gt;2. Practice: Artifact-izing &amp;ldquo;Disconnect-Reconnect and Data Caching&amp;rdquo; Logic
+&lt;/h3&gt;&lt;p&gt;If you want AI to help you implement complex logic, first show it &lt;strong&gt;design artifacts&lt;/strong&gt;.
+&lt;strong&gt;Prompt Example (Artifact Input):&lt;/strong&gt;&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt; 1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt; 9
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;10
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;11
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;12
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;13
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;14
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;15
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;16
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;17
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;18
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;19
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;20
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;21
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;22
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-markdown&#34; data-lang=&#34;markdown&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;gh&#34;&gt;# Design Artifacts for Implementation
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Based on the above requirements, I have completed the architectural design. Please strictly follow the artifacts below for code implementation:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;gu&#34;&gt;## 1. Module Architecture
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Please implement the following three modules:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;sb&#34;&gt;`SensorMgr`&lt;/span&gt;: Responsible for low-level AHT10 driver and data reading.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;sb&#34;&gt;`DataCache`&lt;/span&gt;: Responsible for local data caching (FIFO) during network disconnection.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;-&lt;/span&gt; &lt;span class=&#34;sb&#34;&gt;`NetMgr`&lt;/span&gt;: Responsible for MQTT sending and network status management.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;gu&#34;&gt;## 2. Interface Definition
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;Please strictly follow the interface signatures below — do not modify:
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;s&#34;&gt;```c
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;sensor_read&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;sensor_data_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;cache_push&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;k&#34;&gt;const&lt;/span&gt; &lt;span class=&#34;kt&#34;&gt;sensor_data_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;int&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;cache_pop&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;sensor_data_t&lt;/span&gt; &lt;span class=&#34;o&#34;&gt;*&lt;/span&gt;&lt;span class=&#34;n&#34;&gt;data&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;kt&#34;&gt;net_state_t&lt;/span&gt; &lt;span class=&#34;nf&#34;&gt;net_get_status&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;(&lt;/span&gt;&lt;span class=&#34;kt&#34;&gt;void&lt;/span&gt;&lt;span class=&#34;p&#34;&gt;);&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;s&#34;&gt;```&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;h2 id=&#34;3-state-machine-business-logic-state-machine&#34;&gt;3. State Machine (Business Logic State Machine)
+&lt;/h2&gt;&lt;p&gt;The main thread logic must strictly follow the state machine transitions below:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;7
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;8
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;9
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-fallback&#34; data-lang=&#34;fallback&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;stateDiagram-v2
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    [*] --&amp;gt; IDLE: Power On
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    IDLE --&amp;gt; READING: Timer Trigger
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    READING --&amp;gt; CACHE_CHECKING: Data Read
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    CACHE_CHECKING --&amp;gt; NET_PUBLISHING: Net is Connected
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    CACHE_CHECKING --&amp;gt; LOCAL_SAVING: Net is Disconnected
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    LOCAL_SAVING --&amp;gt; IDLE: Save Success
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    NET_PUBLISHING --&amp;gt; IDLE: Publish Success
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;    note right of LOCAL_SAVING: If Cache is full, discard oldest data.
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;hr&gt;
+&lt;h2 id=&#34;v-capability-precipitation-the-leap-from-prompt-to-skill&#34;&gt;V. Capability Precipitation: The Leap from Prompt to Skill
+&lt;/h2&gt;&lt;p&gt;When building GPTs or custom Agents, &lt;strong&gt;Prompt&lt;/strong&gt; and &lt;strong&gt;Skill&lt;/strong&gt; are concepts at two different levels. This is a crucial step toward saying goodbye to emptiness and building a personal moat.&lt;/p&gt;
+&lt;table&gt;
+	&lt;thead&gt;
+			&lt;tr&gt;
+					&lt;th style=&#34;text-align: left&#34;&gt;Dimension&lt;/th&gt;
+					&lt;th style=&#34;text-align: left&#34;&gt;&lt;strong&gt;Prompt&lt;/strong&gt;&lt;/th&gt;
+					&lt;th style=&#34;text-align: left&#34;&gt;&lt;strong&gt;Skill&lt;/strong&gt;&lt;/th&gt;
+			&lt;/tr&gt;
+	&lt;/thead&gt;
+	&lt;tbody&gt;
+			&lt;tr&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;&lt;strong&gt;Essence&lt;/strong&gt;&lt;/td&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;Temporary instruction&lt;/td&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;Precipitated asset&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;&lt;strong&gt;Reusability&lt;/strong&gt;&lt;/td&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;Low — needs modification and resending each time&lt;/td&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;High — once encapsulated, only parameters need passing&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;&lt;strong&gt;Complexity&lt;/strong&gt;&lt;/td&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;Suitable for single, linear tasks&lt;/td&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;Suitable for multi-step, complex, workflow-based tasks&lt;/td&gt;
+			&lt;/tr&gt;
+			&lt;tr&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;&lt;strong&gt;Your Role&lt;/strong&gt;&lt;/td&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;Operator (personally directing)&lt;/td&gt;
+					&lt;td style=&#34;text-align: left&#34;&gt;Architect (setting rules for automatic execution)&lt;/td&gt;
+			&lt;/tr&gt;
+	&lt;/tbody&gt;
+&lt;/table&gt;
+&lt;h3 id=&#34;1-what-kind-of-actions-are-suitable-for-precipitation-into-skills&#34;&gt;1. What Kind of Actions Are Suitable for Precipitation into Skills?
+&lt;/h3&gt;&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;High-frequency reuse&lt;/strong&gt;: Parsing serial data packets, writing unit test frameworks.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Deterministic logic&lt;/strong&gt;: Fixed procedures for initializing peripherals.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Experience-dependent&lt;/strong&gt;: Tasks where beginners easily make mistakes, with clear pitfall-avoidance guides (e.g., memory safety checks).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;2-practice-building-the-embedded_protocol_parser_generator-skill&#34;&gt;2. Practice: Building the &lt;code&gt;Embedded_Protocol_Parser_Generator&lt;/code&gt; Skill
+&lt;/h3&gt;&lt;p&gt;We&amp;rsquo;ll solidify the experience of &amp;ldquo;robust serial parsing.&amp;rdquo; This is the most frequent and painful scenario in embedded development.&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;Experience Precipitation (written into the Skill&amp;rsquo;s rule base):&lt;/strong&gt;&lt;/p&gt;
+&lt;ol&gt;
+&lt;li&gt;Serial communication is stream-based; it must be processed with a state machine.&lt;/li&gt;
+&lt;li&gt;Never trust the Length field; always verify it doesn&amp;rsquo;t exceed Buffer size.&lt;/li&gt;
+&lt;li&gt;Must handle sticky packets / partial packets.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;malloc&lt;/code&gt; is prohibited.&lt;/li&gt;
+&lt;/ol&gt;
+&lt;p&gt;&lt;strong&gt;Skill Structure:&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Input Definition&lt;/strong&gt;:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;code&gt;Frame_Format&lt;/code&gt;: Frame structure definition.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;Header_Value&lt;/code&gt;: Specific hex value of the frame header.&lt;/li&gt;
+&lt;li&gt;&lt;code&gt;Max_Buffer_Size&lt;/code&gt;: Maximum bytes for the receive buffer.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Core Logic Rules (System Prompt section)&lt;/strong&gt;:&lt;/p&gt;
+&lt;div class=&#34;highlight&#34;&gt;&lt;div class=&#34;chroma&#34;&gt;
+&lt;table class=&#34;lntable&#34;&gt;&lt;tr&gt;&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code&gt;&lt;span class=&#34;lnt&#34;&gt;1
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;2
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;3
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;4
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;5
+&lt;/span&gt;&lt;span class=&#34;lnt&#34;&gt;6
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class=&#34;lntd&#34;&gt;
+&lt;pre tabindex=&#34;0&#34; class=&#34;chroma&#34;&gt;&lt;code class=&#34;language-markdown&#34; data-lang=&#34;markdown&#34;&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;gh&#34;&gt;# Rules of Experience
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;1.&lt;/span&gt; &lt;span class=&#34;gs&#34;&gt;**State Machine Design**&lt;/span&gt;: Must include WAIT_HEADER, WAIT_LENGTH, WAIT_DATA, WAIT_CRC, READY states.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;2.&lt;/span&gt; &lt;span class=&#34;gs&#34;&gt;**Safety Defense**&lt;/span&gt;: In WAIT_LENGTH state, if Length &amp;gt; Max_Buffer_Size, must jump directly to WAIT_HEADER and discard data.
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;3.&lt;/span&gt; &lt;span class=&#34;gs&#34;&gt;**Handle Sticky/Partial Packets**&lt;/span&gt;: The parsing function must support stream processing of &amp;#34;one byte at a time.&amp;#34;
+&lt;/span&gt;&lt;/span&gt;&lt;span class=&#34;line&#34;&gt;&lt;span class=&#34;cl&#34;&gt;&lt;span class=&#34;k&#34;&gt;4.&lt;/span&gt; &lt;span class=&#34;gs&#34;&gt;**Memory Strategy**&lt;/span&gt;: Use static arrays; malloc is strictly prohibited.
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Execution Result:&lt;/strong&gt;
+Next time, just input: &amp;ldquo;Header=&lt;code&gt;0xAA55&lt;/code&gt;, CRC=&lt;code&gt;CRC8&lt;/code&gt;, Buffer=&lt;code&gt;128&lt;/code&gt;&amp;rdquo;.
+AI will automatically generate C code with state machine, overflow protection, and stream processing. &lt;strong&gt;This is transforming personal capability into organizational assets.&lt;/strong&gt;&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-tip&#34;&gt;
+    &lt;p&gt;The core value of Skills: &lt;strong&gt;turning personal capability into organizational assets&lt;/strong&gt;. Precipitate once, reuse forever. Next time, just pass in the parameters, and AI will automatically generate code that conforms to your experience-based rules.&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;vi-growth-path-four-stages-from-roadside-to-master&#34;&gt;VI. Growth Path: Four Stages from &amp;ldquo;Roadside&amp;rdquo; to &amp;ldquo;Master&amp;rdquo;
+&lt;/h2&gt;&lt;p&gt;Based on the depth of AI usage, four stages can be defined. These are the criteria for judging whether an engineer is &amp;ldquo;AI-native,&amp;rdquo; and the advancement ladder for you to escape emptiness:&lt;/p&gt;
+&lt;h3 id=&#34;1-essentially-roadside-novicedabbler&#34;&gt;1. Essentially Roadside (Novice/Dabbler)
+&lt;/h3&gt;&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Behavior&lt;/strong&gt;: Only uses free web-based AI (like ChatGPT web), asking questions in plain language (&amp;ldquo;Help me write a sort&amp;rdquo;).&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Characteristics&lt;/strong&gt;: No context, no private data, solves extremely simple generic problems.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Assessment&lt;/strong&gt;: This is &amp;ldquo;consuming AI.&amp;rdquo; It&amp;rsquo;s like randomly grabbing someone on the street for directions — pure luck.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;2-essentially-not-a-master-junior-engineer&#34;&gt;2. Essentially Not a Master (Junior Engineer)
+&lt;/h3&gt;&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Behavior&lt;/strong&gt;: Knows context is needed, copies and pastes files from the codebase to AI, but still operates on the web.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Characteristics&lt;/strong&gt;: Has context awareness, but delivery efficiency is extremely low, limited by character limits, unable to cover the entire project.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Assessment&lt;/strong&gt;: This is &amp;ldquo;being a porter.&amp;rdquo; You understand the importance of &amp;ldquo;ingredients,&amp;rdquo; but your &amp;ldquo;kitchen tools&amp;rdquo; (the web interface) are too primitive.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;3-essentially-not-roadside-professional-engineeruser&#34;&gt;3. Essentially Not Roadside (Professional Engineer/User)
+&lt;/h3&gt;&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Behavior&lt;/strong&gt;: Uses AI-integrated environments (like Cursor, Windsurf, VSCode + Copilot), directly adding workspaces.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Characteristics&lt;/strong&gt;: Tools are in place, can improve daily efficiency. But lacks management thinking, directly throwing the entire workspace at AI causes too much noise.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Assessment&lt;/strong&gt;: You&amp;rsquo;ve left the &amp;ldquo;roadside stall&amp;rdquo; and entered the regular army ranks — you&amp;rsquo;re a &amp;ldquo;skilled worker.&amp;rdquo;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id=&#34;4-essentially-a-master-ai-architecttop-player&#34;&gt;4. Essentially a Master (AI Architect/Top Player)
+&lt;/h3&gt;&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Behavior&lt;/strong&gt;: &lt;strong&gt;Not just using AI, but managing AI.&lt;/strong&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Managing MD Engineering&lt;/strong&gt;: Writes structured Prompt templates and technical documents as AI&amp;rsquo;s knowledge base.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Branch Configuration Optimization&lt;/strong&gt;: Uses Git branches to manage different versions of context, preventing old code from interfering with new logic.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Optimizing Retrieval Efficiency&lt;/strong&gt;: Filters out noise like &lt;code&gt;build&lt;/code&gt;, &lt;code&gt;node_modules&lt;/code&gt; through configurations like &lt;code&gt;.cursorignore&lt;/code&gt;, keeping AI focused on core code.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Precipitating Skills&lt;/strong&gt;: Writes Debug experience and design patterns into custom instructions or Agents.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Assessment&lt;/strong&gt;: You&amp;rsquo;re no longer using AI to solve problems — you&amp;rsquo;ve &lt;strong&gt;built an &amp;ldquo;AI-based automated R&amp;amp;D system&amp;rdquo;&lt;/strong&gt;. You&amp;rsquo;ve created an AI assistant that obeys you. At this point, you&amp;rsquo;ll never feel empty again, because every Skill you precipitate is a solid brick in your capability moat.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;blockquote class=&#34;alert alert-question&#34;&gt;
+    &lt;p&gt;&lt;strong&gt;Why do masters need to manage MD and branch configurations?&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Because in large-scale engineering, context is money. Invalid noise dilutes AI&amp;rsquo;s attention. Masters achieve precise control over AI&amp;rsquo;s thinking process through fine-grained management (MD documents as structured knowledge, branches as isolated environments) — this is the essential leap from &amp;ldquo;using tools&amp;rdquo; to &amp;ldquo;mastering tools.&amp;rdquo;&lt;/p&gt;&lt;/blockquote&gt;&lt;hr&gt;
+&lt;h2 id=&#34;vii-epilogue-redefining-yourself-amidst-the-tide&#34;&gt;VII. Epilogue: Redefining Yourself Amidst the Tide
+&lt;/h2&gt;&lt;p&gt;Returning to the original question: &lt;strong&gt;what did we actually gain from a project?&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;If you just had AI write code for you, what you gained is a runnable binary file and an empty resume.
+But if you follow the methodology above — defining constraints, creating artifacts, precipitating Skills, managing context — then what you gain is:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;From &amp;ldquo;Implementer&amp;rdquo; to &amp;ldquo;Decision-Maker&amp;rdquo;&lt;/strong&gt;: No longer fixating on specific syntax implementation, but focusing on technology selection, architectural design, and resource trade-offs.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;From &amp;ldquo;Lone Warrior&amp;rdquo; to &amp;ldquo;System Integrator&amp;rdquo;&lt;/strong&gt;: Using AI to break through full-stack barriers, becoming a super-individual capable of solving complex system problems.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;From &amp;ldquo;Experience Accumulation&amp;rdquo; to &amp;ldquo;Knowledge Precipitation&amp;rdquo;&lt;/strong&gt;: Transforming personal experience into reusable Skills, building your own automated R&amp;amp;D system.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;AI is not the terminator of programmers — it is the &amp;ldquo;filter of the mediocre&amp;rdquo; and the &amp;ldquo;amplifier of the elite.&amp;quot;&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Those who use AI in a disciplined way are optimistic not because they depend on AI, but because through AI, they&amp;rsquo;ve found a more advanced way of surviving. &lt;strong&gt;No matter how tough the bones are, we now have sharper jaws; no matter how tight the deadlines, we now have more efficient engines.&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;But at the same time, we must remain constantly clear-headed: &lt;strong&gt;AI, especially in fields like embedded systems, is far from perfect.&lt;/strong&gt; It has its &amp;ldquo;Achilles&amp;rsquo; heel&amp;rdquo; — scarcity of domain knowledge, unavoidable &amp;ldquo;hallucinations,&amp;rdquo; and absence of physical world perception. These all require us to compensate, master, and transcend with deep engineering experience, rigorous verification processes, and a never-ending spirit of skepticism.&lt;/p&gt;
+&lt;blockquote class=&#34;alert alert-important&#34;&gt;
+    &lt;p&gt;&lt;strong&gt;Our value lies precisely in being able to see through AI&amp;rsquo;s limitations and organize all resources (including AI itself) to overcome those limitations, ultimately delivering a reliable, robust system that can operate in the real world for the long term.&lt;/strong&gt;&lt;/p&gt;&lt;/blockquote&gt;&lt;p&gt;As long as you can grasp the essence of engineering thinking, master advanced methods of collaborating with AI, and maintain reverence for the physical world and clear awareness of technological boundaries, that sense of emptiness from &amp;ldquo;mastering power that doesn&amp;rsquo;t belong to you&amp;rdquo; will eventually dissipate — replaced by &lt;strong&gt;absolute mastery&lt;/strong&gt; over technology and the future.&lt;/p&gt;
+</description>
+        </item>
+        
+    </channel>
+</rss>
